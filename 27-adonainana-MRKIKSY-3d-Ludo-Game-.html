@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Ludo Ultimate</title>
+<style>
+body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+#ui {
+  position: absolute; top: 10px; left: 10px;
+  width: 240px; background: rgba(0,0,0,0.75);
+  color: #fff; padding: 12px; border-radius: 10px;
+}
+button {
+  width: 100%; padding: 8px; margin-top: 6px; cursor: pointer;
+}
+#message { margin-top: 8px; font-size: 14px; }
+small { font-size: 11px; color: #ccc; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <h3>🎲 3D Ludo Ultimate</h3>
+  <p id="turn">Turn: Red</p>
+  <p id="dice">Dice: -</p>
+  <button id="rollBtn" onclick="rollDice()">Roll Dice</button>
+  <div id="message"></div>
+  <hr>
+  <small>
+    Rules:<br>
+    • Roll 6 to leave home<br>
+    • 6 = extra turn<br>
+    • Exact roll to finish<br>
+    • Capture sends home<br>
+    • First to center wins
+  </small>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+/* =======================
+   SCENE & CAMERA
+======================= */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202020);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 30, 30);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* =======================
+   LIGHTING
+======================= */
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+directional.position.set(10, 20, 10);
+scene.add(directional);
+
+/* =======================
+   BOARD
+======================= */
+const board = new THREE.Mesh(
+  new THREE.BoxGeometry(24, 1, 24),
+  new THREE.MeshStandardMaterial({ color: 0xf2f2f2 })
+);
+scene.add(board);
+
+/* =======================
+   PATH & STAR TILES
+======================= */
+const path = [];
+const stars = [];
+const steps = 32;
+const R = 9;
+
+for (let i = 0; i < steps; i++) {
+  const angle = (i / steps) * Math.PI * 2;
+  const tile = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 0.4, 2),
+    new THREE.MeshStandardMaterial({ color: 0xcccccc })
+  );
+  tile.position.set(Math.cos(angle)*R, 0.8, Math.sin(angle)*R);
+  scene.add(tile);
+  path.push(tile.position.clone());
+  
+  if (i % 8 === 0) { tile.material.color.set(0xffd700); stars.push(i); }
+}
+
+/* =======================
+   HOME (CENTER)
+======================= */
+const home = new THREE.Mesh(
+  new THREE.CylinderGeometry(2, 2, 0.6, 32),
+  new THREE.MeshStandardMaterial({ color: 0x00ff88 })
+);
+home.position.y = 0.8;
+scene.add(home);
+
+/* =======================
+   PLAYERS
+======================= */
+function createPlayer(color, homePos, name, isAI=false) {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.9, 32, 32),
+    new THREE.MeshStandardMaterial({ color })
+  );
+  mesh.position.copy(homePos); mesh.position.y = 1.5;
+  scene.add(mesh);
+  return { mesh, index: -1, homePos: homePos.clone(), name, isAI };
+}
+
+const players = [
+  createPlayer(0xff3333, new THREE.Vector3(-11,0,-11), "Red (You)"),
+  createPlayer(0x3366ff, new THREE.Vector3(11,0,-11), "Blue (AI)", true),
+  createPlayer(0x33cc33, new THREE.Vector3(11,0,11), "Green (AI)", true),
+  createPlayer(0xffcc00, new THREE.Vector3(-11,0,11), "Yellow (AI)", true)
+];
+
+/* =======================
+   UI ELEMENTS
+======================= */
+const turnText = document.getElementById("turn");
+const diceText = document.getElementById("dice");
+const message = document.getElementById("message");
+const rollBtn = document.getElementById("rollBtn");
+
+/* =======================
+   GAME STATE
+======================= */
+let turn = 0, dice = 0, gameOver = false;
+
+/* =======================
+   DICE
+======================= */
+const diceMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(2,2,2),
+  new THREE.MeshStandardMaterial({ color: 0xffffff })
+);
+diceMesh.position.set(0, 5, 0);
+scene.add(diceMesh);
+
+function rollDice() {
+  if (gameOver) return;
+  dice = Math.floor(Math.random()*6)+1;
+  diceText.innerText = "Dice: " + dice;
+  animateDice(() => handleMove(players[turn]));
+}
+
+function animateDice(cb){
+  let r = 0;
+  function spin() {
+    r += 0.2;
+    diceMesh.rotation.set(r, r, r);
+    if (r < 3) requestAnimationFrame(spin);
+    else cb();
+  }
+  spin();
+}
+
+/* =======================
+   MOVE & CAPTURE LOGIC
+======================= */
+function handleMove(player){
+  if(player.index === -1){
+    if(dice === 6) moveTo(player, 0);
+    else endTurn();
+    return;
+  }
+  const target = player.index + dice;
+  if(target === path.length) return win(player);
+  if(target > path.length) return endTurn();
+  moveTo(player, target);
+}
+
+function moveTo(player, idx){
+  player.index = idx;
+  const target = path[idx];
+  animateMove(player.mesh, target, () => {
+    checkCapture(player);
+    if(dice !== 6) endTurn();
+  });
+}
+
+function animateMove(mesh, target, cb){
+  const start = mesh.position.clone();
+  let t = 0;
+  function step() {
+    t += 0.05;
+    mesh.position.lerpVectors(start, new THREE.Vector3(target.x,1.5,target.z), t);
+    mesh.position.y = 1.5 + Math.sin(t*Math.PI)*0.8;
+    if(t < 1) requestAnimationFrame(step);
+    else cb();
+  }
+  step();
+}
+
+function checkCapture(player){
+  players.forEach(p => {
+    if(p !== player && p.index === player.index && !stars.includes(p.index)){
+      p.index = -1;
+      p.mesh.position.copy(p.homePos); p.mesh.position.y = 1.5;
+      message.innerText = "💥 Capture!";
+    }
+  });
+}
+
+/* =======================
+   TURN MANAGEMENT
+======================= */
+function endTurn(){
+  turn = (turn + 1) % players.length;
+  updateUI();
+  rotateCamera();
+  if(players[turn].isAI) setTimeout(rollDice, 900);
+}
+
+function updateUI(){
+  turnText.innerText = "Turn: " + players[turn].name;
+  message.innerText = "";
+}
+
+function rotateCamera(){
+  const a = turn / players.length * Math.PI * 2;
+  camera.position.set(Math.cos(a)*30, 30, Math.sin(a)*30);
+  camera.lookAt(0,0,0);
+}
+
+/* =======================
+   WIN CONDITION
+======================= */
+function win(player){
+  gameOver = true;
+  message.innerText = "🏆 " + player.name + " Wins!";
+  rollBtn.disabled = true;
+}
+
+/* =======================
+   ANIMATION LOOP
+======================= */
+function animate(){
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+/* =======================
+   RESIZE HANDLER
+======================= */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>

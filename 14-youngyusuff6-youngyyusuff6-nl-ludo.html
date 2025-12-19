@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Ludo 3D</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --glass: rgba(10, 10, 10, 0.95); --highlight: #ffd700; }
+        /* touch-action: none is crucial for mobile game controls */
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', sans-serif; user-select: none; touch-action: none; }
+        
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+            display: flex; flex-direction: column; justify-content: space-between; padding: 20px;
+        }
+
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white; pointer-events: auto;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.8);
+        }
+
+        #top-hud { display: flex; justify-content: space-between; align-items: flex-start; }
+        
+        #player-list { display: flex; flex-direction: column; gap: 8px; width: 240px; }
+        .player-badge {
+            padding: 10px 15px; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+            display: flex; justify-content: space-between; align-items: center;
+            opacity: 0.5; transition: 0.3s; border-left: 5px solid transparent; background: rgba(30,30,30,0.6);
+        }
+        .player-badge.active { opacity: 1; transform: scale(1.05); background: rgba(50,50,50,0.9); box-shadow: 0 0 15px rgba(255,255,255,0.1); border-color: white; }
+        .player-badge.finished { opacity: 0.8; background: #ffd700; color: black; border-color: white; }
+
+        #status-bar {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            text-align: center; padding: 10px 40px; min-width: 320px;
+        }
+
+        #dice-area {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 15px; pointer-events: auto;
+            transition: bottom 0.3s;
+        }
+
+        #dice-selector { display: flex; gap: 20px; visibility: hidden; }
+        .die-btn {
+            width: 75px; height: 75px; background: white; color: black; border-radius: 15px;
+            font-size: 32px; font-weight: bold; border: 4px solid #444; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: 0.2s; position: relative;
+        }
+        .die-btn:hover { transform: translateY(-5px); border-color: var(--highlight); }
+        .die-btn.selected { background: var(--highlight); border-color: white; transform: scale(1.1); z-index: 10; }
+        .die-btn.used { background: #333; color: #555; border-color: #222; pointer-events: none; opacity: 0.5; transform: scale(0.9); }
+
+        #btn-roll {
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            border: none; padding: 15px 60px; font-size: 1.3rem; font-weight: bold; color: white; text-transform: uppercase; letter-spacing: 1px;
+            border-radius: 50px; box-shadow: 0 0 25px rgba(255, 65, 108, 0.5); transition: 0.3s;
+        }
+        #btn-roll:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 65, 108, 0.7); }
+        #btn-roll:disabled { filter: grayscale(1); cursor: not-allowed; opacity: 0.5; transform: none; }
+
+        #log-area {
+            position: absolute; bottom: 20px; left: 20px; width: 300px; height: 200px; overflow-y: auto;
+            font-size: 0.85rem; padding: 15px; font-family: 'Consolas', monospace; opacity: 0.95;
+            transition: all 0.3s;
+        }
+        #log-area div { margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px; }
+        .log-kill { color: #ff416c; font-weight: bold; }
+        .log-win { color: #ffd700; font-weight: bold; }
+        .log-ai { color: #00e676; font-style: italic; }
+
+        .c-red { border-left-color: #ff3e3e !important; }
+        .c-green { border-left-color: #00e676 !important; }
+        .c-yellow { border-left-color: #ffea00 !important; }
+        .c-blue { border-left-color: #2979ff !important; }
+
+        .modal-content { background: #1a1a1a; color: #fff; border: 1px solid #333; }
+        .form-select, .form-control { background: #2a2a2a; color: white; border: 1px solid #444; }
+
+        /* --- MOBILE OPTIMIZATIONS --- */
+        @media (max-width: 768px) {
+            #ui-layer { padding: 10px; }
+            #player-list { width: 140px; gap: 4px; }
+            .player-badge { padding: 6px 10px; font-size: 0.75rem; }
+            #status-bar { top: 10px; min-width: auto; width: 80%; padding: 8px; }
+            #status-bar h3 { font-size: 1.2rem; }
+            #dice-area { bottom: 80px; width: 100%; }
+            #btn-roll { padding: 12px 40px; font-size: 1rem; }
+            .die-btn { width: 60px; height: 60px; font-size: 24px; }
+            #log-area { width: 160px; height: 120px; bottom: 10px; left: 10px; font-size: 0.7rem; opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <div id="ui-layer">
+        <div id="top-hud">
+            <div id="player-list" class="glass-panel"></div>
+            <button class="btn btn-sm btn-outline-light m-3" style="pointer-events:auto;" onclick="SoundMgr.toggle()">🔊</button>
+        </div>
+        
+        <div id="status-bar" class="glass-panel">
+            <h3 class="m-0" id="main-status">Configuring</h3>
+            <small id="sub-status" class="text-warning">Ready...</small>
+        </div>
+
+        <div id="dice-area">
+            <div id="dice-selector">
+                <button id="die-1" class="die-btn">0</button>
+                <button id="die-2" class="die-btn">0</button>
+            </div>
+            <button id="btn-roll">ROLL DICE</button>
+        </div>
+
+        <div id="log-area" class="glass-panel">
+            <div style="color:#888; margin-bottom:5px; font-weight:bold;">GAME LOG</div>
+            <div id="logs"></div>
+        </div>
+    </div>
+
+    <!-- Winner Overlay -->
+    <div id="winner-overlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:100; flex-direction:column; align-items:center; justify-content:center;">
+        <h1 class="text-warning display-1 fw-bold text-center">GAME OVER</h1>
+        <div id="rankings" class="text-white my-4 text-center px-3"></div>
+        <button class="btn btn-lg btn-outline-light px-5 py-3" onclick="location.reload()">Play Again</button>
+    </div>
+
+    <!-- Setup Modal -->
+    <div class="modal fade" id="setupModal" data-bs-backdrop="static" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-bottom-0">
+                    <h4 class="modal-title fw-bold">🇳🇬 Ultimate Nigerian Ludo</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <label class="form-label text-muted text-uppercase small fw-bold">Players</label>
+                        <select id="player-count" class="form-select btn-lg">
+                            <option value="2">2 Players</option>
+                            <option value="4" selected>4 Players</option>
+                        </select>
+                    </div>
+                    <div id="ai-config" class="mb-4"></div>
+                    <div class="p-3 rounded small" style="background:rgba(255,255,255,0.05);">
+                        <strong class="text-warning">Rules:</strong><br>
+                        • <strong>6</strong> to move out.<br>
+                        • <strong>Start tiles are NOT safe</strong> (Only stars are safe).<br>
+                        • <strong>Capture</strong> sends opponent to base and attacker finishes.<br>
+                        • <strong>Ranking:</strong> Game continues until everyone finishes.
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-success w-100 py-3 fw-bold" id="btn-start-game">START GAME</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // --- AUDIO ---
+        const SoundMgr = {
+            ctx: null, enabled: true,
+            init() { window.AudioContext=window.AudioContext||window.webkitAudioContext; this.ctx=new AudioContext(); },
+            play(t) {
+                if(!this.enabled||!this.ctx)return; if(this.ctx.state==='suspended')this.ctx.resume();
+                const o=this.ctx.createOscillator(), g=this.ctx.createGain();
+                o.connect(g); g.connect(this.ctx.destination); const now=this.ctx.currentTime;
+                if(t==='roll'){
+                    o.type='square'; o.frequency.setValueAtTime(100,now); o.frequency.linearRampToValueAtTime(300,now+0.1);
+                    g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.15);
+                    o.start(now); o.stop(now+0.15);
+                }else if(t==='move'){
+                    o.frequency.setValueAtTime(600,now); g.gain.setValueAtTime(0.1,now); g.gain.linearRampToValueAtTime(0,now+0.1);
+                    o.start(now); o.stop(now+0.1);
+                }else if(t==='kill'){
+                    o.type='sawtooth'; o.frequency.setValueAtTime(150,now); g.gain.setValueAtTime(0.3,now);
+                    g.gain.linearRampToValueAtTime(0,now+0.4); o.start(now); o.stop(now+0.4);
+                }else if(t==='win'){
+                    o.type='triangle'; o.frequency.setValueAtTime(400,now); o.frequency.linearRampToValueAtTime(800,now+0.3);
+                    g.gain.setValueAtTime(0.2,now); g.gain.linearRampToValueAtTime(0,now+1);
+                    o.start(now); o.stop(now+1);
+                }
+            },
+            toggle() { this.enabled=!this.enabled; }
+        };
+
+        // --- SETUP ---
+        const COLORS = { red:0xff3333, green:0x00cc44, yellow:0xffdd00, blue:0x3388ff, white:0xeeeeee, safe:0x888888 };
+        const UNIT = 3;
+        const scene = new THREE.Scene(); scene.background = new THREE.Color(0x050505);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 55, 45); camera.lookAt(0,0,0);
+        
+        const renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        document.getElementById('game-container').appendChild(renderer.domElement);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping=true; controls.maxPolarAngle=Math.PI/2.1;
+        controls.enablePan = false; 
+        
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const light = new THREE.DirectionalLight(0xffffff, 0.8);
+        light.position.set(20,50,20); light.castShadow=true; scene.add(light);
+
+        // --- RESIZE ---
+        function handleResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if(window.innerWidth < window.innerHeight) { camera.position.set(0, 75, 60); } 
+            else { camera.position.set(0, 55, 45); }
+        }
+        window.addEventListener('resize', handleResize);
+        handleResize();
+
+        // --- BOARD ---
+        const boardGroup = new THREE.Group(); scene.add(boardGroup);
+        const globalPath=[], homePaths={red:[],blue:[],yellow:[],green:[]}, bases={red:[],blue:[],yellow:[],green:[]};
+
+        function createTile(x,z,col,type='path'){
+            const geo = new THREE.BoxGeometry(UNIT*0.95, 0.4, UNIT*0.95);
+            const mat = new THREE.MeshPhongMaterial({color:col});
+            const m = new THREE.Mesh(geo,mat); m.position.set(x*UNIT,0,z*UNIT); m.receiveShadow=true;
+            boardGroup.add(m);
+            if(type==='star'){
+                const s = new THREE.Mesh(new THREE.CylinderGeometry(UNIT*0.2,UNIT*0.2,0.5,5), new THREE.MeshBasicMaterial({color:0x333333}));
+                s.position.set(x*UNIT,0,z*UNIT); boardGroup.add(s);
+            }
+            return {x:x*UNIT, z:z*UNIT};
+        }
+
+        function generateBoard() {
+            const cT = new THREE.Mesh(new THREE.BoxGeometry(UNIT*3,0.5,UNIT*3), new THREE.MeshPhongMaterial({map:createCenterTex()}));
+            boardGroup.add(cT);
+            
+            const seg=(sx,sz,dx,dz,len)=>Array.from({length:len},(_,i)=>({x:sx+dx*i,z:sz+dz*i}));
+            const coords = [
+                ...seg(-6,1,1,0,5), ...seg(-1,1,0,1,6), {x:0,z:6}, {x:1,z:6}, // Red->Blue
+                ...seg(1,5,0,-1,5), ...seg(1,1,1,0,6), {x:6,z:0}, {x:6,z:-1}, // Blue->Yellow
+                ...seg(5,-1,-1,0,5), ...seg(1,-1,0,-1,6), {x:0,z:-6}, {x:-1,z:-6}, // Yellow->Green
+                ...seg(-1,-5,0,1,5), ...seg(-1,-1,-1,0,6), {x:-6,z:0}, {x:-6,z:1} // Green->Red
+            ];
+            
+            coords.forEach((p,i)=>{
+                if(i>=52)return;
+                let col=COLORS.white, type='path';
+                if([8,21,34,47].includes(i)){ col=COLORS.safe; type='star'; }
+                if(i===0) col=COLORS.red; if(i===13) col=COLORS.blue;
+                if(i===26) col=COLORS.yellow; if(i===39) col=COLORS.green;
+                globalPath.push(createTile(p.x,p.z,col,type));
+            });
+
+            const mkHome=(dx,dz,sx,sz,k,c)=>{
+                for(let i=0;i<5;i++){
+                    const x=dx+sx*i, z=dz+sz*i; 
+                    createTile(x,z,c); homePaths[k].push({x:x*UNIT,z:z*UNIT});
+                }
+            };
+            mkHome(-5,0,1,0,'red',COLORS.red); mkHome(0,5,0,-1,'blue',COLORS.blue);
+            mkHome(5,0,-1,0,'yellow',COLORS.yellow); mkHome(0,-5,0,1,'green',COLORS.green);
+
+            const mkBase=(x,z,c,k)=>{
+                const b = new THREE.Mesh(new THREE.BoxGeometry(UNIT*5,0.4,UNIT*5), new THREE.MeshPhongMaterial({color:c}));
+                b.position.set(x*UNIT,-0.1,z*UNIT); boardGroup.add(b);
+                [{x:x-1.5,z:z-1.5},{x:x+1.5,z:z-1.5},{x:x-1.5,z:z+1.5},{x:x+1.5,z:z+1.5}].forEach(p=>{
+                    const m=new THREE.Mesh(new THREE.CylinderGeometry(UNIT*0.4,UNIT*0.4,0.5), new THREE.MeshBasicMaterial({color:0xffffff}));
+                    m.position.set(p.x*UNIT,0.1,p.z*UNIT); boardGroup.add(m);
+                    bases[k].push({x:p.x*UNIT,z:p.z*UNIT});
+                });
+            };
+            mkBase(-5,5,COLORS.red,'red'); mkBase(5,5,COLORS.blue,'blue');
+            mkBase(5,-5,COLORS.yellow,'yellow'); mkBase(-5,-5,COLORS.green,'green');
+        }
+
+        function createCenterTex(){
+            const c=document.createElement('canvas');c.width=256;c.height=256;const ctx=c.getContext('2d');
+            ctx.fillStyle='#222';ctx.fillRect(0,0,256,256);
+            const tri=(cl,a)=>{ctx.beginPath();ctx.moveTo(128,128);ctx.lineTo(128+128*Math.cos(a-0.5),128+128*Math.sin(a-0.5));
+            ctx.lineTo(128+128*Math.cos(a+0.5),128+128*Math.sin(a+0.5));ctx.closePath();ctx.fillStyle=cl;ctx.fill();}
+            tri('#ff3333',Math.PI);tri('#3388ff',-Math.PI/2);tri('#ffdd00',0);tri('#00cc44',Math.PI/2);
+            return new THREE.CanvasTexture(c);
+        }
+        generateBoard();
+
+        // --- DICE ---
+        class Dice {
+            constructor(off){
+                this.mesh=new THREE.Mesh(new THREE.BoxGeometry(2,2,2), [1,6,2,5,3,4].map(n=>this.mkFace(n)));
+                this.mesh.position.set(off,10,0); this.mesh.visible=false; this.mesh.castShadow=true; scene.add(this.mesh);
+            }
+            mkFace(n){
+                const c=document.createElement('canvas');c.width=64;c.height=64;const ctx=c.getContext('2d');
+                ctx.fillStyle='#fff';ctx.fillRect(0,0,64,64);ctx.fillStyle='#000';
+                const d=(x,y)=>{ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.fill();}
+                if(n%2)d(32,32); if(n>1){d(14,14);d(50,50);} if(n>3){d(50,14);d(14,50);} if(n===6){d(14,32);d(50,32);}
+                ctx.lineWidth=4;ctx.strokeStyle='#ccc';ctx.strokeRect(0,0,64,64);
+                return new THREE.MeshPhongMaterial({map:new THREE.CanvasTexture(c)});
+            }
+            animate(res,cb){
+                this.mesh.visible=true; this.mesh.position.y=15; const start=Date.now();
+                const tick=()=>{
+                    const e=Date.now()-start;
+                    if(e<800){
+                        this.mesh.position.y=15-(e/800)*13.5; 
+                        this.mesh.rotation.set(this.mesh.rotation.x+0.3, this.mesh.rotation.y+0.4, Math.random());
+                        requestAnimationFrame(tick);
+                    } else {
+                        this.mesh.position.y=1.5; this.snap(res); if(cb)cb();
+                    }
+                }
+                tick();
+            }
+            snap(n){
+                this.mesh.rotation.set(0,0,0);
+                const r={1:{z:Math.PI/2},6:{z:-Math.PI/2},2:{x:0},5:{x:Math.PI},3:{x:-Math.PI/2},4:{x:Math.PI/2}};
+                if(r[n].x!==undefined) this.mesh.rotation.x = r[n].x;
+                if(r[n].z!==undefined) this.mesh.rotation.z = r[n].z;
+                
+                this.mesh.updateMatrix(); 
+                const randomSpin = Math.floor(Math.random()*4) * (Math.PI/2);
+                this.mesh.rotateOnWorldAxis(new THREE.Vector3(0,1,0), randomSpin);
+            }
+        }
+        const diceObjs=[new Dice(-2.5), new Dice(2.5)];
+
+        // --- LOGIC ---
+        class Token {
+            constructor(pid,id,col){
+                this.pid=pid; this.id=id; this.col=col; this.pos=-1; 
+                this.mesh=new THREE.Mesh(new THREE.SphereGeometry(1,32,32), new THREE.MeshStandardMaterial({color:COLORS[col],roughness:0.3}));
+                this.mesh.userData={token:this}; scene.add(this.mesh); this.upd();
+            }
+            upd(){
+                let p={x:0,z:0};
+                if(this.pos===-1) p=bases[this.col][this.id];
+                else if(this.pos>=100) {
+                    const i=this.pos-100;
+                    if(i<5) p=homePaths[this.col][i];
+                    else { this.mesh.visible=false; return; }
+                } else p=globalPath[this.pos];
+                this.mesh.visible=true; this.mesh.position.set(p.x,1.2,p.z);
+            }
+        }
+
+        const Game = {
+            players:[], turn:0, dice:[], diceUsed:[false,false], state:'INIT', rankings:[],
+            
+            log(msg, type=''){
+                const l=document.getElementById('logs');
+                l.innerHTML=`<div class="log-${type}">[${new Date().toLocaleTimeString().slice(0,5)}] ${msg}</div>`+l.innerHTML;
+            },
+
+            init(cfg){
+                const map={red:0,blue:13,yellow:26,green:39};
+                this.players=cfg.map((c,i)=>({
+                    name:c.name, color:c.color, type:c.type, startIdx:map[c.color], finished:false,
+                    tokens:[0,1,2,3].map(k=>new Token(i,k,c.color))
+                }));
+                this.turn=0; this.rankings=[];
+                this.startTurn();
+            },
+
+            startTurn(){
+                this.updateUI();
+                const p=this.players[this.turn];
+                if(p.finished) { this.nextTurn(false); return; }
+
+                document.getElementById('main-status').innerText=`${p.name}'s Turn`;
+                document.getElementById('sub-status').innerText="Waiting to Roll";
+                document.getElementById('dice-selector').style.visibility='hidden';
+                this.diceUsed=[false,false]; this.state='IDLE';
+                
+                const btn=document.getElementById('btn-roll');
+                if(p.type==='ai'){ btn.disabled=true; setTimeout(()=>this.roll(),1000); }
+                else { btn.disabled=false; }
+            },
+
+            roll(){
+                if(this.state!=='IDLE')return;
+                this.state='ROLLING'; SoundMgr.play('roll');
+                document.getElementById('btn-roll').disabled=true;
+                const r1=Math.ceil(Math.random()*6), r2=Math.ceil(Math.random()*6);
+                this.dice=[r1,r2]; 
+                let l=0; const cb=()=>{l++;if(l===2)this.postRoll();}
+                diceObjs[0].animate(r1,cb); diceObjs[1].animate(r2,cb);
+            },
+
+            postRoll(){
+                SoundMgr.play('land');
+                const p=this.players[this.turn];
+                this.log(`${p.name} rolled <b>${this.dice[0]}, ${this.dice[1]}</b>`);
+                
+                const d1=document.getElementById('die-1'), d2=document.getElementById('die-2');
+                d1.innerText=this.dice[0]; d2.innerText=this.dice[1];
+                d1.className='die-btn'; d2.className='die-btn';
+                document.getElementById('dice-selector').style.visibility='visible';
+
+                if(!this.hasAnyMove()){
+                    this.log("No moves available!", 'ai');
+                    setTimeout(()=>this.nextTurn(false), 1500);
+                    return;
+                }
+
+                this.state='MOVING';
+                document.getElementById('sub-status').innerText="Select Die > Token";
+                if(p.type==='ai') setTimeout(()=>this.aiMove(),800);
+            },
+
+            hasAnyMove(){
+                const p=this.players[this.turn];
+                const checks = [];
+                if(!this.diceUsed[0]) checks.push(this.dice[0]);
+                if(!this.diceUsed[1]) checks.push(this.dice[1]);
+                for(let steps of checks){
+                    for(let t of p.tokens) if(this.canMove(t,steps)) return true;
+                }
+                return false;
+            },
+
+            canMove(t, steps){
+                if(t.pos>=105) return false;
+                if(t.pos===-1) return steps===6;
+                const p=this.players[t.pid];
+                if(t.pos>=100){ return (t.pos+steps === 105); }
+                const rel=(t.pos-p.startIdx+52)%52;
+                if(rel+steps > 50){ return ((rel+steps)-51) <= 4; }
+                return true;
+            },
+
+            selDieIdx:-1,
+            selectDie(i){
+                if(this.state!=='MOVING'||this.diceUsed[i])return;
+                this.selDieIdx=i;
+                document.getElementById('die-1').classList.toggle('selected',i===0);
+                document.getElementById('die-2').classList.toggle('selected',i===1);
+            },
+
+            clickToken(t){
+                if(this.state!=='MOVING'||this.selDieIdx===-1)return;
+                if(t.pid!==this.turn)return;
+                const steps=this.dice[this.selDieIdx];
+                if(this.canMove(t,steps)) this.executeMove(t,steps,this.selDieIdx);
+                else this.log("Invalid Move!", 'ai');
+            },
+
+            executeMove(t,steps,dIdx){
+                const p=this.players[this.turn];
+                if(t.pos===-1){ t.pos=p.startIdx; this.log("Token out!"); }
+                else if(t.pos>=100){
+                    t.pos+=steps;
+                    if(t.pos===105) {
+                        this.log("Token finished!", 'win');
+                        SoundMgr.play('win');
+                        t.mesh.visible=false;
+                        if(p.tokens.every(tk=>tk.pos===105)) { this.playerFin(p); return; }
+                    }
+                } else {
+                    const rel=(t.pos-p.startIdx+52)%52;
+                    if(rel+steps>50) {
+                        t.pos = 100 + (rel+steps-51);
+                        this.log("Entered Home!");
+                    } else {
+                        t.pos = (t.pos+steps)%52;
+                        this.checkCapture(t);
+                    }
+                }
+                t.upd(); SoundMgr.play('move');
+
+                this.diceUsed[dIdx]=true;
+                document.getElementById(`die-${dIdx+1}`).className='die-btn used';
+                this.selDieIdx=-1;
+
+                if(this.diceUsed[0]&&this.diceUsed[1]){
+                    const d6 = (this.dice[0]===6 && this.dice[1]===6);
+                    setTimeout(()=>this.nextTurn(d6), 600);
+                } else {
+                    if(!this.hasAnyMove()){
+                        this.log("No moves for remaining die.", 'ai');
+                        setTimeout(()=>this.nextTurn(false), 1000);
+                    } else if(p.type==='ai') setTimeout(()=>this.aiMove(), 800);
+                }
+            },
+
+            checkCapture(t){
+                if([8,21,34,47].includes(t.pos)) return;
+                let hasCaptured = false;
+                this.players.forEach((op,Oi)=>{
+                    if(Oi===this.turn) return; 
+                    op.tokens.forEach(ot=>{
+                        if(ot.pos===t.pos && ot.pos!==-1 && ot.pos<100){
+                            this.log(`${this.players[this.turn].name} captured ${op.name}!`, 'kill');
+                            SoundMgr.play('kill');
+                            ot.pos=-1; ot.upd(); 
+                            hasCaptured = true;
+                        }
+                    });
+                });
+                if(hasCaptured) {
+                    this.log("Attacker marked as finished!", 'win');
+                    t.pos = 105; t.upd();    
+                    const p = this.players[this.turn];
+                    if(p.tokens.every(tk=>tk.pos===105)) { this.playerFin(p); }
+                }
+            },
+
+            playerFin(p){
+                p.finished=true;
+                this.rankings.push(p);
+                this.log(`${p.name} has finished!`, 'win');
+                const active = this.players.filter(pl=>!pl.finished).length;
+                if(active===0 || (active===1 && this.players.length>1)){
+                    if(active===1) {
+                         const loser = this.players.find(pl=>!pl.finished);
+                         this.rankings.push(loser); 
+                    }
+                    this.gameOver();
+                } else {
+                    this.nextTurn(false);
+                }
+            },
+
+            nextTurn(bonus){
+                if(bonus){
+                    this.log("Double 6! Bonus roll.", 'win');
+                    this.startTurn();
+                } else {
+                    let next = (this.turn+1)%this.players.length;
+                    while(this.players[next].finished && this.rankings.length < this.players.length){
+                         next = (next+1)%this.players.length;
+                    }
+                    this.turn = next;
+                    this.startTurn();
+                }
+            },
+
+            aiMove(){
+                const p=this.players[this.turn];
+                let dIdx = -1;
+                if(!this.diceUsed[0] && !this.diceUsed[1]) dIdx = (Math.random()>0.5)?0:1;
+                else if(!this.diceUsed[0]) dIdx=0;
+                else if(!this.diceUsed[1]) dIdx=1;
+                else return; 
+                const s = this.dice[dIdx];
+                const validT = p.tokens.filter(t=>this.canMove(t,s));
+                if(validT.length>0){
+                    let best = validT[0];
+                    for(let t of validT){
+                        if(t.pos!==-1 && t.pos<100) {
+                            const fut = (t.pos+s)%52;
+                            if(![8,21,34,47].includes(fut)) {
+                                const hasEnemy = this.players.some((op,i)=>i!==this.turn && op.tokens.some(ot=>ot.pos===fut));
+                                if(hasEnemy) { best=t; break; } 
+                            }
+                        }
+                        if(t.pos===-1 && s===6) best=t; 
+                    }
+                    this.executeMove(best, s, dIdx);
+                } else {
+                    this.diceUsed[dIdx]=true;
+                    if(this.diceUsed[0] && this.diceUsed[1]) this.nextTurn(false);
+                    else this.postRoll(); 
+                }
+            },
+
+            gameOver(){
+                const ranks = document.getElementById('rankings');
+                let html = '';
+                this.rankings.forEach((p,i)=>{
+                    const titles = ["Winner", "Runner-up", "3rd Place", "Loser"];
+                    html += `<h3 class="${i===0?'text-warning':'text-white'}">${titles[i] || (i+1)+'th'}: ${p.name}</h3>`;
+                });
+                ranks.innerHTML = html;
+                document.getElementById('winner-overlay').style.display='flex';
+            },
+
+            updateUI(){
+                const l=document.getElementById('player-list'); l.innerHTML='';
+                this.players.forEach((p,i)=>{
+                    let cls=`player-badge c-${p.color}`;
+                    if(i===this.turn) cls+=' active';
+                    if(p.finished) cls+=' finished';
+                    l.innerHTML+=`<div class="${cls}">
+                        <span>${p.name}</span>
+                        ${p.finished?'🏆':(p.type==='ai'?'🤖':'')}
+                    </div>`;
+                });
+            }
+        };
+
+        // --- DOM ---
+        const sm=new bootstrap.Modal(document.getElementById('setupModal')); sm.show();
+        function renderCfg(){
+            const n=parseInt(document.getElementById('player-count').value);
+            const cols=n===2?['red','yellow']:['red','blue','yellow','green'];
+            let h='';
+            cols.forEach((c,i)=>h+=`<div class="input-group mb-2"><span class="input-group-text" style="background:${c==='yellow'?'#ffd700':c};width:40px;border:none;"></span><input id="pn-${i}" type="text" class="form-control" value="Player ${i+1}"><select id="pt-${i}" class="form-select" style="max-width:100px"><option value="human">Human</option><option value="ai" ${i>0?'selected':''}>Agent</option></select></div>`);
+            document.getElementById('ai-config').innerHTML=h;
+        }
+        document.getElementById('player-count').onchange=renderCfg; renderCfg();
+        document.getElementById('btn-start-game').onclick=()=>{
+            const n=parseInt(document.getElementById('player-count').value);
+            const cols=n===2?['red','yellow']:['red','blue','yellow','green'];
+            const cfg=cols.map((c,i)=>({name:document.getElementById(`pn-${i}`).value, color:c, type:document.getElementById(`pt-${i}`).value}));
+            sm.hide(); SoundMgr.init(); Game.init(cfg);
+        };
+        
+        document.getElementById('btn-roll').onclick=()=>Game.roll();
+        window.onkeydown=(e)=>{if(e.code==='Space')Game.roll();};
+        document.getElementById('die-1').onclick=()=>Game.selectDie(0);
+        document.getElementById('die-2').onclick=()=>Game.selectDie(1);
+        
+        // --- FIXED MOBILE INPUT HANDLING ---
+        const ray=new THREE.Raycaster(), mouse=new THREE.Vector2();
+        let downX=0, downY=0;
+
+        window.addEventListener('pointerdown', (e) => {
+            downX = e.clientX;
+            downY = e.clientY;
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            // 1. Prevent selecting if clicking on UI (buttons, panels)
+            if(e.target.tagName !== 'CANVAS') return;
+
+            // 2. Check if the user dragged/orbited (moved more than 5px)
+            const diffX = Math.abs(e.clientX - downX);
+            const diffY = Math.abs(e.clientY - downY);
+            if(diffX > 5 || diffY > 5) return; // Ignore drags
+
+            // 3. Process Raycast
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            ray.setFromCamera(mouse, camera);
+            
+            const hits = ray.intersectObjects(scene.children, true);
+            for(let h of hits){
+                let o = h.object;
+                while(o){ 
+                    if(o.userData.token){
+                        Game.clickToken(o.userData.token);
+                        return;
+                    } 
+                    o = o.parent; 
+                }
+            }
+        });
+
+        function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+        animate();
+    </script>
+</body>
+</html>

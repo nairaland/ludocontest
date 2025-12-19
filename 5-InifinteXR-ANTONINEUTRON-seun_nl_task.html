@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ludo - Single File</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Orbitron', monospace;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(30,30,60,0.9) 100%);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            pointer-events: none;
+            user-select: none;
+            min-width: 220px;
+        }
+        
+        #ui h1 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            font-weight: 900;
+            text-align: center;
+            background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4, #45b7d1);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientShift 3s ease-in-out infinite;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        #turn-text {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        #status {
+            margin: 15px 0;
+            font-size: 14px;
+            text-align: center;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            border-left: 4px solid #4ecdc4;
+        }
+        
+        #dice-btn {
+            margin-top: 15px;
+            pointer-events: auto;
+            padding: 12px 24px;
+            background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        #dice-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        #dice-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        #dice-btn:disabled {
+            background: linear-gradient(145deg, #555 0%, #333 100%);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        #game-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(30,30,60,0.9) 100%);
+            padding: 15px;
+            border-radius: 15px;
+            border: 2px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            min-width: 200px;
+        }
+        
+        .player-score {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .player-score:last-child {
+            border-bottom: none;
+        }
+        
+        .player-name {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .player-tokens {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+        }
+        
+        #symbal-link {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 68, 68, 0.6);
+            backdrop-filter: blur(10px);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            color: #ff4444;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+            pointer-events: auto;
+        }
+        
+        #symbal-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 68, 68, 0.5);
+            border-color: rgba(255, 68, 68, 1);
+            background: rgba(255, 68, 68, 0.1);
+        }
+        
+        #dice-container {
+            position: absolute;
+            top: 50%;
+            right: 50px;
+            transform: translateY(-50%);
+            width: 80px;
+            height: 80px;
+            perspective: 300px;
+            pointer-events: none;
+        }
+        
+        .dice-cube {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        
+        .dice-face {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: #ffffff;
+            border: 2px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .dice-face.front { transform: rotateY(0deg) translateZ(30px); }
+        .dice-face.back { transform: rotateY(180deg) translateZ(30px); }
+        .dice-face.right { transform: rotateY(90deg) translateZ(30px); }
+        .dice-face.left { transform: rotateY(-90deg) translateZ(30px); }
+        .dice-face.top { transform: rotateX(90deg) translateZ(30px); }
+        .dice-face.bottom { transform: rotateX(-90deg) translateZ(30px); }
+        
+        .dice-dot {
+            width: 8px;
+            height: 8px;
+            background: #333;
+            border-radius: 50%;
+        }
+        
+        .dice-rolling {
+            animation: diceRoll3D 0.6s ease-in-out;
+        }
+        
+        @keyframes diceRoll3D {
+            0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+            25% { transform: rotateX(90deg) rotateY(45deg) rotateZ(90deg); }
+            50% { transform: rotateX(180deg) rotateY(90deg) rotateZ(180deg); }
+            75% { transform: rotateX(270deg) rotateY(135deg) rotateZ(270deg); }
+            100% { transform: rotateX(360deg) rotateY(180deg) rotateZ(360deg); }
+        }
+        
+        .dice-animation {
+            animation: diceRoll 0.5s ease-in-out;
+        }
+        
+        @keyframes diceRoll {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.1); }
+            50% { transform: rotate(180deg) scale(1.2); }
+            75% { transform: rotate(270deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+</head>
+<body>
+
+<div id="ui">
+    <h1>3D Ludo</h1>
+    <div id="player-selection" style="text-align: center; margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #4ecdc4;">Players:</label>
+        <select id="player-count" style="padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); color: white; font-family: inherit; pointer-events: auto;">
+            <option value="2">2 Players</option>
+            <option value="4" selected>4 Players</option>
+        </select>
+        <button id="start-game-btn" style="margin-left: 10px; padding: 8px 16px; border-radius: 8px; border: 1px solid #4ecdc4; background: rgba(76, 205, 196, 0.2); color: #4ecdc4; font-family: inherit; cursor: pointer; pointer-events: auto;">Start Game</button>
+    </div>
+    <h2 id="turn-text" style="color: #ff4444">Turn: RED</h2>
+    <div id="status">Select players and start game</div>
+    <button id="dice-btn" disabled>ROLL DICE</button>
+</div>
+
+<div id="game-info">
+    <h3 style="margin: 0 0 10px 0; text-align: center; color: #4ecdc4;">Game Status</h3>
+    <div class="player-score">
+        <span class="player-name" style="color: #ff4444;">🔴 RED</span>
+        <span class="player-tokens">Home: 1</span>
+    </div>
+    <div class="player-score">
+        <span class="player-name" style="color: #44ff44;">🟢 GREEN</span>
+        <span class="player-tokens">Home: 1</span>
+    </div>
+    <div class="player-score">
+        <span class="player-name" style="color: #ffff44;">🟡 YELLOW</span>
+        <span class="player-tokens">Home: 1</span>
+    </div>
+    <div class="player-score">
+        <span class="player-name" style="color: #4444ff;">🔵 BLUE</span>
+        <span class="player-tokens">Home: 1</span>
+    </div>
+</div>
+
+<div id="dice-container">
+    <div class="dice-cube" id="dice-cube">
+        <!-- Dice Face 1: Single dot in center -->
+        <div class="dice-face front">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; width: 40px; height: 40px; align-items: center; justify-items: center;">
+                <div></div><div></div><div></div>
+                <div></div><div class="dice-dot"></div><div></div>
+                <div></div><div></div><div></div>
+            </div>
+        </div>
+        <!-- Dice Face 2: Two dots diagonal -->
+        <div class="dice-face left">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; width: 40px; height: 40px; align-items: center; justify-items: center;">
+                <div class="dice-dot"></div><div></div><div></div>
+                <div></div><div></div><div></div>
+                <div></div><div></div><div class="dice-dot"></div>
+            </div>
+        </div>
+        <!-- Dice Face 3: Three dots diagonal -->
+        <div class="dice-face right">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; width: 40px; height: 40px; align-items: center; justify-items: center;">
+                <div class="dice-dot"></div><div></div><div></div>
+                <div></div><div class="dice-dot"></div><div></div>
+                <div></div><div></div><div class="dice-dot"></div>
+            </div>
+        </div>
+        <!-- Dice Face 4: Four dots in corners -->
+        <div class="dice-face back">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; width: 40px; height: 40px; align-items: center; justify-items: center;">
+                <div class="dice-dot"></div><div></div><div class="dice-dot"></div>
+                <div></div><div></div><div></div>
+                <div class="dice-dot"></div><div></div><div class="dice-dot"></div>
+            </div>
+        </div>
+        <!-- Dice Face 5: Four corners plus center -->
+        <div class="dice-face top">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; width: 40px; height: 40px; align-items: center; justify-items: center;">
+                <div class="dice-dot"></div><div></div><div class="dice-dot"></div>
+                <div></div><div class="dice-dot"></div><div></div>
+                <div class="dice-dot"></div><div></div><div class="dice-dot"></div>
+            </div>
+        </div>
+        <!-- Dice Face 6: Six dots in two columns -->
+        <div class="dice-face bottom">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; width: 40px; height: 40px; align-items: center; justify-items: center;">
+                <div class="dice-dot"></div><div></div><div class="dice-dot"></div>
+                <div class="dice-dot"></div><div></div><div class="dice-dot"></div>
+                <div class="dice-dot"></div><div></div><div class="dice-dot"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="controls">
+    Mouse: Rotate View | Wheel: Zoom | Click: Select Piece
+</div>
+
+<a id="symbal-link" href="https://symbal.fun" target="_blank" rel="noopener noreferrer">
+    Symbal.fun<br>
+    <span style="font-size: 10px; opacity: 0.8;">Mobile app for creating games</span>
+</a>
+
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// --- CONFIGURATION ---
+const TILE_SIZE = 2;
+const COLORS = {
+    RED: 0xff4444,
+    GREEN: 0x44ff44,
+    YELLOW: 0xffff44,
+    BLUE: 0x4444ff,
+    WHITE: 0xffffff,
+    GREY: 0xaaaaaa,
+    BLACK: 0x111111,
+    GOLD: 0xffd700,
+    SAFE: 0x00ff88
+};
+
+// Sound effects (using Web Audio API)
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(frequency, duration, type = 'sine') {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = frequency;
+    oscillator.type = type;
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration);
+}
+
+// --- GLOBAL STATE ---
+let currentPlayer = 0; // 0: Red, 1: Green, 2: Yellow, 3: Blue
+let diceValue = 0;
+let hasRolled = false;
+let isAnimating = false;
+let gameStarted = false;
+let numberOfPlayers = 4;
+let playerStats = [
+    { name: 'RED', tokensAtHome: 1, tokensFinished: 0 },
+    { name: 'GREEN', tokensAtHome: 1, tokensFinished: 0 },
+    { name: 'YELLOW', tokensAtHome: 1, tokensFinished: 0 },
+    { name: 'BLUE', tokensAtHome: 1, tokensFinished: 0 }
+];
+
+// Path Definition - Complete Ludo Board Path (52 positions)
+// This matches the actual tiles created on the board
+const MAIN_PATH = [
+    // RED's starting position (0) - moves left along bottom
+    {x:-1, z:6}, {x:-2, z:6}, {x:-3, z:6}, {x:-4, z:6}, {x:-5, z:6},
+    // Turn corner, move up left side (5-12)
+    {x:-6, z:6}, {x:-6, z:5}, {x:-6, z:4}, {x:-6, z:3}, {x:-6, z:2}, {x:-6, z:1}, {x:-6, z:0},
+    
+    // GREEN's starting position (13) - moves up left side
+    {x:-6, z:-1}, {x:-6, z:-2}, {x:-6, z:-3}, {x:-6, z:-4}, {x:-6, z:-5},
+    // Turn corner, move right along top (18-25)
+    {x:-6, z:-6}, {x:-5, z:-6}, {x:-4, z:-6}, {x:-3, z:-6}, {x:-2, z:-6}, {x:-1, z:-6}, {x:0, z:-6},
+    
+    // YELLOW's starting position (26) - moves right along top
+    {x:1, z:-6}, {x:2, z:-6}, {x:3, z:-6}, {x:4, z:-6}, {x:5, z:-6},
+    // Turn corner, move down right side (31-38)
+    {x:6, z:-6}, {x:6, z:-5}, {x:6, z:-4}, {x:6, z:-3}, {x:6, z:-2}, {x:6, z:-1}, {x:6, z:0},
+    
+    // BLUE's starting position (39) - moves down right side
+    {x:6, z:1}, {x:6, z:2}, {x:6, z:3}, {x:6, z:4}, {x:6, z:5},
+    // Turn corner, move left along bottom back to RED (44-51)
+    {x:6, z:6}, {x:5, z:6}, {x:4, z:6}, {x:3, z:6}, {x:2, z:6}, {x:1, z:6}, {x:0, z:6}
+];
+
+// Home stretch paths for each player (5 squares leading to center)
+const HOME_PATHS = {
+    RED: [
+        {x:0, z:5}, {x:0, z:4}, {x:0, z:3}, {x:0, z:2}, {x:0, z:1}
+    ],
+    GREEN: [
+        {x:-5, z:0}, {x:-4, z:0}, {x:-3, z:0}, {x:-2, z:0}, {x:-1, z:0}
+    ],
+    YELLOW: [
+        {x:0, z:-5}, {x:0, z:-4}, {x:0, z:-3}, {x:0, z:-2}, {x:0, z:-1}
+    ],
+    BLUE: [
+        {x:5, z:0}, {x:4, z:0}, {x:3, z:0}, {x:2, z:0}, {x:1, z:0}
+    ]
+};
+
+// Starting positions on main path for each player
+const PLAYER_START_INDEX = {
+    RED: 0,      // Position 0: (-1, 6)
+    GREEN: 13,   // Position 13: (-6, -1)
+    YELLOW: 26,  // Position 26: (1, -6)
+    BLUE: 39     // Position 39: (6, 1)
+};
+
+const MAIN_PATH_LENGTH = MAIN_PATH.length;
+const HOME_PATH_LENGTH = 5;
+
+// Debug: Verify path setup
+console.log('=== Ludo Board Configuration ===');
+console.log(`Main path length: ${MAIN_PATH_LENGTH} (Expected: 52)`);
+console.log(`Home path length: ${HOME_PATH_LENGTH}`);
+console.log('Player start indices:', PLAYER_START_INDEX);
+console.log('Total journey: 51 main steps + 5 home steps + 1 center = 57 total steps');
+console.log('================================');
+
+// --- SCENE SETUP ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a1a);
+scene.fog = new THREE.Fog(0x0a0a1a, 50, 100);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 45, 35); // Higher angle view
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.maxPolarAngle = Math.PI / 2.2;
+controls.minDistance = 20;
+controls.maxDistance = 80;
+
+// Enhanced Lighting
+const ambientLight = new THREE.AmbientLight(0x404080, 0.4);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(15, 25, 15);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+dirLight.shadow.camera.near = 0.1;
+dirLight.shadow.camera.far = 100;
+dirLight.shadow.camera.left = -30;
+dirLight.shadow.camera.right = 30;
+dirLight.shadow.camera.top = 30;
+dirLight.shadow.camera.bottom = -30;
+scene.add(dirLight);
+
+// Additional accent lighting
+const rimLight = new THREE.DirectionalLight(0x4444ff, 0.3);
+rimLight.position.set(-10, 15, -10);
+scene.add(rimLight);
+
+const fillLight = new THREE.DirectionalLight(0xff4444, 0.2);
+fillLight.position.set(10, 10, -15);
+scene.add(fillLight);
+
+// --- BOARD GENERATION ---
+const boardGroup = new THREE.Group();
+scene.add(boardGroup);
+
+function createTile(x, z, color, isSafe = false) {
+    const geometry = new THREE.BoxGeometry(TILE_SIZE * 0.9, 0.8, TILE_SIZE * 0.9);
+    
+    let material;
+    if (isSafe) {
+        material = new THREE.MeshStandardMaterial({ 
+            color: COLORS.SAFE,
+            emissive: new THREE.Color(COLORS.SAFE).multiplyScalar(0.1),
+            metalness: 0.3,
+            roughness: 0.4
+        });
+    } else {
+        material = new THREE.MeshStandardMaterial({ 
+            color: color,
+            metalness: 0.1,
+            roughness: 0.8,
+            emissive: new THREE.Color(color).multiplyScalar(0.05)
+        });
+    }
+    
+    const tile = new THREE.Mesh(geometry, material);
+    tile.position.set(x * TILE_SIZE, 0.4, z * TILE_SIZE);
+    tile.receiveShadow = true;
+    tile.castShadow = true;
+    
+    // Add border
+    const borderGeometry = new THREE.BoxGeometry(TILE_SIZE, 0.1, TILE_SIZE);
+    const borderMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x333333,
+        metalness: 0.8,
+        roughness: 0.2
+    });
+    const border = new THREE.Mesh(borderGeometry, borderMaterial);
+    border.position.set(x * TILE_SIZE, 0, z * TILE_SIZE);
+    border.receiveShadow = true;
+    
+    boardGroup.add(border);
+    boardGroup.add(tile);
+}
+
+function createBase(x, z, w, h, color) {
+    const geometry = new THREE.BoxGeometry(w * TILE_SIZE, 1.5, h * TILE_SIZE);
+    const material = new THREE.MeshStandardMaterial({ 
+        color: color,
+        metalness: 0.2,
+        roughness: 0.6,
+        emissive: new THREE.Color(color).multiplyScalar(0.1)
+    });
+    const base = new THREE.Mesh(geometry, material);
+    base.position.set(x * TILE_SIZE, 0.75, z * TILE_SIZE);
+    base.receiveShadow = true;
+    base.castShadow = true;
+    
+    // Add decorative border
+    const borderGeometry = new THREE.BoxGeometry(w * TILE_SIZE + 0.2, 0.3, h * TILE_SIZE + 0.2);
+    const borderMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x888888,
+        metalness: 0.7,
+        roughness: 0.3
+    });
+    const border = new THREE.Mesh(borderGeometry, borderMaterial);
+    border.position.set(x * TILE_SIZE, 0.15, z * TILE_SIZE);
+    border.receiveShadow = true;
+    
+    boardGroup.add(border);
+    boardGroup.add(base);
+}
+
+// 1. Create 4 Colored Yards (6x6 size)
+createBase(-4.5, 4.5, 6, 6, COLORS.RED);    // Bottom Left
+createBase(-4.5, -4.5, 6, 6, COLORS.GREEN); // Top Left
+createBase(4.5, -4.5, 6, 6, COLORS.YELLOW); // Top Right
+createBase(4.5, 4.5, 6, 6, COLORS.BLUE);    // Bottom Right
+
+// 2. Create Tracks (White Tiles with Safe Zones)
+for (let i = -1; i <= 1; i++) {
+    for (let j = -7; j <= 7; j++) {
+        if (Math.abs(j) > 1) {
+            // Safe zones at specific positions
+            const isSafe = (i === 0 && Math.abs(j) === 6) || 
+                          (Math.abs(i) === 1 && j === 0) ||
+                          (i === -1 && j === 2) || (i === 1 && j === -2);
+            createTile(i, j, COLORS.WHITE, isSafe);
+        }
+        if (Math.abs(j) > 1) {
+            const isSafe = (j === 0 && Math.abs(i) === 6) || 
+                          (Math.abs(j) === 1 && i === 0) ||
+                          (j === -1 && i === 2) || (j === 1 && i === -2);
+            createTile(j, i, COLORS.WHITE, isSafe);
+        }
+    }
+}
+
+// Center Home with enhanced design
+const centerGeometry = new THREE.CylinderGeometry(2.5, 3, 2, 16);
+const centerMaterial = new THREE.MeshStandardMaterial({ 
+    color: COLORS.GOLD,
+    metalness: 0.8,
+    roughness: 0.2,
+    emissive: new THREE.Color(COLORS.GOLD).multiplyScalar(0.2)
+});
+const centerHome = new THREE.Mesh(centerGeometry, centerMaterial);
+centerHome.position.set(0, 1, 0);
+centerHome.receiveShadow = true;
+centerHome.castShadow = true;
+boardGroup.add(centerHome);
+
+// --- PIECES ---
+const playerTokens = [[], [], [], []];
+
+function createToken(colorHex, playerId, startX, startZ, tokenIndex) {
+    // Create token group
+    const tokenGroup = new THREE.Group();
+    
+    // Main token body
+    const bodyGeometry = new THREE.CylinderGeometry(0.4, 0.6, 1.5, 16);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ 
+        color: colorHex,
+        metalness: 0.3,
+        roughness: 0.4,
+        emissive: new THREE.Color(colorHex).multiplyScalar(0.1)
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.castShadow = true;
+    
+    // Token top (crown-like)
+    const topGeometry = new THREE.CylinderGeometry(0.3, 0.4, 0.5, 8);
+    const topMaterial = new THREE.MeshStandardMaterial({ 
+        color: COLORS.GOLD,
+        metalness: 0.8,
+        roughness: 0.1,
+        emissive: new THREE.Color(COLORS.GOLD).multiplyScalar(0.1)
+    });
+    const top = new THREE.Mesh(topGeometry, topMaterial);
+    top.position.y = 1;
+    top.castShadow = true;
+    
+    tokenGroup.add(body);
+    tokenGroup.add(top);
+    
+    // Positioning with slight offset for multiple tokens
+    const offsetX = (tokenIndex % 2) * 1.5 - 0.75;
+    const offsetZ = Math.floor(tokenIndex / 2) * 1.5 - 0.75;
+    tokenGroup.position.set(
+        startX * TILE_SIZE + offsetX, 
+        2, 
+        startZ * TILE_SIZE + offsetZ
+    );
+    
+    // Custom properties for logic
+    tokenGroup.userData = {
+        playerId: playerId,
+        tokenIndex: tokenIndex,
+        currentStep: -1, // -1 means in base, 0+ means on main path, 100+ means on home path
+        basePos: { 
+            x: startX * TILE_SIZE + offsetX, 
+            y: 2, 
+            z: startZ * TILE_SIZE + offsetZ 
+        },
+        isSelected: false,
+        stepsFromStart: 0 // Total steps taken from the starting point
+    };
+    
+    scene.add(tokenGroup);
+    playerTokens[playerId].push(tokenGroup);
+}
+
+// Spawn 4 tokens for each player
+for (let player = 0; player < 4; player++) {
+    const colors = [COLORS.RED, COLORS.GREEN, COLORS.YELLOW, COLORS.BLUE];
+    const positions = [
+        [-4.5, 4.5],   // Red
+        [-4.5, -4.5],  // Green  
+        [4.5, -4.5],   // Yellow
+        [4.5, 4.5]     // Blue
+    ];
+    
+    for (let token = 0; token < 4; token++) {
+        createToken(colors[player], player, positions[player][0], positions[player][1], token);
+    }
+    
+    // Update player stats
+    playerStats[player].tokensAtHome = 4;
+}
+
+// --- INTERACTION ---
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const diceBtn = document.getElementById('dice-btn');
+const statusDiv = document.getElementById('status');
+const turnText = document.getElementById('turn-text');
+const startGameBtn = document.getElementById('start-game-btn');
+const playerCountSelect = document.getElementById('player-count');
+const diceCube = document.getElementById('dice-cube');
+
+// Game initialization
+startGameBtn.addEventListener('click', () => {
+    numberOfPlayers = parseInt(playerCountSelect.value);
+    initializeGame();
+    gameStarted = true;
+    
+    // Hide player selection
+    document.getElementById('player-selection').style.display = 'none';
+    
+    // Enable dice button
+    diceBtn.disabled = false;
+    statusDiv.innerText = "Game started! Roll the dice.";
+    
+    // Update UI for selected number of players
+    updatePlayerDisplay();
+});
+
+function initializeGame() {
+    // Reset game state
+    currentPlayer = 0;
+    diceValue = 0;
+    hasRolled = false;
+    isAnimating = false;
+    
+    // Reset all tokens to base
+    for (let playerId = 0; playerId < 4; playerId++) {
+        playerStats[playerId].tokensAtHome = 4;
+        playerStats[playerId].tokensFinished = 0;
+        
+        for (const token of playerTokens[playerId]) {
+            token.position.copy(new THREE.Vector3(
+                token.userData.basePos.x,
+                token.userData.basePos.y,
+                token.userData.basePos.z
+            ));
+            token.userData.currentStep = -1;
+            token.userData.stepsFromStart = 0;
+            token.visible = playerId < numberOfPlayers; // Hide unused players
+        }
+    }
+    
+    updateGameInfo();
+}
+
+function updatePlayerDisplay() {
+    const playerElements = document.querySelectorAll('.player-score');
+    for (let i = 0; i < 4; i++) {
+        playerElements[i].style.display = i < numberOfPlayers ? 'flex' : 'none';
+    }
+}
+
+function animateDiceCube(finalValue) {
+    diceCube.classList.add('dice-rolling');
+    
+    // Define rotations for each dice face (1-6)
+    const rotations = {
+        1: 'rotateX(0deg) rotateY(0deg)',      // front
+        2: 'rotateX(0deg) rotateY(-90deg)',    // left  
+        3: 'rotateX(0deg) rotateY(90deg)',     // right
+        4: 'rotateX(0deg) rotateY(180deg)',    // back
+        5: 'rotateX(-90deg) rotateY(0deg)',    // top
+        6: 'rotateX(90deg) rotateY(0deg)'      // bottom
+    };
+    
+    setTimeout(() => {
+        diceCube.classList.remove('dice-rolling');
+        diceCube.style.transform = rotations[finalValue];
+    }, 600);
+}
+
+// Dice Roll Logic with Animation
+diceBtn.addEventListener('click', () => {
+    if (hasRolled || isAnimating) return;
+    
+    // Add dice animation
+    diceBtn.classList.add('dice-animation');
+    diceBtn.disabled = true;
+    diceBtn.innerText = "ROLLING...";
+    
+    // Play roll sound
+    playSound(400, 0.1, 'square');
+    
+    // Generate final dice value
+    diceValue = Math.floor(Math.random() * 6) + 1;
+    
+    // Animate 3D dice cube
+    animateDiceCube(diceValue);
+    
+    // Animate dice roll
+    let rollCount = 0;
+    const rollInterval = setInterval(() => {
+        const tempValue = Math.floor(Math.random() * 6) + 1;
+        diceBtn.innerText = `ROLLING: ${tempValue}`;
+        rollCount++;
+        
+        if (rollCount >= 10) {
+            clearInterval(rollInterval);
+            hasRolled = true;
+            
+            // Play success sound
+            playSound(600, 0.3, 'sine');
+            
+            diceBtn.innerText = `Rolled: ${diceValue}`;
+            diceBtn.classList.remove('dice-animation');
+            
+            statusDiv.innerText = `Rolled a ${diceValue}! ${getValidMovesCount() > 0 ? 'Select a piece.' : 'No valid moves. Next turn.'}`;
+            
+            // Auto-advance turn if no valid moves
+            if (getValidMovesCount() === 0) {
+                setTimeout(nextTurn, 2000);
+            }
+        }
+    }, 100);
+});
+
+function getValidMovesCount() {
+    const currentPlayerTokens = playerTokens[currentPlayer];
+    let validMoves = 0;
+    
+    for (const token of currentPlayerTokens) {
+        if (canMoveToken(token)) {
+            validMoves++;
+        }
+    }
+    
+    return validMoves;
+}
+
+function canMoveToken(token) {
+    const currentStep = token.userData.currentStep;
+    const stepsFromStart = token.userData.stepsFromStart;
+    
+    // If in base, need 6 to start
+    if (currentStep === -1) {
+        return diceValue === 6;
+    }
+    
+    // Check if move would go past finish
+    // Path is: 51 steps on main path (steps 1-51) + 5 home path steps (52-56) + center (57)
+    const nextStepsFromStart = stepsFromStart + diceValue;
+    const maxSteps = 51 + HOME_PATH_LENGTH + 1; // 57 total to reach center
+    
+    return nextStepsFromStart <= maxSteps;
+}
+
+// Click on Board (Token selection) with enhanced feedback
+window.addEventListener('pointerdown', (event) => {
+    if (!hasRolled || isAnimating) return;
+
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(scene.children, true);
+
+    for (let i = 0; i < intersects.length; i++) {
+        const obj = intersects[i].object;
+        const parent = obj.parent;
+        
+        // Check if clicked object is part of a token group
+        if (parent && parent.userData && parent.userData.playerId === currentPlayer) {
+            if (canMoveToken(parent)) {
+                highlightToken(parent, true);
+                playSound(300, 0.1, 'sine');
+                setTimeout(() => {
+                    highlightToken(parent, false);
+                    moveToken(parent);
+                }, 300);
+                break;
+            } else {
+                // Invalid move feedback
+                flashToken(parent);
+                playSound(200, 0.2, 'sawtooth');
+                statusDiv.innerText = `Cannot move this piece with ${diceValue}!`;
+            }
+        }
+    }
+});
+
+function highlightToken(token, highlight) {
+    const body = token.children[0];
+    if (highlight) {
+        body.material.emissive.setHex(0x444444);
+        token.scale.set(1.2, 1.2, 1.2);
+    } else {
+        const originalColor = token.userData.playerId === 0 ? COLORS.RED :
+                            token.userData.playerId === 1 ? COLORS.GREEN :
+                            token.userData.playerId === 2 ? COLORS.YELLOW : COLORS.BLUE;
+        body.material.emissive = new THREE.Color(originalColor).multiplyScalar(0.1);
+        token.scale.set(1, 1, 1);
+    }
+}
+
+function flashToken(token) {
+    const originalScale = token.scale.clone();
+    token.scale.set(1.3, 1.3, 1.3);
+    setTimeout(() => {
+        token.scale.copy(originalScale);
+    }, 200);
+}
+
+function moveToken(token) {
+    const currentStep = token.userData.currentStep;
+    const playerId = token.userData.playerId;
+    const stepsFromStart = token.userData.stepsFromStart;
+    
+    // If in base
+    if (currentStep === -1) {
+        if (diceValue === 6) {
+            // Move to start of player's path
+            const playerNames = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
+            const startIndex = PLAYER_START_INDEX[playerNames[playerId]];
+            token.userData.currentStep = startIndex;
+            token.userData.stepsFromStart = 1;
+            animateMove(token, startIndex, false); 
+            playerStats[playerId].tokensAtHome--;
+        } else {
+            statusDiv.innerText = "Need a 6 to start! Next turn.";
+            setTimeout(nextTurn, 1000);
+        }
+    } else {
+        // Calculate new position
+        const nextStepsFromStart = stepsFromStart + diceValue;
+        
+        // After 51 steps on main path (0-50), player enters their home stretch at step 51
+        if (nextStepsFromStart > 51) {
+            // Token is on or entering home path
+            const homePathIndex = nextStepsFromStart - 52; // 52nd step is first home tile
+            
+            if (homePathIndex >= HOME_PATH_LENGTH) {
+                // Token finishes (reached center after 51 main + 5 home = 56 total steps)
+                animateToCenter(token);
+                playerStats[playerId].tokensFinished++;
+            } else {
+                // Move on home path
+                animateMove(token, 100 + homePathIndex, true);
+            }
+        } else {
+            // Still on main path (steps 1-51)
+            const playerNames = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
+            const startIndex = PLAYER_START_INDEX[playerNames[playerId]];
+            const nextStep = (startIndex + nextStepsFromStart - 1) % MAIN_PATH_LENGTH;
+            
+            // Check for captures (only on main path, not home path)
+            checkForCapture(nextStep, token);
+            animateMove(token, nextStep, false);
+        }
+    }
+    
+    updateGameInfo();
+}
+
+function checkForCapture(targetStep, movingToken) {
+    // Only check for captures on main path, not on home paths or safe spots
+    for (let playerId = 0; playerId < numberOfPlayers; playerId++) {
+        if (playerId === movingToken.userData.playerId) continue;
+        
+        for (const token of playerTokens[playerId]) {
+            // Check if another token is on the same position on main path
+            if (token.userData.currentStep === targetStep && 
+                token.userData.currentStep < 100 && // Not on home path (home path uses 100+ indices)
+                token.userData.stepsFromStart <= 51 && // Still on main path (not in home stretch)
+                token.visible) { // Token is actually in play
+                
+                // Capture! Send token back to base
+                animateToBase(token);
+                playSound(800, 0.3, 'square');
+                statusDiv.innerText = `${playerStats[movingToken.userData.playerId].name} captures ${playerStats[playerId].name}!`;
+                playerStats[playerId].tokensAtHome++;
+                break;
+            }
+        }
+    }
+}
+
+function animateToCenter(token) {
+    isAnimating = true;
+    token.userData.currentStep = 1000; // Mark as finished
+    token.userData.stepsFromStart = MAIN_PATH_LENGTH + HOME_PATH_LENGTH;
+    
+    // Animate to center
+    const startPos = token.position.clone();
+    const endPos = new THREE.Vector3(0, 3, 0);
+    
+    let alpha = 0;
+    function anim() {
+        alpha += 0.03;
+        if (alpha >= 1) {
+            token.position.copy(endPos);
+            token.visible = false; // Hide finished token
+            isAnimating = false;
+            
+            // Check for win
+            if (playerStats[token.userData.playerId].tokensFinished === 4) {
+                statusDiv.innerText = `🎉 ${playerStats[token.userData.playerId].name} WINS! 🎉`;
+                playSound(1000, 1, 'sine');
+                diceBtn.disabled = true;
+                diceBtn.innerText = "GAME OVER";
+                return;
+            } else {
+                nextTurn();
+            }
+            return;
+        }
+        token.position.lerpVectors(startPos, endPos, alpha);
+        token.position.y = startPos.y + Math.sin(alpha * Math.PI) * 4;
+        requestAnimationFrame(anim);
+    }
+    anim();
+}
+
+function animateToBase(token) {
+    const basePos = token.userData.basePos;
+    const startPos = token.position.clone();
+    const endPos = new THREE.Vector3(basePos.x, basePos.y, basePos.z);
+    
+    token.userData.currentStep = -1;
+    token.userData.stepsFromStart = 0;
+    
+    let alpha = 0;
+    function anim() {
+        alpha += 0.05;
+        if (alpha >= 1) {
+            token.position.copy(endPos);
+            return;
+        }
+        token.position.lerpVectors(startPos, endPos, alpha);
+        token.position.y = startPos.y + Math.sin(alpha * Math.PI) * 3;
+        requestAnimationFrame(anim);
+    }
+    anim();
+}
+
+function animateMove(token, targetPathIndex, isHomePath) {
+    isAnimating = true;
+    
+    // Get target position
+    let gridPos;
+    if (isHomePath) {
+        // Home path position (targetPathIndex is 100+ for home path)
+        const homeIndex = targetPathIndex - 100;
+        const playerNames = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
+        const playerName = playerNames[token.userData.playerId];
+        gridPos = HOME_PATHS[playerName][homeIndex];
+    } else {
+        // Main path position
+        gridPos = MAIN_PATH[targetPathIndex];
+    }
+    
+    if(!gridPos) { isAnimating = false; return; }
+
+    const targetX = gridPos.x * TILE_SIZE;
+    const targetZ = gridPos.z * TILE_SIZE;
+    
+    // Enhanced animation with multiple steps
+    const startPos = token.position.clone();
+    const endPos = new THREE.Vector3(targetX, 2.5, targetZ);
+    
+    // Create intermediate positions for smooth path following
+    const steps = diceValue;
+    const positions = [];
+    
+    const playerNames = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
+    const playerName = playerNames[token.userData.playerId];
+    const startIndex = PLAYER_START_INDEX[playerName];
+    const currentStepsFromStart = token.userData.stepsFromStart;
+    
+    for (let i = 1; i <= steps; i++) {
+        const nextSteps = currentStepsFromStart + i;
+        
+        if (nextSteps <= 51) {
+            // On main path (steps 1-51 correspond to the 52 tiles)
+            const pathIndex = (startIndex + nextSteps - 1) % MAIN_PATH_LENGTH;
+            const stepPos = MAIN_PATH[pathIndex];
+            positions.push(new THREE.Vector3(stepPos.x * TILE_SIZE, 2.5, stepPos.z * TILE_SIZE));
+        } else {
+            // On home path (step 52+ enters home path)
+            const homeIndex = nextSteps - 52;
+            if (homeIndex >= 0 && homeIndex < HOME_PATH_LENGTH) {
+                const stepPos = HOME_PATHS[playerName][homeIndex];
+                positions.push(new THREE.Vector3(stepPos.x * TILE_SIZE, 2.5, stepPos.z * TILE_SIZE));
+            }
+        }
+    }
+    
+    let currentStepIndex = 0;
+    let alpha = 0;
+    const stepSpeed = 0.08;
+    
+    function anim() {
+        alpha += stepSpeed;
+        
+        if (alpha >= 1) {
+            currentStepIndex++;
+            alpha = 0;
+            
+            if (currentStepIndex >= positions.length) {
+                token.position.copy(endPos);
+                token.userData.currentStep = targetPathIndex;
+                token.userData.stepsFromStart = currentStepsFromStart + diceValue;
+                isAnimating = false;
+                
+                // Play move sound
+                playSound(500, 0.2, 'sine');
+                
+                // Extra turn for rolling 6
+                if (diceValue === 6) {
+                    statusDiv.innerText = "Rolled a 6! Go again!";
+                    hasRolled = false;
+                    diceBtn.disabled = false;
+                    diceBtn.innerText = "ROLL DICE";
+                } else {
+                    nextTurn();
+                }
+                return;
+            }
+        }
+        
+        const currentTarget = positions[currentStepIndex];
+        const previousPos = currentStepIndex === 0 ? startPos : positions[currentStepIndex - 1];
+        
+        token.position.lerpVectors(previousPos, currentTarget, alpha);
+        // Enhanced jump arc with rotation
+        token.position.y = 2.5 + Math.sin(alpha * Math.PI) * 1.5;
+        token.rotation.y += 0.1;
+        
+        requestAnimationFrame(anim);
+    }
+    anim();
+}
+
+function updateGameInfo() {
+    const playerElements = document.querySelectorAll('.player-score .player-tokens');
+    for (let i = 0; i < 4; i++) {
+        const homeCount = playerStats[i].tokensAtHome;
+        const finishedCount = playerStats[i].tokensFinished;
+        const activeCount = 4 - homeCount - finishedCount;
+        playerElements[i].textContent = `Home: ${homeCount} | Active: ${activeCount} | Finished: ${finishedCount}`;
+    }
+}
+
+function nextTurn() {
+    // Cycle through active players only
+    do {
+        currentPlayer = (currentPlayer + 1) % 4;
+    } while (currentPlayer >= numberOfPlayers);
+    
+    hasRolled = false;
+    diceBtn.disabled = false;
+    diceBtn.innerText = "ROLL DICE";
+    statusDiv.innerText = "Waiting for roll...";
+    
+    const names = ["RED", "GREEN", "YELLOW", "BLUE"];
+    const colors = ["#ff4444", "#44ff44", "#ffff44", "#4444ff"];
+    turnText.innerText = `Turn: ${names[currentPlayer]}`;
+    turnText.style.color = colors[currentPlayer];
+    
+    // Add turn transition effect
+    turnText.style.transform = "scale(1.1)";
+    setTimeout(() => {
+        turnText.style.transform = "scale(1)";
+    }, 300);
+    
+    updateGameInfo();
+}
+
+// Add floating particles for ambiance
+const particleGeometry = new THREE.BufferGeometry();
+const particleCount = 50;
+const positions = new Float32Array(particleCount * 3);
+const colors = new Float32Array(particleCount * 3);
+
+for (let i = 0; i < particleCount * 3; i += 3) {
+    positions[i] = (Math.random() - 0.5) * 100;
+    positions[i + 1] = Math.random() * 50 + 10;
+    positions[i + 2] = (Math.random() - 0.5) * 100;
+    
+    colors[i] = Math.random() * 0.5 + 0.5;
+    colors[i + 1] = Math.random() * 0.5 + 0.5;
+    colors[i + 2] = Math.random() * 0.5 + 0.5;
+}
+
+particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+const particleMaterial = new THREE.PointsMaterial({
+    size: 0.5,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.6,
+    blending: THREE.AdditiveBlending
+});
+
+const particles = new THREE.Points(particleGeometry, particleMaterial);
+scene.add(particles);
+
+// --- ENHANCED LOOP ---
+function animate() {
+    requestAnimationFrame(animate);
+    
+    // Animate particles
+    particles.rotation.y += 0.001;
+    const positions = particles.geometry.attributes.position.array;
+    for (let i = 1; i < positions.length; i += 3) {
+        positions[i] += Math.sin(Date.now() * 0.001 + i) * 0.01;
+    }
+    particles.geometry.attributes.position.needsUpdate = true;
+    
+    // Highlight current player tokens with gentle glow
+    for (let i = 0; i < numberOfPlayers; i++) {
+        for (const token of playerTokens[i]) {
+            if (i === currentPlayer && !isAnimating && gameStarted) {
+                const intensity = (Math.sin(Date.now() * 0.003) + 1) * 0.1;
+                token.children[0].material.emissive.setRGB(intensity, intensity, intensity);
+            } else if (i !== currentPlayer) {
+                token.children[0].material.emissive.setRGB(0, 0, 0);
+            }
+        }
+    }
+    
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// Initialize game
+updateGameInfo();
+animate();
+
+// Resize Handler
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,3842 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>3D Ludo Game - Nairaland Challenge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        overflow: hidden;
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 50%,
+          #0f3460 100%
+        );
+      }
+
+      #gameContainer {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+      }
+
+      #gameCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      #ui {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      #topBar {
+        background: linear-gradient(
+          135deg,
+          rgba(26, 26, 46, 0.95) 0%,
+          rgba(22, 33, 62, 0.95) 100%
+        );
+        color: white;
+        padding: 20px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        pointer-events: all;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+      }
+
+      #gameTitle {
+        font-size: 28px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      #gameTitle::before {
+        content: "🎲";
+        font-size: 32px;
+        filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.7));
+      }
+
+      #currentPlayerInfo {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 18px;
+      }
+
+      .playerIndicator {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      #controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 15px;
+        pointer-events: all;
+      }
+
+      .btn {
+        padding: 18px 35px;
+        font-size: 16px;
+        font-weight: 700;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        position: relative;
+        overflow: hidden;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(255, 255, 255, 0.3);
+        user-select: none;
+        -webkit-user-select: none;
+        pointer-events: auto;
+      }
+
+      .btn::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+      }
+
+      .btn:hover::before {
+        width: 300px;
+        height: 300px;
+      }
+
+      .btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      #rollBtn {
+        background: linear-gradient(
+          135deg,
+          #ff6b6b 0%,
+          #ee5a6f 50%,
+          #c44569 100%
+        );
+        color: white;
+        position: relative;
+        z-index: 1;
+      }
+
+      #rollBtn:hover:not(:disabled) {
+        background: linear-gradient(
+          135deg,
+          #ff8787 0%,
+          #ff6b81 50%,
+          #d55677 100%
+        );
+      }
+
+      #newGameBtn {
+        background: linear-gradient(
+          135deg,
+          #4facfe 0%,
+          #00c9ff 50%,
+          #0093e9 100%
+        );
+        color: white;
+        position: relative;
+        z-index: 1;
+      }
+
+      #newGameBtn:hover {
+        background: linear-gradient(
+          135deg,
+          #6fc0ff 0%,
+          #3dd5ff 50%,
+          #2ba8f5 100%
+        );
+      }
+
+      #rulesBtn {
+        background: linear-gradient(
+          135deg,
+          #43e97b 0%,
+          #38f9d7 50%,
+          #2ecc71 100%
+        );
+        color: white;
+        position: relative;
+        z-index: 1;
+      }
+
+      #rulesBtn:hover {
+        background: linear-gradient(
+          135deg,
+          #5bff95 0%,
+          #52ffe3 50%,
+          #4ae38c 100%
+        );
+      }
+
+      #sidebar {
+        position: absolute;
+        right: 20px;
+        top: 100px;
+        background: linear-gradient(
+          135deg,
+          rgba(26, 26, 46, 0.95) 0%,
+          rgba(22, 33, 62, 0.95) 100%
+        );
+        color: white;
+        padding: 25px;
+        border-radius: 16px;
+        min-width: 280px;
+        pointer-events: all;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 215, 0, 0.2);
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      }
+
+      #sidebar.hidden {
+        transform: translateX(120%);
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #sidebarToggle {
+        position: absolute;
+        right: 20px;
+        top: 100px;
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        pointer-events: all;
+        z-index: 100;
+        display: none;
+        transition: transform 0.2s ease;
+      }
+
+      #sidebarToggle:hover {
+        transform: scale(1.1);
+      }
+
+      #diceHistory {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        border: 2px solid rgba(255, 215, 0, 0.3);
+      }
+
+      #diceHistory h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #ffd700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .diceRollDisplay {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .diceBox {
+        background: white;
+        color: black;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 24px;
+        font-weight: bold;
+        min-width: 50px;
+        text-align: center;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        border: 3px solid #333;
+      }
+
+      .diceBox.used {
+        opacity: 0.3;
+        text-decoration: line-through;
+        border-color: #999;
+      }
+
+      .diceBox.active {
+        border-color: #ffd700;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      #sidebar h3 {
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #ffd700;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+      }
+
+      .playerStatus {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .playerStatus.active {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid white;
+      }
+
+      .playerName {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .playerColor {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      .tokensHome {
+        font-size: 12px;
+        opacity: 0.8;
+      }
+
+      #diceDisplay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        font-size: 60px;
+        font-weight: bold;
+        display: none;
+        pointer-events: all;
+        animation: diceRoll 0.5s ease-out;
+      }
+
+      @keyframes diceRoll {
+        0% {
+          transform: translate(-50%, -50%) scale(0) rotate(0deg);
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.2) rotate(180deg);
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1) rotate(360deg);
+        }
+      }
+
+      #modal {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        pointer-events: all;
+      }
+
+      #modalContent {
+        background: white;
+        padding: 40px;
+        border-radius: 15px;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+
+      #modalContent h2 {
+        margin-bottom: 20px;
+        color: #d2691e;
+      }
+
+      #modalContent h3 {
+        margin-top: 20px;
+        margin-bottom: 10px;
+        color: #8b4513;
+      }
+
+      #modalContent ul {
+        margin-left: 20px;
+        margin-bottom: 15px;
+      }
+
+      #modalContent li {
+        margin-bottom: 8px;
+        line-height: 1.5;
+      }
+
+      #closeModal {
+        margin-top: 20px;
+        padding: 10px 30px;
+        background: linear-gradient(135deg, #d2691e 0%, #a0522d 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+
+      #setupModal {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        pointer-events: all;
+        z-index: 100;
+      }
+
+      #setupContent {
+        background: white;
+        padding: 40px;
+        border-radius: 15px;
+        max-width: 500px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+
+      #setupContent h2 {
+        margin-bottom: 30px;
+        color: #d2691e;
+        text-align: center;
+      }
+
+      .setupOption {
+        margin-bottom: 25px;
+      }
+
+      .setupOption label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .setupOption select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 2px solid #ddd;
+        font-size: 16px;
+      }
+
+      .playerSetup {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .playerSetup input {
+        flex: 1;
+        padding: 8px;
+        border-radius: 6px;
+        border: 2px solid #ddd;
+      }
+
+      .playerSetup select {
+        padding: 8px;
+        border-radius: 6px;
+        border: 2px solid #ddd;
+      }
+
+      #startGameBtn {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(135deg, #d2691e 0%, #a0522d 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 20px;
+      }
+
+      #cameraControls {
+        position: absolute;
+        left: 20px;
+        bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: all;
+        z-index: 15;
+      }
+
+      .cameraBtn {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(
+          135deg,
+          rgba(26, 26, 46, 0.95) 0%,
+          rgba(22, 33, 62, 0.95) 100%
+        );
+        border: 2px solid rgba(255, 215, 0, 0.3);
+        border-radius: 12px;
+        color: #ffd700;
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .cameraBtn:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(40, 40, 70, 0.95) 0%,
+          rgba(35, 50, 80, 0.95) 100%
+        );
+        border-color: rgba(255, 215, 0, 0.6);
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
+      }
+
+      .cameraBtn:active {
+        transform: scale(0.95);
+      }
+
+      #notification {
+        position: absolute;
+        top: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 15px 30px;
+        border-radius: 8px;
+        display: none;
+        pointer-events: none;
+        animation: slideDown 0.3s ease-out;
+      }
+
+      @keyframes slideDown {
+        from {
+          transform: translate(-50%, -100%);
+          opacity: 0;
+        }
+        to {
+          transform: translate(-50%, 0);
+          opacity: 1;
+        }
+      }
+
+      .loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 24px;
+        pointer-events: none;
+      }
+
+      /* Mobile Responsive Styles */
+      @media (max-width: 768px) {
+        body {
+          overflow: hidden;
+          position: fixed;
+          width: 100%;
+          height: 100%;
+        }
+
+        #topBar {
+          padding: 10px 15px;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        #gameTitle {
+          font-size: 20px;
+        }
+
+        #gameTitle::before {
+          font-size: 24px;
+        }
+
+        #currentPlayerInfo {
+          font-size: 14px;
+          gap: 8px;
+        }
+
+        .playerIndicator {
+          width: 20px;
+          height: 20px;
+        }
+
+        #controls {
+          bottom: 10px;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: center;
+          max-width: 95%;
+        }
+
+        .btn {
+          padding: 12px 20px;
+          font-size: 13px;
+          flex: 1;
+          min-width: 100px;
+          pointer-events: auto;
+          touch-action: manipulation;
+          z-index: 1000;
+        }
+
+        #cameraControls {
+          right: 10px;
+          gap: 8px;
+        }
+
+        .cameraBtn {
+          width: 40px;
+          height: 40px;
+          font-size: 16px;
+        }
+
+        #sidebar {
+          transform: translateX(120%);
+          opacity: 0;
+          pointer-events: none;
+          min-width: 250px;
+          padding: 15px;
+        }
+
+        #sidebar.visible {
+          transform: translateX(0);
+          opacity: 1;
+          pointer-events: all;
+        }
+
+        #sidebarToggle {
+          display: block;
+        }
+
+        #diceDisplay {
+          padding: 20px;
+          font-size: 40px;
+          max-width: 80%;
+        }
+
+        .diceValue {
+          width: 45px;
+          height: 45px;
+          font-size: 20px;
+        }
+
+        #diceHistory {
+          left: 10px;
+          bottom: 80px;
+          padding: 8px;
+          max-width: 150px;
+        }
+
+        #diceHistory h4 {
+          font-size: 11px;
+        }
+
+        .historyItem {
+          font-size: 10px;
+          padding: 4px 6px;
+        }
+
+        #startScreen h1 {
+          font-size: 32px;
+        }
+
+        #startScreen p {
+          font-size: 16px;
+        }
+
+        #setupModal #setupContent,
+        #rulesModal #rulesContent {
+          width: 95%;
+          max-width: 95%;
+          padding: 20px;
+          max-height: 85vh;
+          overflow-y: auto;
+        }
+
+        #rulesContent h2,
+        #setupContent h2 {
+          font-size: 22px;
+        }
+
+        #rulesContent h3 {
+          font-size: 16px;
+        }
+
+        #rulesContent p,
+        #rulesContent li {
+          font-size: 13px;
+        }
+
+        .setupOption label {
+          font-size: 14px;
+        }
+
+        .setupOption select,
+        .setupOption input {
+          font-size: 14px;
+          padding: 8px;
+        }
+
+        #notification {
+          top: 70px;
+          padding: 10px 20px;
+          font-size: 14px;
+          max-width: 90%;
+        }
+      }
+
+      @media (max-width: 480px) {
+        #gameTitle {
+          font-size: 16px;
+        }
+
+        #currentPlayerInfo {
+          font-size: 12px;
+        }
+
+        .btn {
+          padding: 10px 15px;
+          font-size: 11px;
+          min-width: 80px;
+        }
+
+        #playerStatus,
+        #diceDisplay {
+          top: 70px;
+        }
+
+        #controls {
+          bottom: 5px;
+        }
+      }
+
+      /* Touch-friendly enhancements */
+      @media (hover: none) and (pointer: coarse) {
+        .btn {
+          padding: 15px 25px;
+        }
+
+        .cameraBtn {
+          width: 45px;
+          height: 45px;
+        }
+
+        /* Prevent text selection on touch */
+        * {
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          user-select: none;
+        }
+
+        input,
+        select {
+          -webkit-user-select: text;
+          user-select: text;
+        }
+      }
+
+      /* Portrait orientation specific fixes */
+      @media (max-width: 768px) and (orientation: portrait) {
+        #controls {
+          position: fixed !important;
+          bottom: 10px !important;
+          left: 50% !important;
+          transform: translateX(-50%) !important;
+          z-index: 9999 !important;
+          pointer-events: auto !important;
+          display: flex !important;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 8px;
+          max-width: 95%;
+          padding: 0 10px;
+        }
+
+        .btn {
+          pointer-events: auto !important;
+          touch-action: manipulation !important;
+          -webkit-tap-highlight-color: rgba(255, 255, 255, 0.5) !important;
+          position: relative !important;
+          z-index: 10000 !important;
+        }
+
+        #controls .btn {
+          flex: 1 1 auto;
+          min-width: 90px;
+          max-width: 150px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameContainer">
+      <canvas id="gameCanvas"></canvas>
+
+      <div id="ui">
+        <div id="topBar">
+          <div id="gameTitle">🎲 3D LUDO</div>
+          <div id="currentPlayerInfo">
+            <span id="currentPlayerText">Current Player:</span>
+            <div class="playerIndicator" id="currentPlayerColor"></div>
+            <span id="currentPlayerName">-</span>
+          </div>
+        </div>
+
+        <button id="sidebarToggle">📊</button>
+
+        <div id="sidebar">
+          <div id="diceHistory" style="display: none">
+            <h4>Current Roll</h4>
+            <div class="diceRollDisplay">
+              <div class="diceBox" id="dice1Box">-</div>
+              <div class="diceBox" id="dice2Box">-</div>
+            </div>
+          </div>
+          <h3 style="margin-bottom: 15px">Players</h3>
+          <div id="playersStatus"></div>
+        </div>
+
+        <div id="controls">
+          <button
+            id="rollBtn"
+            class="btn"
+            ontouchend="event.preventDefault(); rollDice();"
+            onclick="rollDice();"
+          >
+            Roll Dice
+          </button>
+          <button
+            id="newGameBtn"
+            class="btn"
+            ontouchend="event.preventDefault(); handleNewGameClick();"
+            onclick="handleNewGameClick();"
+          >
+            New Game
+          </button>
+          <button
+            id="saveGameBtn"
+            class="btn"
+            ontouchend="event.preventDefault(); handleSaveGameClick();"
+            onclick="handleSaveGameClick();"
+          >
+            Save Game
+          </button>
+          <button
+            id="loadGameBtn"
+            class="btn"
+            ontouchend="event.preventDefault(); handleLoadGameClick();"
+            onclick="handleLoadGameClick();"
+          >
+            Load Game
+          </button>
+          <button
+            id="rulesBtn"
+            class="btn"
+            ontouchend="event.preventDefault(); handleRulesClick();"
+            onclick="handleRulesClick();"
+          >
+            Rules
+          </button>
+        </div>
+
+        <div id="cameraControls">
+          <button
+            class="cameraBtn"
+            id="rotateLeftBtn"
+            title="Rotate Board Left"
+          >
+            <i class="fas fa-undo"></i>
+          </button>
+          <button
+            class="cameraBtn"
+            id="rotateRightBtn"
+            title="Rotate Board Right"
+          >
+            <i class="fas fa-redo"></i>
+          </button>
+          <button class="cameraBtn" id="zoomInBtn" title="Zoom In">
+            <i class="fas fa-search-plus"></i>
+          </button>
+          <button class="cameraBtn" id="zoomOutBtn" title="Zoom Out">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <button class="cameraBtn" id="resetCameraBtn" title="Reset View">
+            <i class="fas fa-home"></i>
+          </button>
+        </div>
+
+        <div id="diceDisplay"></div>
+        <div id="notification"></div>
+      </div>
+
+      <div id="modal">
+        <div id="modalContent">
+          <h2>🎲 Ludo Game Rules</h2>
+
+          <h3>Objective</h3>
+          <p>
+            Be the first player to move all four of your tokens from your
+            starting yard to the home area in the center.
+          </p>
+
+          <h3>Setup</h3>
+          <ul>
+            <li>2-4 players can play</li>
+            <li>Each player has 4 tokens of their color</li>
+            <li>All tokens start in their respective starting yards</li>
+            <li>
+              <strong>2-Player Mode:</strong> Each player controls 2 colors
+              (Player 1: RED+YELLOW, Player 2: GREEN+BLUE)
+            </li>
+            <li>
+              <strong>3-4 Player Mode:</strong> Each player controls 1 color
+            </li>
+          </ul>
+
+          <h3>How to Play</h3>
+          <ul>
+            <li>
+              <strong>Dual Dice:</strong> Roll two dice each turn - use each die
+              value separately to move tokens
+            </li>
+            <li>
+              <strong>Sequential Moves:</strong> Dice values are used in
+              descending order (higher value first)
+            </li>
+            <li>
+              <strong>Starting:</strong> Roll a 6 on either die to move a token
+              from your yard to your starting position
+            </li>
+            <li>
+              <strong>Double 6 Bonus:</strong> Rolling double 6 (both dice show
+              6) lets you bring out 2 tokens from your yard AND gives you
+              another turn
+            </li>
+            <li>
+              <strong>Capturing:</strong> Landing on an opponent's token sends
+              it back to their yard. Your capturing token goes home as a reward.
+              <strong>Important:</strong> Only one opponent token is captured
+              even if multiple are on the same space.
+            </li>
+            <li>
+              <strong>Combined Moves:</strong> When you have only one token on
+              the board, both dice values automatically combine into one move
+            </li>
+            <li>
+              <strong>Home Path:</strong> After completing 50 spaces, tokens
+              enter the colored home path (6 spaces to center)
+            </li>
+            <li>
+              <strong>Exact Entry:</strong> Tokens must land exactly on home
+              position 5 to enter the center home
+            </li>
+            <li>
+              <strong>Winning:</strong> First player to get all 4 tokens to the
+              center wins!
+            </li>
+          </ul>
+
+          <h3>Controls</h3>
+          <ul>
+            <li>
+              <strong>Roll Dice:</strong> Click "Roll Dice" button or press
+              SPACEBAR
+            </li>
+            <li>
+              <strong>Select Token:</strong> Click on your token to select it
+              for movement (flame indicator shows selectable tokens)
+            </li>
+            <li>
+              <strong>Save Game:</strong> Click "Save Game" button to manually
+              save progress
+            </li>
+            <li>
+              <strong>Load Game:</strong> Click "Load Game" button to resume
+              saved game
+            </li>
+            <li>
+              <strong>Camera Rotation:</strong> Use rotation buttons or
+              left-click and drag to rotate view
+            </li>
+            <li>
+              <strong>Zoom:</strong> Use zoom buttons or scroll wheel to zoom
+              in/out
+            </li>
+          </ul>
+
+          <button
+            id="closeModal"
+            ontouchend="event.preventDefault(); handleCloseModal();"
+            onclick="handleCloseModal();"
+          >
+            Got It!
+          </button>
+        </div>
+      </div>
+
+      <div id="setupModal">
+        <div id="setupContent">
+          <h2>🎮 Game Setup</h2>
+
+          <div class="setupOption">
+            <label>Number of Players:</label>
+            <select id="numPlayers">
+              <option value="2">2 Players</option>
+              <option value="3">3 Players</option>
+              <option value="4" selected>4 Players</option>
+            </select>
+          </div>
+
+          <div class="setupOption">
+            <label>Configure Players:</label>
+            <div id="playerConfigs"></div>
+          </div>
+
+          <button id="startGameBtn">Start Game</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      // Game Constants
+      const COLORS = {
+        RED: 0xda1a10,
+        BLUE: 0x010c3a,
+        GREEN: 0x003a24,
+        YELLOW: 0x9d7000,
+      };
+
+      const TOKEN_COLORS = {
+        RED: 0xff3333,
+        BLUE: 0x3399ff,
+        GREEN: 0x33cc66,
+        YELLOW: 0xffcc00,
+      };
+
+      const PLAYER_COLORS = ["RED", "GREEN", "YELLOW", "BLUE"];
+      const TOKENS_PER_PLAYER = 4;
+      const BOARD_SIZE = 20;
+      const CELL_SIZE = 1.35;
+
+      // Board path definition (CLOCKWISE from each player's start)
+      const BOARD_PATH = [
+        // Red's starting position and path (next to RED yard - top-left)
+        { x: 0, y: 6 },
+        { x: 1, y: 6 },
+        { x: 2, y: 6 },
+        { x: 3, y: 6 },
+        { x: 4, y: 6 },
+        { x: 5, y: 6 },
+        { x: 6, y: 5 },
+        { x: 6, y: 4 },
+        { x: 6, y: 3 },
+        { x: 6, y: 2 },
+        { x: 6, y: 1 },
+        { x: 6, y: 0 },
+        { x: 7, y: 0 },
+        // Blue's starting position (next to BLUE yard - top-right)
+        { x: 8, y: 0 },
+        { x: 8, y: 1 },
+        { x: 8, y: 2 },
+        { x: 8, y: 3 },
+        { x: 8, y: 4 },
+        { x: 8, y: 5 },
+        { x: 9, y: 6 },
+        { x: 10, y: 6 },
+        { x: 11, y: 6 },
+        { x: 12, y: 6 },
+        { x: 13, y: 6 },
+        { x: 14, y: 6 },
+        { x: 14, y: 7 },
+        // Yellow's starting position (next to YELLOW yard - bottom-right)
+        { x: 14, y: 8 },
+        { x: 13, y: 8 },
+        { x: 12, y: 8 },
+        { x: 11, y: 8 },
+        { x: 10, y: 8 },
+        { x: 9, y: 8 },
+        { x: 8, y: 9 },
+        { x: 8, y: 10 },
+        { x: 8, y: 11 },
+        { x: 8, y: 12 },
+        { x: 8, y: 13 },
+        { x: 8, y: 14 },
+        { x: 7, y: 14 },
+        // Green's starting position (next to GREEN yard - bottom-left)
+        { x: 6, y: 14 },
+        { x: 6, y: 13 },
+        { x: 6, y: 12 },
+        { x: 6, y: 11 },
+        { x: 6, y: 10 },
+        { x: 6, y: 9 },
+        { x: 5, y: 8 },
+        { x: 4, y: 8 },
+        { x: 3, y: 8 },
+        { x: 2, y: 8 },
+        { x: 1, y: 8 },
+        { x: 0, y: 8 },
+        { x: 0, y: 7 },
+      ];
+
+      // Starting positions for each color
+      const START_POSITIONS = {
+        RED: 1,
+        BLUE: 14,
+        YELLOW: 27,
+        GREEN: 40,
+      };
+
+      // Home paths for each color (5 squares leading to center)
+      const HOME_PATHS = {
+        RED: [
+          { x: 1, y: 7 },
+          { x: 2, y: 7 },
+          { x: 3, y: 7 },
+          { x: 4, y: 7 },
+          { x: 5, y: 7 },
+          { x: 6, y: 7 },
+        ],
+        GREEN: [
+          { x: 7, y: 13 },
+          { x: 7, y: 12 },
+          { x: 7, y: 11 },
+          { x: 7, y: 10 },
+          { x: 7, y: 9 },
+          { x: 7, y: 8 },
+        ],
+        YELLOW: [
+          { x: 13, y: 7 },
+          { x: 12, y: 7 },
+          { x: 11, y: 7 },
+          { x: 10, y: 7 },
+          { x: 9, y: 7 },
+          { x: 8, y: 7 },
+        ],
+        BLUE: [
+          { x: 7, y: 1 },
+          { x: 7, y: 2 },
+          { x: 7, y: 3 },
+          { x: 7, y: 4 },
+          { x: 7, y: 5 },
+          { x: 7, y: 6 },
+        ],
+      };
+
+      // Yard positions for tokens waiting to start
+      const YARD_POSITIONS = {
+        RED: [
+          { x: 2.5, y: 2.5 },
+          { x: 3.5, y: 2.5 },
+          { x: 2.5, y: 3.5 },
+          { x: 3.5, y: 3.5 },
+        ],
+        GREEN: [
+          { x: 2.5, y: 10.5 },
+          { x: 3.5, y: 10.5 },
+          { x: 2.5, y: 11.5 },
+          { x: 3.5, y: 11.5 },
+        ],
+        YELLOW: [
+          { x: 10.5, y: 10.5 },
+          { x: 11.5, y: 10.5 },
+          { x: 10.5, y: 11.5 },
+          { x: 11.5, y: 11.5 },
+        ],
+        BLUE: [
+          { x: 10.5, y: 2.5 },
+          { x: 11.5, y: 2.5 },
+          { x: 10.5, y: 3.5 },
+          { x: 11.5, y: 3.5 },
+        ],
+      };
+
+      // Game State
+      let scene, camera, renderer, controls;
+      let gameState = {
+        players: [],
+        currentPlayerIndex: 0,
+        diceValue: 0,
+        dice1: 0,
+        dice2: 0,
+        remainingMoves: [], // Track which dice values can still be used
+        currentMoveIndex: 0,
+        selectedToken: null,
+        gameStarted: false,
+        winner: null,
+      };
+
+      let boardMeshes = [];
+      let tokenMeshes = {};
+      let diceMeshes = [];
+      let accentLights = [];
+      let boardGroup; // Reference to the board group for rotation/scaling
+      let boardScale = 1; // Current board scale
+
+      // Camera control variables
+      let cameraAngle = 0;
+      let cameraDistance = 25;
+      let cameraHeight = 20;
+
+      // LocalStorage functions for saving/loading game
+      function saveGameState() {
+        const saveData = {
+          gameStarted: gameState.gameStarted,
+          currentPlayerIndex: gameState.currentPlayerIndex,
+          dice1: gameState.dice1,
+          dice2: gameState.dice2,
+          remainingMoves: gameState.remainingMoves,
+          currentMoveIndex: gameState.currentMoveIndex,
+          players: gameState.players.map((p) => ({
+            id: p.id,
+            name: p.name,
+            colors: p.colors,
+            isAI: p.isAI,
+            colorGroups: Object.fromEntries(
+              Object.entries(p.colorGroups).map(([color, tokens]) => [
+                color,
+                tokens.map((t) => ({
+                  id: t.id,
+                  color: t.color,
+                  position: t.position,
+                  inHome: t.inHome,
+                  homePosition: t.homePosition,
+                })),
+              ])
+            ),
+          })),
+        };
+        localStorage.setItem("ludoGameState", JSON.stringify(saveData));
+        showNotification("Game saved! 💾");
+      }
+
+      function loadGameState() {
+        const savedData = localStorage.getItem("ludoGameState");
+        if (!savedData) return null;
+
+        try {
+          return JSON.parse(savedData);
+        } catch (e) {
+          console.error("Error loading saved game:", e);
+          return null;
+        }
+      }
+
+      function clearSavedGame() {
+        localStorage.removeItem("ludoGameState");
+      }
+
+      function restoreGameFromSave(savedData) {
+        // Initialize the game first with the saved player configuration
+        const playerConfigs = savedData.players.map((p) => ({
+          name: p.name,
+          isAI: p.isAI,
+        }));
+
+        initGame(playerConfigs);
+
+        // Wait for next frame to ensure all tokens are created and positioned
+        setTimeout(() => {
+          // Now restore game state
+          gameState.gameStarted = savedData.gameStarted;
+          gameState.currentPlayerIndex = savedData.currentPlayerIndex;
+          gameState.dice1 = savedData.dice1;
+          gameState.dice2 = savedData.dice2;
+          gameState.remainingMoves = savedData.remainingMoves;
+          gameState.currentMoveIndex = savedData.currentMoveIndex;
+
+          // Restore token positions
+          savedData.players.forEach((savedPlayer, playerIdx) => {
+            const player = gameState.players[playerIdx];
+
+            Object.entries(savedPlayer.colorGroups).forEach(
+              ([color, savedTokens]) => {
+                savedTokens.forEach((savedToken, tokenIdx) => {
+                  const token = player.colorGroups[color][tokenIdx];
+                  token.position = savedToken.position;
+                  token.inHome = savedToken.inHome;
+                  token.homePosition = savedToken.homePosition;
+
+                  // Update mesh position
+                  let targetPos;
+                  if (token.inHome) {
+                    targetPos = { x: 7, y: 7 };
+                  } else if (token.homePosition >= 0) {
+                    targetPos = HOME_PATHS[color][token.homePosition];
+                  } else if (token.position >= 0) {
+                    targetPos = BOARD_PATH[token.position];
+                  } else {
+                    const yardPos = YARD_POSITIONS[color][token.id];
+                    targetPos = yardPos;
+                  }
+
+                  const worldX = (targetPos.x - 7) * CELL_SIZE;
+                  const worldZ = (targetPos.y - 7) * CELL_SIZE;
+                  token.mesh.position.set(worldX, 0.5, worldZ);
+                });
+              }
+            );
+          });
+
+          updateUI();
+          showNotification("Game loaded! 🎮");
+
+          const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+          if (currentPlayer.isAI) {
+            setTimeout(() => rollDice(), 1500);
+          }
+        }, 100);
+      }
+
+      // Initialize Three.js Scene
+      function initScene() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2d2d2d); // Camera
+        camera = new THREE.PerspectiveCamera(
+          60,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(0, 27, 20);
+        camera.lookAt(0, 0, 0);
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({
+          canvas: document.getElementById("gameCanvas"),
+          antialias: true,
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Lights - soft ambient lighting only
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambientLight);
+
+        // Point lights for accent - matching player colors with stronger intensity
+        const pointLight1 = new THREE.PointLight(0xc62828, 0.6, 25); // Red
+        pointLight1.position.set(-8, 6, -8);
+        pointLight1.castShadow = true;
+        scene.add(pointLight1);
+        accentLights.push(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0x2e7d32, 0.6, 25); // Green
+        pointLight2.position.set(-8, 6, 8);
+        pointLight2.castShadow = true;
+        scene.add(pointLight2);
+        accentLights.push(pointLight2);
+
+        const pointLight3 = new THREE.PointLight(0xf9a825, 0.6, 25); // Yellow
+        pointLight3.position.set(8, 6, 8);
+        pointLight3.castShadow = true;
+        scene.add(pointLight3);
+        accentLights.push(pointLight3);
+
+        const pointLight4 = new THREE.PointLight(0x1565c0, 0.6, 25); // Blue
+        pointLight4.position.set(8, 6, -8);
+        pointLight4.castShadow = true;
+        scene.add(pointLight4);
+        accentLights.push(pointLight4);
+
+        // Central spotlight on board for focus
+        const spotLight = new THREE.SpotLight(0xffffff, 0.8);
+        spotLight.position.set(0, 15, 0);
+        spotLight.angle = Math.PI / 3;
+        spotLight.penumbra = 0.3;
+        spotLight.decay = 2;
+        spotLight.distance = 30;
+        spotLight.castShadow = true;
+        scene.add(spotLight);
+
+        // Simple orbit controls
+        setupCameraControls();
+
+        // Window resize handler
+        window.addEventListener("resize", onWindowResize);
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      // Setup camera controls (mouse drag, wheel zoom, and buttons)
+      function setupCameraControls() {
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        const canvas = document.getElementById("gameCanvas");
+
+        // Mouse drag to rotate
+        canvas.addEventListener("mousedown", (e) => {
+          if (e.button === 0) {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+          }
+        });
+
+        canvas.addEventListener("mousemove", (e) => {
+          if (isDragging) {
+            const deltaX = e.clientX - previousMousePosition.x;
+
+            cameraAngle += deltaX * 0.01;
+
+            camera.position.x = Math.sin(cameraAngle) * cameraDistance;
+            camera.position.z = Math.cos(cameraAngle) * cameraDistance;
+            camera.position.y = cameraHeight;
+            camera.lookAt(0, 0, 0);
+
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+          }
+        });
+
+        canvas.addEventListener("mouseup", () => {
+          isDragging = false;
+        });
+
+        // Mouse wheel to zoom
+        canvas.addEventListener("wheel", (e) => {
+          e.preventDefault();
+          cameraDistance += e.deltaY * 0.01;
+          cameraDistance = Math.max(15, Math.min(40, cameraDistance));
+
+          camera.position.x = Math.sin(cameraAngle) * cameraDistance;
+          camera.position.z = Math.cos(cameraAngle) * cameraDistance;
+          camera.lookAt(0, 0, 0);
+        });
+
+        // Board view control buttons
+        const rotateLeftBtn = document.getElementById("rotateLeftBtn");
+        const rotateRightBtn = document.getElementById("rotateRightBtn");
+        const zoomInBtn = document.getElementById("zoomInBtn");
+        const zoomOutBtn = document.getElementById("zoomOutBtn");
+        const resetCameraBtn = document.getElementById("resetCameraBtn");
+
+        const rotateLeft = () => {
+          if (boardGroup) {
+            gsap.to(boardGroup.rotation, {
+              duration: 0.5,
+              y: boardGroup.rotation.y + Math.PI / 4,
+              ease: "power2.out",
+            });
+          }
+        };
+
+        const rotateRight = () => {
+          if (boardGroup) {
+            gsap.to(boardGroup.rotation, {
+              duration: 0.5,
+              y: boardGroup.rotation.y - Math.PI / 4,
+              ease: "power2.out",
+            });
+          }
+        };
+
+        const zoomIn = () => {
+          if (boardGroup) {
+            boardScale = Math.min(1.5, boardScale + 0.1);
+            gsap.to(boardGroup.scale, {
+              duration: 0.5,
+              x: boardScale,
+              y: boardScale,
+              z: boardScale,
+              ease: "power2.out",
+            });
+          }
+        };
+
+        const zoomOut = () => {
+          if (boardGroup) {
+            boardScale = Math.max(0.5, boardScale - 0.1);
+            gsap.to(boardGroup.scale, {
+              duration: 0.5,
+              x: boardScale,
+              y: boardScale,
+              z: boardScale,
+              ease: "power2.out",
+            });
+          }
+        };
+
+        const resetCamera = () => {
+          if (boardGroup) {
+            boardScale = 1;
+            gsap.to(boardGroup.rotation, {
+              duration: 0.7,
+              y: 0,
+              ease: "power2.out",
+            });
+            gsap.to(boardGroup.scale, {
+              duration: 0.7,
+              x: 1,
+              y: 1,
+              z: 1,
+              ease: "power2.out",
+            });
+          }
+        };
+
+        // Add both click and touch events for camera controls
+        rotateLeftBtn.addEventListener("click", rotateLeft);
+        rotateLeftBtn.addEventListener(
+          "touchend",
+          (e) => {
+            e.preventDefault();
+            rotateLeft();
+          },
+          { passive: false }
+        );
+
+        rotateRightBtn.addEventListener("click", rotateRight);
+        rotateRightBtn.addEventListener(
+          "touchend",
+          (e) => {
+            e.preventDefault();
+            rotateRight();
+          },
+          { passive: false }
+        );
+
+        zoomInBtn.addEventListener("click", zoomIn);
+        zoomInBtn.addEventListener(
+          "touchend",
+          (e) => {
+            e.preventDefault();
+            zoomIn();
+          },
+          { passive: false }
+        );
+
+        zoomOutBtn.addEventListener("click", zoomOut);
+        zoomOutBtn.addEventListener(
+          "touchend",
+          (e) => {
+            e.preventDefault();
+            zoomOut();
+          },
+          { passive: false }
+        );
+
+        resetCameraBtn.addEventListener("click", resetCamera);
+        resetCameraBtn.addEventListener(
+          "touchend",
+          (e) => {
+            e.preventDefault();
+            resetCamera();
+          },
+          { passive: false }
+        );
+      }
+
+      function createBoard() {
+        boardGroup = new THREE.Group();
+
+        // Board base - dark background for cell gaps
+        const baseGeometry = new THREE.BoxGeometry(BOARD_SIZE, 0.5, BOARD_SIZE);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+          color: 0x2a2a2a,
+          roughness: 0.7,
+          metalness: 0.05,
+          emissive: 0x1a1a1a,
+          emissiveIntensity: 0.1,
+        });
+        const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+        baseMesh.position.y = -0.25;
+        baseMesh.receiveShadow = true;
+        baseMesh.castShadow = true;
+        boardGroup.add(baseMesh);
+
+        // Add wooden border frame with stick pattern
+        const borderThickness = 0.6;
+        const borderHeight = 0.8;
+
+        // Create wood texture pattern
+        const woodCanvas = document.createElement("canvas");
+        woodCanvas.width = 512;
+        woodCanvas.height = 512;
+        const woodCtx = woodCanvas.getContext("2d");
+
+        // Base wood color
+        woodCtx.fillStyle = "#4a2c14";
+        woodCtx.fillRect(0, 0, 512, 512);
+
+        // Add wood grain lines
+        for (let i = 0; i < 60; i++) {
+          woodCtx.strokeStyle = `rgba(${90 + Math.random() * 40}, ${
+            40 + Math.random() * 20
+          }, ${15 + Math.random() * 10}, ${0.3 + Math.random() * 0.3})`;
+          woodCtx.lineWidth = 1 + Math.random() * 2;
+          woodCtx.beginPath();
+          const y = Math.random() * 512;
+          woodCtx.moveTo(0, y);
+          woodCtx.lineTo(512, y + (Math.random() - 0.5) * 30);
+          woodCtx.stroke();
+        }
+
+        // Add knots and imperfections
+        for (let i = 0; i < 8; i++) {
+          const x = Math.random() * 512;
+          const y = Math.random() * 512;
+          const radius = 5 + Math.random() * 15;
+          const gradient = woodCtx.createRadialGradient(x, y, 0, x, y, radius);
+          gradient.addColorStop(0, "rgba(30, 15, 5, 0.5)");
+          gradient.addColorStop(1, "rgba(30, 15, 5, 0)");
+          woodCtx.fillStyle = gradient;
+          woodCtx.beginPath();
+          woodCtx.arc(x, y, radius, 0, Math.PI * 2);
+          woodCtx.fill();
+        }
+
+        const woodTexture = new THREE.CanvasTexture(woodCanvas);
+        woodTexture.wrapS = THREE.RepeatWrapping;
+        woodTexture.wrapT = THREE.RepeatWrapping;
+
+        const borders = [
+          new THREE.BoxGeometry(
+            BOARD_SIZE + borderThickness * 2,
+            borderHeight,
+            borderThickness
+          ),
+          new THREE.BoxGeometry(
+            borderThickness,
+            borderHeight,
+            BOARD_SIZE + borderThickness * 2
+          ),
+        ];
+        const borderMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.2,
+          metalness: 0.4,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.1,
+        });
+
+        // Top, Bottom, Left, Right borders
+        const borderPositions = [
+          {
+            x: 0,
+            y: 0.1,
+            z: -(BOARD_SIZE / 2 + borderThickness / 2),
+            geomIndex: 0,
+          },
+          {
+            x: 0,
+            y: 0.1,
+            z: BOARD_SIZE / 2 + borderThickness / 2,
+            geomIndex: 0,
+          },
+          {
+            x: -(BOARD_SIZE / 2 + borderThickness / 2),
+            y: 0.1,
+            z: 0,
+            geomIndex: 1,
+          },
+          {
+            x: BOARD_SIZE / 2 + borderThickness / 2,
+            y: 0.1,
+            z: 0,
+            geomIndex: 1,
+          },
+        ];
+
+        borderPositions.forEach((pos) => {
+          const border = new THREE.Mesh(borders[pos.geomIndex], borderMaterial);
+          border.position.set(pos.x, pos.y, pos.z);
+          border.receiveShadow = true;
+          border.castShadow = true;
+          boardGroup.add(border);
+
+          // Add decorative carved lines on border
+          const lineCount = 5;
+          for (let i = 0; i < lineCount; i++) {
+            const lineGeometry = new THREE.BoxGeometry(
+              pos.geomIndex === 0
+                ? BOARD_SIZE + borderThickness * 2
+                : borderThickness * 0.8,
+              0.02,
+              pos.geomIndex === 0
+                ? borderThickness * 0.8
+                : BOARD_SIZE + borderThickness * 2
+            );
+            const lineMaterial = new THREE.MeshStandardMaterial({
+              color: 0xe8e8e8,
+              roughness: 0.4,
+            });
+            const line = new THREE.Mesh(lineGeometry, lineMaterial);
+            const offset = (i - lineCount / 2 + 0.5) * 0.12;
+            line.position.set(
+              pos.x,
+              pos.y + borderHeight / 2 - 0.15 + offset,
+              pos.z
+            );
+            boardGroup.add(line);
+          }
+        });
+
+        // Create colored home areas (yards) - fill remaining space
+        const homeAreaSize = 8;
+        const homeColors = [
+          { color: COLORS.RED, x: -6, z: -6 },
+          { color: COLORS.GREEN, x: -6, z: 6 },
+          { color: COLORS.YELLOW, x: 6, z: 6 },
+          { color: COLORS.BLUE, x: 6, z: -6 },
+        ];
+
+        homeColors.forEach((home) => {
+          const homeGeometry = new THREE.BoxGeometry(
+            homeAreaSize,
+            0.05,
+            homeAreaSize
+          );
+          const homeMaterial = new THREE.MeshStandardMaterial({
+            color: home.color,
+            transparent: true,
+            opacity: 0.85,
+            roughness: 0.5,
+            metalness: 0.1,
+            emissive: home.color,
+            emissiveIntensity: 0.15,
+          });
+          const homeMesh = new THREE.Mesh(homeGeometry, homeMaterial);
+          homeMesh.position.set(home.x, 0.025, home.z);
+          boardGroup.add(homeMesh);
+
+          // Add decorative pattern - simple rectangles
+          // Large white center rectangle
+          const centerRectSize = 4.8;
+          const centerRectGeometry = new THREE.PlaneGeometry(
+            centerRectSize,
+            centerRectSize
+          );
+          const centerRectMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            side: THREE.DoubleSide,
+          });
+          const centerRect = new THREE.Mesh(
+            centerRectGeometry,
+            centerRectMaterial
+          );
+          centerRect.rotation.x = -Math.PI / 2;
+          centerRect.position.set(home.x, 0.06, home.z);
+          boardGroup.add(centerRect);
+
+          // Four smaller colored rectangles inside the white rectangle
+          const smallRectSize = 0.8;
+          const offset = 0.95;
+          const positions = [
+            { x: -offset, z: -offset },
+            { x: offset, z: -offset },
+            { x: -offset, z: offset },
+            { x: offset, z: offset },
+          ];
+
+          positions.forEach((pos) => {
+            const smallRectGeometry = new THREE.PlaneGeometry(
+              smallRectSize,
+              smallRectSize
+            );
+            const smallRectMaterial = new THREE.MeshStandardMaterial({
+              color: home.color,
+              side: THREE.DoubleSide,
+              opacity: 0.9,
+              transparent: true,
+            });
+            const smallRect = new THREE.Mesh(
+              smallRectGeometry,
+              smallRectMaterial
+            );
+            smallRect.rotation.x = -Math.PI / 2;
+            smallRect.position.set(home.x + pos.x, 0.07, home.z + pos.z);
+            boardGroup.add(smallRect);
+          });
+        });
+
+        // Create path cells
+        BOARD_PATH.forEach((pos, index) => {
+          const cellGeometry = new THREE.BoxGeometry(
+            CELL_SIZE * 0.95,
+            0.05,
+            CELL_SIZE * 0.95
+          );
+          const cellMaterial = new THREE.MeshStandardMaterial({
+            color: 0xfaf8f3,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.05,
+            roughness: 0.5,
+            metalness: 0.05,
+          });
+          const cellMesh = new THREE.Mesh(cellGeometry, cellMaterial);
+
+          const worldX = (pos.x - 7) * CELL_SIZE;
+          const worldZ = (pos.y - 7) * CELL_SIZE;
+          cellMesh.position.set(worldX, 0.025, worldZ);
+          cellMesh.receiveShadow = false;
+          cellMesh.castShadow = false;
+
+          boardGroup.add(cellMesh);
+        });
+
+        // Create home paths
+        Object.keys(HOME_PATHS).forEach((color) => {
+          const colorValue = COLORS[color];
+          HOME_PATHS[color].forEach((pos, index) => {
+            const cellGeometry = new THREE.BoxGeometry(
+              CELL_SIZE * 0.95,
+              0.05,
+              CELL_SIZE * 0.95
+            );
+            const cellMaterial = new THREE.MeshStandardMaterial({
+              color: colorValue,
+              transparent: true,
+              opacity: 0.9,
+              roughness: 0.4,
+              metalness: 0.2,
+              emissive: colorValue,
+              emissiveIntensity: 0.3,
+            });
+            const cellMesh = new THREE.Mesh(cellGeometry, cellMaterial);
+            cellMesh.castShadow = false;
+            cellMesh.receiveShadow = false;
+
+            const worldX = (pos.x - 7) * CELL_SIZE;
+            const worldZ = (pos.y - 7) * CELL_SIZE;
+            cellMesh.position.set(worldX, 0.025, worldZ);
+
+            boardGroup.add(cellMesh);
+          });
+        });
+
+        // Add starting position markers for each color
+        Object.keys(START_POSITIONS).forEach((colorName) => {
+          const startIndex = START_POSITIONS[colorName];
+          const startPos = BOARD_PATH[startIndex];
+          const worldX = (startPos.x - 7) * CELL_SIZE;
+          const worldZ = (startPos.y - 7) * CELL_SIZE;
+
+          // Create a full-width colored rectangle for starting position
+          const startMarkerGeometry = new THREE.BoxGeometry(
+            CELL_SIZE * 0.95,
+            0.05,
+            CELL_SIZE * 0.95
+          );
+          const startMarkerMaterial = new THREE.MeshStandardMaterial({
+            color: COLORS[colorName],
+            emissive: COLORS[colorName],
+            emissiveIntensity: 0.4,
+            metalness: 0.5,
+            roughness: 0.5,
+          });
+          const startMarker = new THREE.Mesh(
+            startMarkerGeometry,
+            startMarkerMaterial
+          );
+          startMarker.position.set(worldX, 0.025, worldZ);
+          startMarker.castShadow = false;
+          boardGroup.add(startMarker);
+        });
+
+        // Center home area - modern star design
+        const centerGeometry = new THREE.CylinderGeometry(1.2, 1.2, 0.1, 32);
+        const centerMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffd700,
+          emissive: 0xffaa00,
+          emissiveIntensity: 0.5,
+          metalness: 0.8,
+          roughness: 0.2,
+        });
+        const centerMesh = new THREE.Mesh(centerGeometry, centerMaterial);
+        centerMesh.position.y = 0.05;
+        centerMesh.castShadow = false;
+        boardGroup.add(centerMesh);
+
+        // Create star shape for center
+        const starShape = new THREE.Shape();
+        const outerRadius = 1.0;
+        const innerRadius = 0.4;
+        const spikes = 8;
+
+        for (let i = 0; i < spikes * 2; i++) {
+          const radius = i % 2 === 0 ? outerRadius : innerRadius;
+          const angle = (i * Math.PI) / spikes;
+          const x = Math.cos(angle) * radius;
+          const y = Math.sin(angle) * radius;
+          if (i === 0) {
+            starShape.moveTo(x, y);
+          } else {
+            starShape.lineTo(x, y);
+          }
+        }
+        starShape.closePath();
+
+        const starExtrudeSettings = { depth: 0.08, bevelEnabled: false };
+        const starGeometry = new THREE.ExtrudeGeometry(
+          starShape,
+          starExtrudeSettings
+        );
+        const starMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          metalness: 0.7,
+          roughness: 0.3,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.3,
+        });
+        const star = new THREE.Mesh(starGeometry, starMaterial);
+        star.position.set(0, 0.1, 0);
+        star.rotation.x = -Math.PI / 2;
+        star.castShadow = false;
+        boardGroup.add(star);
+
+        // Add colorful crown in center
+        const crownBase = new THREE.CylinderGeometry(0.4, 0.5, 0.3, 8);
+        const crownMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffd700,
+          metalness: 0.9,
+          roughness: 0.1,
+          emissive: 0xffcc00,
+          emissiveIntensity: 0.6,
+        });
+        const crown = new THREE.Mesh(crownBase, crownMaterial);
+        crown.position.set(0, 0.35, 0);
+        crown.castShadow = false;
+        boardGroup.add(crown);
+
+        // Crown gems
+        const gemColors = [0xff0000, 0x00ff00, 0xffff00, 0x0000ff];
+        gemColors.forEach((color, i) => {
+          const angle = (i * Math.PI) / 2;
+          const gemGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+          const gemMaterial = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.8,
+            metalness: 0.8,
+            roughness: 0.2,
+          });
+          const gem = new THREE.Mesh(gemGeometry, gemMaterial);
+          gem.position.set(Math.cos(angle) * 0.42, 0.5, Math.sin(angle) * 0.42);
+          boardGroup.add(gem);
+        });
+
+        // Top sphere
+        const topSphereGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const topSphereMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.8,
+          metalness: 0.9,
+          roughness: 0.1,
+        });
+        const topSphere = new THREE.Mesh(topSphereGeometry, topSphereMaterial);
+        topSphere.position.set(0, 0.65, 0);
+        topSphere.castShadow = false;
+        boardGroup.add(topSphere);
+
+        scene.add(boardGroup);
+      }
+
+      function createToken(color, playerId, tokenId) {
+        const tokenGroup = new THREE.Group();
+
+        // Token base (cylinder)
+        const baseGeometry = new THREE.CylinderGeometry(0.35, 0.4, 0.55, 16);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+          color: TOKEN_COLORS[color],
+          metalness: 0.7,
+          roughness: 0.3,
+          emissive: TOKEN_COLORS[color],
+          emissiveIntensity: 0.2,
+        });
+        const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+        baseMesh.castShadow = true;
+        baseMesh.receiveShadow = true;
+        tokenGroup.add(baseMesh);
+
+        // Token top (sphere)
+        const topGeometry = new THREE.SphereGeometry(0.28, 16, 16);
+        const topMesh = new THREE.Mesh(topGeometry, baseMaterial);
+        topMesh.position.y = 0.42;
+        topMesh.castShadow = true;
+        topMesh.receiveShadow = true;
+        tokenGroup.add(topMesh);
+
+        // Flame indicator above token (initially invisible)
+        const flameGroup = new THREE.Group();
+
+        // Create flame shape using multiple spheres
+        const flameCore = new THREE.SphereGeometry(0.12, 8, 8);
+        const flameCoreMateria = new THREE.MeshStandardMaterial({
+          color: 0xffff00,
+          emissive: 0xffff00,
+          emissiveIntensity: 2,
+          transparent: true,
+          opacity: 0.9,
+        });
+        const flameCoreMesh = new THREE.Mesh(flameCore, flameCoreMateria);
+        flameCoreMesh.position.y = 0;
+        flameGroup.add(flameCoreMesh);
+
+        // Outer flame glow
+        const flameOuter = new THREE.SphereGeometry(0.18, 8, 8);
+        const flameOuterMaterial = new THREE.MeshStandardMaterial({
+          color: 0xff6600,
+          emissive: 0xff6600,
+          emissiveIntensity: 1.5,
+          transparent: true,
+          opacity: 0.6,
+        });
+        const flameOuterMesh = new THREE.Mesh(flameOuter, flameOuterMaterial);
+        flameOuterMesh.position.y = 0;
+        flameOuterMesh.scale.set(1, 1.3, 1);
+        flameGroup.add(flameOuterMesh);
+
+        // Top flame tip
+        const flameTip = new THREE.SphereGeometry(0.08, 8, 8);
+        const flameTipMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          emissive: 0xffffff,
+          emissiveIntensity: 2.5,
+          transparent: true,
+          opacity: 0.8,
+        });
+        const flameTipMesh = new THREE.Mesh(flameTip, flameTipMaterial);
+        flameTipMesh.position.y = 0.15;
+        flameGroup.add(flameTipMesh);
+
+        flameGroup.position.y = 0.8;
+        flameGroup.visible = false;
+        tokenGroup.add(flameGroup);
+
+        tokenGroup.userData = {
+          color: color,
+          playerId: playerId,
+          tokenId: tokenId,
+          ringMesh: flameGroup, // Keep same property name for compatibility
+        };
+
+        boardGroup.add(tokenGroup);
+        return tokenGroup;
+      }
+
+      function createDice(posX, posZ) {
+        const diceSize = 1.0;
+        const diceGroup = new THREE.Group();
+
+        // Create dice cube with rounded edges using RoundedBoxGeometry approach
+        const radius = 0.1; // Corner radius
+        const smoothness = 10; // Segments for smoothness
+
+        // Create rounded box geometry by combining shapes
+        const shape = new THREE.Shape();
+        const eps = 0.00001;
+        const size = diceSize / 2 - radius;
+
+        shape.absarc(eps, eps, eps, -Math.PI / 2, -Math.PI, true);
+        shape.absarc(eps, size * 2, eps, Math.PI, Math.PI / 2, true);
+        shape.absarc(size * 2, size * 2, eps, Math.PI / 2, 0, true);
+        shape.absarc(size * 2, eps, eps, 0, -Math.PI / 2, true);
+
+        const extrudeSettings = {
+          depth: diceSize - radius * 2,
+          bevelEnabled: true,
+          bevelSegments: smoothness,
+          steps: 1,
+          bevelSize: radius,
+          bevelThickness: radius,
+        };
+
+        const diceGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        diceGeometry.center();
+
+        const diceMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          metalness: 0.4,
+          roughness: 0.2,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.1,
+        });
+        const diceCube = new THREE.Mesh(diceGeometry, diceMaterial);
+        diceCube.castShadow = true;
+        diceCube.receiveShadow = true;
+        diceGroup.add(diceCube);
+
+        // Dot parameters
+        const dotRadius = 0.08;
+        const dotDepth = 0.05;
+        const offset = 0.25;
+        const faceOffset = diceSize / 2;
+        const indent = 0.025; // Slight indent to avoid z-fighting but keep visible
+
+        // Create indented dots using cylinders
+        const dotGeometry = new THREE.CylinderGeometry(
+          dotRadius,
+          dotRadius,
+          dotDepth,
+          16
+        );
+        const dotMaterial = new THREE.MeshStandardMaterial({
+          color: 0x000000,
+          roughness: 0.9,
+          metalness: 0.0,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1,
+        });
+
+        // Helper function to create an indented dot
+        function createDot(x, y, z, rotationAxis) {
+          const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+
+          // Adjust position to indent slightly into the surface
+          if (rotationAxis === "x") {
+            dot.position.set(x > 0 ? x - indent : x + indent, y, z);
+            dot.rotation.z = Math.PI / 2;
+          } else if (rotationAxis === "y") {
+            dot.position.set(x, y > 0 ? y - indent : y + indent, z);
+            // Default orientation for y-axis
+          } else if (rotationAxis === "z") {
+            dot.position.set(x, y, z > 0 ? z - indent : z + indent);
+            dot.rotation.x = Math.PI / 2;
+          }
+
+          return dot;
+        }
+
+        // Face 1 (front, z+) - One dot in center
+        diceGroup.add(createDot(0, 0, faceOffset, "z"));
+
+        // Face 2 (right, x+) - Two dots diagonal
+        diceGroup.add(createDot(faceOffset, offset, -offset, "x"));
+        diceGroup.add(createDot(faceOffset, -offset, offset, "x"));
+
+        // Face 3 (top, y+) - Three dots diagonal
+        diceGroup.add(createDot(-offset, faceOffset, -offset, "y"));
+        diceGroup.add(createDot(0, faceOffset, 0, "y"));
+        diceGroup.add(createDot(offset, faceOffset, offset, "y"));
+
+        // Face 4 (left, x-) - Four dots in corners
+        diceGroup.add(createDot(-faceOffset, offset, offset, "x"));
+        diceGroup.add(createDot(-faceOffset, offset, -offset, "x"));
+        diceGroup.add(createDot(-faceOffset, -offset, offset, "x"));
+        diceGroup.add(createDot(-faceOffset, -offset, -offset, "x"));
+
+        // Face 5 (bottom, y-) - Five dots (four corners + center)
+        diceGroup.add(createDot(-offset, -faceOffset, -offset, "y"));
+        diceGroup.add(createDot(offset, -faceOffset, -offset, "y"));
+        diceGroup.add(createDot(0, -faceOffset, 0, "y"));
+        diceGroup.add(createDot(-offset, -faceOffset, offset, "y"));
+        diceGroup.add(createDot(offset, -faceOffset, offset, "y"));
+
+        // Face 6 (back, z-) - Six dots (two columns of three)
+        diceGroup.add(createDot(-offset, offset, -faceOffset, "z"));
+        diceGroup.add(createDot(-offset, 0, -faceOffset, "z"));
+        diceGroup.add(createDot(-offset, -offset, -faceOffset, "z"));
+        diceGroup.add(createDot(offset, offset, -faceOffset, "z"));
+        diceGroup.add(createDot(offset, 0, -faceOffset, "z"));
+        diceGroup.add(createDot(offset, -offset, -faceOffset, "z"));
+
+        diceGroup.position.set(posX, 2, posZ);
+        boardGroup.add(diceGroup);
+        return diceGroup;
+      }
+
+      function createDicePair() {
+        const dice1 = createDice(-15, -1);
+        const dice2 = createDice(-15, 1);
+        return [dice1, dice2];
+      }
+
+      function initGame(playerConfigs) {
+        // Initialize players
+        gameState.players = [];
+        tokenMeshes = {};
+        gameState.twoPlayerMode = playerConfigs.length === 2;
+
+        playerConfigs.forEach((config, index) => {
+          const colors = gameState.twoPlayerMode
+            ? index === 0
+              ? ["RED", "YELLOW"]
+              : ["GREEN", "BLUE"]
+            : [PLAYER_COLORS[index]];
+
+          const player = {
+            id: index,
+            name: config.name,
+            colors: colors,
+            isAI: config.isAI,
+            colorGroups: {}, // Store tokens by color
+          };
+
+          // Create tokens for each color this player controls
+          colors.forEach((color) => {
+            player.colorGroups[color] = [];
+            const colorIndex = PLAYER_COLORS.indexOf(color);
+
+            if (!tokenMeshes[colorIndex]) {
+              tokenMeshes[colorIndex] = [];
+            }
+
+            for (let i = 0; i < TOKENS_PER_PLAYER; i++) {
+              const tokenMesh = createToken(color, colorIndex, i);
+              const yardPos = YARD_POSITIONS[color][i];
+              const worldX = (yardPos.x - 7) * CELL_SIZE;
+              const worldZ = (yardPos.y - 7) * CELL_SIZE;
+              tokenMesh.position.set(worldX, 0.5, worldZ);
+
+              const token = {
+                id: i,
+                color: color,
+                position: -1, // -1 means in yard
+                inHome: false,
+                homePosition: -1,
+                mesh: tokenMesh,
+              };
+
+              player.colorGroups[color].push(token);
+              tokenMeshes[colorIndex].push(tokenMesh);
+            }
+          });
+
+          gameState.players.push(player);
+        });
+
+        gameState.currentPlayerIndex = 0;
+        gameState.gameStarted = true;
+        gameState.winner = null;
+
+        updateUI();
+        const firstPlayer = gameState.players[0];
+        showNotification(`${firstPlayer.name}'s turn!`);
+
+        // If first player is AI, start automatically
+        if (firstPlayer.isAI) {
+          setTimeout(() => {
+            rollDice();
+          }, 1500);
+        }
+      }
+
+      function setupGame() {
+        const numPlayersSelect = document.getElementById("numPlayers");
+        const playerConfigsDiv = document.getElementById("playerConfigs");
+
+        function updatePlayerConfigs() {
+          const numPlayers = parseInt(numPlayersSelect.value);
+          playerConfigsDiv.innerHTML = "";
+
+          if (numPlayers === 2) {
+            // 2 players mode - each controls 2 colors
+            for (let i = 0; i < 2; i++) {
+              const colors = i === 0 ? ["RED", "YELLOW"] : ["GREEN", "BLUE"];
+              const colorDots = colors
+                .map((c) => {
+                  const colorHex =
+                    "#" + COLORS[c].toString(16).padStart(6, "0");
+                  return `<span style="background: ${colorHex}; width: 25px; height: 25px; border-radius: 50%; display: inline-block; margin: 0 3px;"></span>`;
+                })
+                .join("");
+
+              const playerDiv = document.createElement("div");
+              playerDiv.className = "playerSetup";
+              playerDiv.innerHTML = `
+                        <div>${colorDots}</div>
+                        <input type="text" id="player${i}Name" placeholder="Player ${
+                i + 1
+              }" value="Player ${i + 1}">
+                        <select id="player${i}Type">
+                            <option value="human" ${
+                              i === 0 ? "selected" : ""
+                            }>Human</option>
+                            <option value="ai" ${
+                              i !== 0 ? "selected" : ""
+                            }>AI</option>
+                        </select>
+                    `;
+              playerConfigsDiv.appendChild(playerDiv);
+            }
+          } else {
+            // 3 or 4 players mode - each controls 1 color
+            for (let i = 0; i < numPlayers; i++) {
+              const color = PLAYER_COLORS[i];
+              const colorName = color.charAt(0) + color.slice(1).toLowerCase();
+              const colorHex =
+                "#" + COLORS[color].toString(16).padStart(6, "0");
+
+              const playerDiv = document.createElement("div");
+              playerDiv.className = "playerSetup";
+              playerDiv.innerHTML = `
+                        <span style="background: ${colorHex}; width: 30px; height: 30px; border-radius: 50%; display: inline-block;"></span>
+                        <input type="text" id="player${i}Name" placeholder="${colorName} Player" value="Player ${
+                i + 1
+              }">
+                        <select id="player${i}Type">
+                            <option value="human" ${
+                              i === 0 ? "selected" : ""
+                            }>Human</option>
+                            <option value="ai" ${
+                              i !== 0 ? "selected" : ""
+                            }>AI</option>
+                        </select>
+                    `;
+              playerConfigsDiv.appendChild(playerDiv);
+            }
+          }
+        }
+
+        numPlayersSelect.addEventListener("change", updatePlayerConfigs);
+        updatePlayerConfigs();
+
+        document
+          .getElementById("startGameBtn")
+          .addEventListener("click", () => {
+            const numPlayers = parseInt(numPlayersSelect.value);
+            const playerConfigs = [];
+
+            for (let i = 0; i < numPlayers; i++) {
+              const name =
+                document.getElementById(`player${i}Name`).value ||
+                `Player ${i + 1}`;
+              const type = document.getElementById(`player${i}Type`).value;
+              playerConfigs.push({
+                name: name,
+                isAI: type === "ai",
+              });
+            }
+
+            document.getElementById("setupModal").style.display = "none";
+            initGame(playerConfigs);
+          });
+      }
+
+      function rollDice() {
+        if (!gameState.gameStarted || gameState.winner) return;
+
+        const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+
+        // Disable roll button
+        document.getElementById("rollBtn").disabled = true;
+
+        // Reset second token move flag
+        gameState.secondTokenMove = false;
+
+        // Play dice rolling sound (loop) - higher pitched dice clashing sound
+        const diceSound = new Audio(
+          "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="
+        );
+
+        // Create a more realistic dice clash using AudioContext
+        const audioContext = new (window.AudioContext ||
+          window.webkitAudioContext)();
+        const gainNode = audioContext.createGain();
+        gainNode.connect(audioContext.destination);
+        gainNode.gain.value = 0.5;
+
+        // Function to create a single dice click sound
+        const createDiceClick = (time) => {
+          const osc = audioContext.createOscillator();
+          const clickGain = audioContext.createGain();
+
+          osc.connect(clickGain);
+          clickGain.connect(gainNode);
+
+          // White noise-like sound for dice impact
+          osc.type = "square";
+          osc.frequency.setValueAtTime(800 + Math.random() * 400, time);
+
+          clickGain.gain.setValueAtTime(0.3, time);
+          clickGain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+
+          osc.start(time);
+          osc.stop(time + 0.05);
+        };
+
+        // Create multiple clicks during roll
+        const rollDuration = 1.1; // Match the animation duration
+        for (let i = 0; i < 15; i++) {
+          createDiceClick(audioContext.currentTime + (i * rollDuration) / 15);
+        }
+
+        // Animate dice - roll two dice
+        const dice1Value = Math.floor(Math.random() * 6) + 1;
+        const dice2Value = Math.floor(Math.random() * 6) + 1;
+        const diceValue = dice1Value + dice2Value; // Total of both dice
+        gameState.diceValue = diceValue;
+        gameState.dice1 = dice1Value;
+        gameState.dice2 = dice2Value;
+
+        // Show dice animation
+        const diceDisplay = document.getElementById("diceDisplay");
+        diceDisplay.innerHTML = "🎲 🎲";
+        diceDisplay.style.display = "block";
+
+        // Animate dice roll
+        let rollCount = 0;
+        const rollInterval = setInterval(() => {
+          const rand1 = Math.floor(Math.random() * 6) + 1;
+          const rand2 = Math.floor(Math.random() * 6) + 1;
+          diceDisplay.innerHTML = `<div style="display: flex; gap: 20px; justify-content: center; align-items: center;">
+            <div style="font-size: 50px;">${rand1}</div>
+            <div style="font-size: 50px;">${rand2}</div>
+          </div>`;
+          rollCount++;
+          if (rollCount > 20) {
+            clearInterval(rollInterval);
+            diceDisplay.innerHTML = `<div style="display: flex; gap: 20px; justify-content: center; align-items: center;">
+              <div style="font-size: 50px; border: 3px solid #333; padding: 15px; border-radius: 10px; background: white; color: black; min-width: 80px;">${dice1Value}</div>
+              <div style="font-size: 50px; border: 3px solid #333; padding: 15px; border-radius: 10px; background: white; color: black; min-width: 80px;">${dice2Value}</div>
+            </div>`;
+
+            setTimeout(() => {
+              diceDisplay.style.display = "none";
+              handleDiceRoll(diceValue);
+            }, 1500);
+          }
+        }, 100);
+
+        // Rotate both dice - reset to starting position first, then animate
+        if (diceMeshes.length === 2) {
+          // Store current rotations
+          const dice1StartX = diceMeshes[0].rotation.x;
+          const dice1StartY = diceMeshes[0].rotation.y;
+          const dice1StartZ = diceMeshes[0].rotation.z;
+          const dice2StartX = diceMeshes[1].rotation.x;
+          const dice2StartY = diceMeshes[1].rotation.y;
+          const dice2StartZ = diceMeshes[1].rotation.z;
+
+          gsap.to(diceMeshes[0].rotation, {
+            x: dice1StartX + Math.PI * 8 + Math.random(),
+            y: dice1StartY + Math.PI * 8 + Math.random(),
+            z: dice1StartZ + Math.PI * 4,
+            duration: 2,
+            ease: "power2.out",
+          });
+          gsap.to(diceMeshes[1].rotation, {
+            x: dice2StartX + Math.PI * 8 + Math.random(),
+            y: dice2StartY + Math.PI * 8 + Math.random(),
+            z: dice2StartZ + Math.PI * 4,
+            duration: 2,
+            ease: "power2.out",
+          });
+        }
+      }
+
+      function updateDiceHistory() {
+        const diceHistoryDiv = document.getElementById("diceHistory");
+        const dice1Box = document.getElementById("dice1Box");
+        const dice2Box = document.getElementById("dice2Box");
+
+        if (gameState.dice1 && gameState.dice2) {
+          diceHistoryDiv.style.display = "block";
+
+          // Determine which dice have been used
+          const dice1Used =
+            gameState.remainingMoves.length > 0 &&
+            gameState.currentMoveIndex >=
+              gameState.remainingMoves.indexOf(gameState.dice1) + 1;
+          const dice2Used =
+            gameState.remainingMoves.length > 0 &&
+            gameState.currentMoveIndex >=
+              gameState.remainingMoves.indexOf(gameState.dice2) + 1;
+
+          // Check which die is currently active
+          const currentDieValue =
+            gameState.remainingMoves[gameState.currentMoveIndex];
+          const dice1Active = currentDieValue === gameState.dice1 && !dice1Used;
+          const dice2Active = currentDieValue === gameState.dice2 && !dice2Used;
+
+          // Update dice 1
+          dice1Box.textContent = gameState.dice1;
+          dice1Box.className = "diceBox";
+          if (dice1Used) {
+            dice1Box.classList.add("used");
+          } else if (dice1Active) {
+            dice1Box.classList.add("active");
+          }
+
+          // Update dice 2
+          dice2Box.textContent = gameState.dice2;
+          dice2Box.className = "diceBox";
+          if (dice2Used) {
+            dice2Box.classList.add("used");
+          } else if (dice2Active) {
+            dice2Box.classList.add("active");
+          }
+        } else {
+          diceHistoryDiv.style.display = "none";
+        }
+      }
+
+      function handleDiceRoll(value) {
+        const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+        const isDoubleSix = gameState.dice1 === 6 && gameState.dice2 === 6;
+
+        // Initialize remaining moves with both dice values (higher first)
+        if (gameState.remainingMoves.length === 0) {
+          // Sort dice values in descending order so higher number is used first
+          gameState.remainingMoves = [gameState.dice1, gameState.dice2].sort(
+            (a, b) => b - a
+          );
+          gameState.currentMoveIndex = 0;
+        }
+
+        // Update dice history display
+        updateDiceHistory();
+
+        const currentMoveValue =
+          gameState.remainingMoves[gameState.currentMoveIndex];
+        const movableTokens = getMovableTokens(currentPlayer, currentMoveValue);
+
+        if (movableTokens.length === 0) {
+          // Can't use this die value
+          // Check if we should skip or end turn
+          const allTokens = getAllTokens(currentPlayer);
+          const tokensInYard = allTokens.filter((t) => t.position === -1);
+          const tokensOnMainPath = allTokens.filter(
+            (t) => t.position >= 0 && t.homePosition === -1
+          );
+          const tokensOnHomePath = allTokens.filter(
+            (t) => t.homePosition >= 0 && !t.inHome
+          );
+
+          // Can skip if: all tokens are in yard, OR all tokens outside yard are either in home or on home path
+          const canSkip =
+            tokensInYard.length === allTokens.length ||
+            tokensOnMainPath.length === 0;
+
+          if (canSkip) {
+            gameState.currentMoveIndex++;
+
+            if (gameState.currentMoveIndex >= gameState.remainingMoves.length) {
+              // No more moves available
+              showNotification(
+                `No valid moves! ${
+                  !isDoubleSix ? "Next player's turn." : "Double 6! Roll again!"
+                }`
+              );
+              gameState.remainingMoves = [];
+              gameState.currentMoveIndex = 0;
+
+              // Hide dice history
+              document.getElementById("diceHistory").style.display = "none";
+
+              if (!isDoubleSix) {
+                setTimeout(() => nextTurn(), 1500);
+              } else {
+                document.getElementById("rollBtn").disabled =
+                  currentPlayer.isAI;
+                if (currentPlayer.isAI) {
+                  setTimeout(() => rollDice(), 1500);
+                }
+              }
+            } else {
+              // Try the next die value
+              handleDiceRoll(value);
+            }
+          } else {
+            // Invalid move - must use this die
+            showNotification(
+              `Invalid! You must use die value ${currentMoveValue}. Select a valid token.`
+            );
+            // Highlight any movable tokens for ANY die value to help player
+            const allMovable = [];
+            gameState.remainingMoves.forEach((dieVal) => {
+              const tokens = getMovableTokens(currentPlayer, dieVal);
+              tokens.forEach((t) => {
+                if (!allMovable.includes(t)) allMovable.push(t);
+              });
+            });
+            allMovable.forEach((token) => {
+              token.mesh.userData.ringMesh.visible = true;
+            });
+          }
+        } else {
+          // Highlight movable tokens
+          movableTokens.forEach((token) => {
+            token.mesh.userData.ringMesh.visible = true;
+          });
+
+          // Auto-move if only one token is movable
+          if (movableTokens.length === 1) {
+            // Check if only one token is on the board (not in yard, not in home)
+            const allTokens = getAllTokens(currentPlayer);
+            const tokensOnBoard = allTokens.filter(
+              (t) => !t.inHome && (t.position >= 0 || t.homePosition >= 0)
+            );
+
+            if (
+              tokensOnBoard.length === 1 &&
+              gameState.remainingMoves.length === 2 &&
+              gameState.currentMoveIndex === 0
+            ) {
+              // Only one token on board and this is the first move - move by total of both dice
+              const totalMove = gameState.dice1 + gameState.dice2;
+              setTimeout(
+                () => {
+                  moveToken(movableTokens[0], totalMove);
+                  // Mark both dice as used
+                  gameState.remainingMoves = [];
+                  gameState.currentMoveIndex = 0;
+                },
+                currentPlayer.isAI ? 1000 : 500
+              );
+            } else {
+              // Normal single dice move
+              setTimeout(
+                () => {
+                  moveToken(movableTokens[0], currentMoveValue);
+                },
+                currentPlayer.isAI ? 1000 : 500
+              );
+            }
+          } else if (currentPlayer.isAI) {
+            setTimeout(() => {
+              const tokenToMove = selectBestAIMove(
+                currentPlayer,
+                movableTokens,
+                currentMoveValue
+              );
+              moveToken(tokenToMove, currentMoveValue);
+            }, 1000);
+          } else {
+            const moveNum = gameState.currentMoveIndex + 1;
+            const dieValue = currentMoveValue;
+            showNotification(
+              `Move ${moveNum}/2: Select a token to move ${dieValue} spaces (Die ${moveNum}: ${dieValue})`
+            );
+          }
+        }
+      }
+
+      // Helper function to get all tokens for a player
+      function getAllTokens(player) {
+        if (gameState.twoPlayerMode) {
+          const tokens = [];
+          player.colors.forEach((color) => {
+            tokens.push(...player.colorGroups[color]);
+          });
+          return tokens;
+        } else {
+          return player.colorGroups[player.colors[0]];
+        }
+      }
+
+      function canTokenMove(token, moveValue, player) {
+        if (token.inHome) {
+          return false;
+        }
+
+        if (token.position === -1) {
+          // In yard, can only start with a 6
+          return moveValue === 6;
+        } else if (token.homePosition >= 0) {
+          // On home path
+          return token.homePosition + moveValue <= 5;
+        } else {
+          // On main path
+          return true;
+        }
+      }
+
+      function getMovableTokens(player, moveValue) {
+        const movableTokens = [];
+        const isDoubleSix = gameState.dice1 === 6 && gameState.dice2 === 6;
+        const allTokens = getAllTokens(player);
+
+        // Check if there are remaining moves after this one
+        const hasRemainingMoves =
+          gameState.currentMoveIndex < gameState.remainingMoves.length - 1;
+
+        allTokens.forEach((token) => {
+          if (token.inHome) {
+            // Already home, can't move
+            return;
+          }
+
+          if (token.position === -1) {
+            // In yard, can only start with a 6
+            if (moveValue === 6) {
+              movableTokens.push(token);
+            }
+          } else if (token.homePosition >= 0) {
+            // On home path
+            if (token.homePosition + moveValue <= 5) {
+              movableTokens.push(token);
+            }
+          } else {
+            // On main path - always movable if on board
+            movableTokens.push(token);
+          }
+        });
+
+        return movableTokens;
+      }
+
+      function moveToken(token, spaces) {
+        const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+
+        // Reset any hover state
+        if (window.resetTokenHoverState) {
+          window.resetTokenHoverState();
+        }
+
+        // Clear all highlights
+        const allTokens = getAllTokens(currentPlayer);
+        allTokens.forEach((t) => {
+          t.mesh.userData.ringMesh.visible = false;
+        });
+
+        let newPosition;
+        let targetPos;
+        const tokenColor = token.color; // Get the color of this specific token
+
+        if (token.position === -1) {
+          // Moving from yard to start position
+          const startPosition = START_POSITIONS[tokenColor];
+          newPosition = startPosition;
+          targetPos = BOARD_PATH[newPosition];
+
+          // Temporarily set position to check for capture (but don't commit yet)
+          const tempPosition = token.position;
+          token.position = startPosition;
+
+          // Check if there's an opponent on the starting position
+          const wouldCapture = wouldCaptureOpponent(currentPlayer, token);
+
+          if (wouldCapture) {
+            // Check if there are remaining dice values to play
+            const hasRemainingMoves =
+              gameState.currentMoveIndex < gameState.remainingMoves.length - 1;
+
+            if (hasRemainingMoves) {
+              // Restore position temporarily for the check
+              token.position = tempPosition;
+
+              // Check if any other token can use the remaining dice values
+              let canOtherTokensMove = false;
+              const allTokens = getAllTokens(currentPlayer);
+              for (
+                let i = gameState.currentMoveIndex + 1;
+                i < gameState.remainingMoves.length;
+                i++
+              ) {
+                const remainingValue = gameState.remainingMoves[i];
+                const otherMovableTokens = allTokens.filter((t) => {
+                  if (t === token) return false; // Don't count the token coming out
+                  return canTokenMove(t, remainingValue, currentPlayer);
+                });
+                if (otherMovableTokens.length > 0) {
+                  canOtherTokensMove = true;
+                  break;
+                }
+              }
+
+              // Restore the start position
+              token.position = startPosition;
+
+              // Only capture if other tokens can handle remaining moves
+              if (canOtherTokensMove) {
+                checkCapture(currentPlayer, token);
+                token.inHome = true;
+                token.position = -2;
+                token.homePosition = 5;
+                targetPos = { x: 7, y: 7 }; // Center home position
+                showNotification(
+                  `${currentPlayer.name} captured on starting position and goes home! 💥🏠`
+                );
+              } else {
+                // Cannot capture - no valid moves remaining
+                // Token comes out but doesn't capture
+                showNotification(
+                  `${currentPlayer.name}'s token comes out (no capture - no valid moves remaining)`
+                );
+              }
+            } else {
+              // No remaining moves, capture is valid and send home as reward
+              checkCapture(currentPlayer, token);
+              token.inHome = true;
+              token.position = -2;
+              token.homePosition = 5;
+              targetPos = { x: 7, y: 7 }; // Center home position
+              showNotification(
+                `${currentPlayer.name} captured on starting position and goes home! 💥🏠`
+              );
+            }
+          } else {
+            // No capture, position already set to start position
+          }
+        } else if (token.homePosition >= 0) {
+          // Moving on home path
+          token.homePosition += spaces;
+          if (token.homePosition === 5) {
+            token.inHome = true;
+            targetPos = { x: 7, y: 7 }; // Center
+            showNotification("Token reached home! 🎉");
+          } else {
+            targetPos = HOME_PATHS[tokenColor][token.homePosition];
+          }
+        } else {
+          // Moving on main path
+          newPosition = (token.position + spaces) % BOARD_PATH.length;
+
+          // Check if entering home path
+          const homeEntryIndex =
+            (START_POSITIONS[tokenColor] + 50) % BOARD_PATH.length;
+
+          // Check if the token passed through the home entry point during this move
+          let passedHomeEntry = false;
+
+          // We need to check if moving from token.position by 'spaces' crosses homeEntryIndex
+          for (let i = 1; i <= spaces; i++) {
+            const intermediatePos = (token.position + i) % BOARD_PATH.length;
+            if (intermediatePos === homeEntryIndex) {
+              passedHomeEntry = true;
+              break;
+            }
+          }
+
+          if (passedHomeEntry) {
+            // Entering home path - no capture check needed, just calculate position
+            const oldPosition = token.position;
+
+            // Calculate how many steps into the home path
+            let stepsIntoHome;
+
+            if (oldPosition < homeEntryIndex) {
+              // Normal case: token is before home entry
+              stepsIntoHome = oldPosition + spaces - homeEntryIndex - 1;
+            } else {
+              // Wraparound case: token position is after home entry, wrapping around
+              stepsIntoHome =
+                oldPosition + spaces - (homeEntryIndex + BOARD_PATH.length) - 1;
+            }
+
+            token.homePosition = stepsIntoHome;
+            token.position = -2; // Special marker for being on home path
+
+            if (token.homePosition >= 5) {
+              token.inHome = true;
+              targetPos = { x: 7, y: 7 };
+              showNotification("Token reached home! 🎉");
+            } else {
+              targetPos = HOME_PATHS[tokenColor][token.homePosition];
+            }
+          } else {
+            token.position = newPosition;
+            targetPos = BOARD_PATH[newPosition];
+
+            // Check if there would be a capture at this position
+            const wouldCapture = wouldCaptureOpponent(currentPlayer, token);
+
+            if (wouldCapture) {
+              // Check if there are remaining dice values to play
+              const hasRemainingMoves =
+                gameState.currentMoveIndex <
+                gameState.remainingMoves.length - 1;
+
+              if (hasRemainingMoves) {
+                // Check if any other token can use the remaining dice values
+                let canOtherTokensMove = false;
+                const allTokens = getAllTokens(currentPlayer);
+                for (
+                  let i = gameState.currentMoveIndex + 1;
+                  i < gameState.remainingMoves.length;
+                  i++
+                ) {
+                  const remainingValue = gameState.remainingMoves[i];
+                  const otherMovableTokens = allTokens.filter((t) => {
+                    if (t === token) return false; // Don't count the capturing token
+                    return canTokenMove(t, remainingValue, currentPlayer);
+                  });
+                  if (otherMovableTokens.length > 0) {
+                    canOtherTokensMove = true;
+                    break;
+                  }
+                }
+
+                // Only capture if other tokens can handle remaining moves
+                if (canOtherTokensMove) {
+                  // Actually perform the capture
+                  checkCapture(currentPlayer, token);
+                  // Send capturing token home
+                  token.inHome = true;
+                  token.position = -2;
+                  token.homePosition = 5;
+                  targetPos = { x: 7, y: 7 }; // Center home position
+                  showNotification(
+                    `${currentPlayer.name} captured and goes home! 💥🏠`
+                  );
+                } else {
+                  // Cannot capture - no valid moves remaining
+                  // Instead of blocking, combine all remaining dice and move full distance
+                  let totalSpaces = spaces;
+                  for (
+                    let i = gameState.currentMoveIndex + 1;
+                    i < gameState.remainingMoves.length;
+                    i++
+                  ) {
+                    totalSpaces += gameState.remainingMoves[i];
+                  }
+
+                  // Move the full combined distance
+                  const combinedPosition =
+                    (token.position - spaces + totalSpaces) % BOARD_PATH.length;
+                  token.position = combinedPosition;
+                  targetPos = BOARD_PATH[combinedPosition];
+
+                  // Mark all remaining moves as used
+                  gameState.currentMoveIndex =
+                    gameState.remainingMoves.length - 1;
+
+                  showNotification(
+                    `${currentPlayer.name} moves ${totalSpaces} spaces (combined dice).`
+                  );
+
+                  // Don't perform the capture since we're moving past it
+                }
+              } else {
+                // No remaining moves, capture is valid and send home as reward
+                checkCapture(currentPlayer, token);
+                token.inHome = true;
+                token.position = -2;
+                token.homePosition = 5;
+                targetPos = { x: 7, y: 7 }; // Center home position
+                showNotification(
+                  `${currentPlayer.name} captured and goes home! 💥🏠`
+                );
+              }
+            }
+            // If no capture, just continue normally
+          }
+        }
+
+        // Animate token movement
+        const worldX = (targetPos.x - 7) * CELL_SIZE;
+        const worldZ = (targetPos.y - 7) * CELL_SIZE;
+
+        gsap.to(token.mesh.position, {
+          x: worldX,
+          y: token.inHome ? 0.8 : 0.5,
+          z: worldZ,
+          duration: 0.8,
+          ease: "power2.inOut",
+          onComplete: () => {
+            // Check win condition
+            if (checkWinCondition(currentPlayer)) {
+              gameState.winner = currentPlayer;
+              gameState.remainingMoves = [];
+              gameState.currentMoveIndex = 0;
+              showNotification(`🏆 ${currentPlayer.name} wins! 🏆`);
+              setTimeout(() => {
+                alert(`${currentPlayer.name} wins the game!`);
+              }, 1000);
+              return;
+            }
+
+            // Move to next die value
+            gameState.currentMoveIndex++;
+
+            // Update dice history to show which die was just used
+            updateDiceHistory();
+
+            if (gameState.currentMoveIndex >= gameState.remainingMoves.length) {
+              // All moves used
+              const isDoubleSix =
+                gameState.dice1 === 6 && gameState.dice2 === 6;
+              gameState.remainingMoves = [];
+              gameState.currentMoveIndex = 0;
+
+              if (isDoubleSix) {
+                // Double 6 gets bonus roll
+                document.getElementById("rollBtn").disabled =
+                  currentPlayer.isAI;
+                showNotification(`Double 6! Roll again!`);
+
+                // If AI, automatically roll again
+                if (currentPlayer.isAI) {
+                  setTimeout(() => {
+                    rollDice();
+                  }, 1500);
+                }
+              } else {
+                setTimeout(() => nextTurn(), 1000);
+              }
+            } else {
+              // Process next die value
+              const nextDieValue =
+                gameState.remainingMoves[gameState.currentMoveIndex];
+              const nextMovableTokens = getMovableTokens(
+                currentPlayer,
+                nextDieValue
+              );
+
+              if (currentPlayer.isAI) {
+                // AI continues automatically
+                handleDiceRoll(gameState.diceValue);
+              } else if (nextMovableTokens.length === 1) {
+                // Auto-play the only available move for human
+                showNotification(
+                  `Auto-playing die value ${nextDieValue} (only one valid move)`
+                );
+                setTimeout(() => {
+                  moveToken(nextMovableTokens[0], nextDieValue);
+                }, 800);
+              } else {
+                // Human player needs to select next token
+                handleDiceRoll(gameState.diceValue);
+              }
+            }
+          },
+        }); // Bounce animation
+        gsap.to(token.mesh.position, {
+          y: 1.5,
+          duration: 0.4,
+          yoyo: true,
+          repeat: 1,
+          ease: "power2.out",
+        });
+      }
+
+      function wouldCaptureOpponent(currentPlayer, token) {
+        if (token.position === -1 || token.position === -2) return false;
+
+        let wouldCapture = false;
+
+        gameState.players.forEach((player) => {
+          if (player.id === currentPlayer.id) return;
+
+          const opponentTokens = getAllTokens(player);
+          opponentTokens.forEach((opponentToken) => {
+            if (opponentToken.position === token.position) {
+              wouldCapture = true;
+            }
+          });
+        });
+
+        return wouldCapture;
+      }
+
+      function checkCapture(currentPlayer, token) {
+        if (token.position === -1 || token.position === -2) return false;
+
+        let capturedSomeone = false;
+        let alreadyCapturedOne = false; // Track if we already captured one token
+
+        gameState.players.forEach((player) => {
+          if (player.id === currentPlayer.id) return;
+
+          const opponentTokens = getAllTokens(player);
+          opponentTokens.forEach((opponentToken) => {
+            if (
+              opponentToken.position === token.position &&
+              !alreadyCapturedOne
+            ) {
+              // Capture only one token!
+              const yardPos =
+                YARD_POSITIONS[opponentToken.color][opponentToken.id];
+              const worldX = (yardPos.x - 7) * CELL_SIZE;
+              const worldZ = (yardPos.y - 7) * CELL_SIZE;
+
+              gsap.to(opponentToken.mesh.position, {
+                x: worldX,
+                y: 0.5,
+                z: worldZ,
+                duration: 0.5,
+              });
+
+              opponentToken.position = -1;
+              opponentToken.homePosition = -1;
+              opponentToken.inHome = false;
+
+              capturedSomeone = true;
+              alreadyCapturedOne = true; // Mark that we captured one
+
+              showNotification(
+                `${currentPlayer.name} captured ${player.name}'s token! 💥`
+              );
+            }
+          });
+        });
+
+        return capturedSomeone;
+      }
+
+      function checkWinCondition(player) {
+        const allTokens = getAllTokens(player);
+        return allTokens.every((token) => token.inHome);
+      }
+
+      function nextTurn() {
+        // Reset dice tracking
+        gameState.remainingMoves = [];
+        gameState.currentMoveIndex = 0;
+
+        gameState.currentPlayerIndex =
+          (gameState.currentPlayerIndex + 1) % gameState.players.length;
+        const nextPlayer = gameState.players[gameState.currentPlayerIndex];
+
+        updateUI();
+        showNotification(`${nextPlayer.name}'s turn!`);
+
+        // Only enable roll button if next player is human
+        document.getElementById("rollBtn").disabled = nextPlayer.isAI;
+
+        if (nextPlayer.isAI) {
+          setTimeout(() => {
+            rollDice();
+          }, 1500);
+        }
+      }
+
+      function selectBestAIMove(player, movableTokens, diceValue) {
+        // Simple AI: prioritize getting tokens home, then capturing, then advancing furthest token
+        let bestToken = movableTokens[0];
+        let bestScore = -1000;
+
+        movableTokens.forEach((token) => {
+          let score = 0;
+
+          // Prioritize tokens closer to home
+          if (token.homePosition >= 0) {
+            score += 100 + token.homePosition * 10;
+          } else if (token.position >= 0) {
+            score += token.position;
+          }
+
+          // Check if this move would capture
+          const newPos =
+            token.position === -1
+              ? START_POSITIONS[token.color]
+              : (token.position + diceValue) % BOARD_PATH.length;
+          gameState.players.forEach((p) => {
+            if (p.id !== player.id) {
+              const opponentTokens = getAllTokens(p);
+              opponentTokens.forEach((t) => {
+                if (t.position === newPos) {
+                  score += 50; // Bonus for capture
+                }
+              });
+            }
+          });
+
+          // Bonus for getting out of yard
+          const hasSix = gameState.dice1 === 6 || gameState.dice2 === 6;
+          if (token.position === -1 && hasSix) {
+            score += 30;
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestToken = token;
+          }
+        });
+
+        return bestToken;
+      }
+
+      function updateUI() {
+        if (!gameState.gameStarted) return;
+
+        const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+        // For 2-player mode, show both colors; for others show single color
+        const playerColors = currentPlayer.colors || [currentPlayer.color];
+        const colorHex =
+          "#" + COLORS[playerColors[0]].toString(16).padStart(6, "0");
+
+        document.getElementById("currentPlayerColor").style.background =
+          colorHex;
+        document.getElementById("currentPlayerName").textContent =
+          currentPlayer.name;
+
+        // Update sidebar
+        const playersStatus = document.getElementById("playersStatus");
+        playersStatus.innerHTML = "";
+
+        gameState.players.forEach((player) => {
+          const allTokens = getAllTokens(player);
+          const tokensInYard = allTokens.filter(
+            (t) => t.position === -1
+          ).length;
+          const tokensInHome = allTokens.filter((t) => t.inHome).length;
+
+          // Show all colors for this player
+          const colors = player.colors || [player.color];
+          const colorDots = colors
+            .map((c) => {
+              const colorHex = "#" + COLORS[c].toString(16).padStart(6, "0");
+              return `<span class="playerColor" style="background: ${colorHex}; width: 20px; height: 20px; display: inline-block; border-radius: 50%; margin: 0 2px;"></span>`;
+            })
+            .join("");
+
+          const statusDiv = document.createElement("div");
+          statusDiv.className = `playerStatus ${
+            player.id === gameState.currentPlayerIndex ? "active" : ""
+          }`;
+          statusDiv.innerHTML = `
+                    <div class="playerName">
+                        ${colorDots}
+                        ${player.name} ${player.isAI ? "🤖" : "👤"}
+                    </div>
+                    <div class="tokensHome">
+                        In Yard: ${tokensInYard} | Home: ${tokensInHome}/${
+            allTokens.length
+          }
+                    </div>
+                `;
+          playersStatus.appendChild(statusDiv);
+        });
+      }
+
+      function showNotification(message) {
+        const notification = document.getElementById("notification");
+        notification.textContent = message;
+        notification.style.display = "block";
+
+        setTimeout(() => {
+          notification.style.display = "none";
+        }, 3000);
+      }
+
+      // Token selection with raycasting
+      function setupTokenSelection() {
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const canvas = document.getElementById("gameCanvas");
+        let spreadTokens = [];
+        let originalPositions = new Map();
+        let isSpread = false;
+
+        // Function to reset spread state
+        window.resetTokenHoverState = function () {
+          spreadTokens.forEach((token) => {
+            const origPos = originalPositions.get(token.mesh);
+            if (origPos) {
+              token.mesh.position.copy(origPos);
+            }
+          });
+          spreadTokens = [];
+          originalPositions.clear();
+          isSpread = false;
+        };
+
+        canvas.addEventListener("click", (event) => {
+          handleTokenInteraction(event);
+        });
+
+        // Add touch support for mobile
+        canvas.addEventListener("touchend", (event) => {
+          event.preventDefault();
+          if (event.changedTouches.length > 0) {
+            const touch = event.changedTouches[0];
+            handleTokenInteraction(touch);
+          }
+        });
+
+        function handleTokenInteraction(event) {
+          if (!gameState.gameStarted || gameState.winner) return;
+
+          const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+          if (currentPlayer.isAI) return;
+
+          // Calculate mouse position
+          const rect = canvas.getBoundingClientRect();
+          mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObjects(scene.children, true);
+
+          // First check if clicking on a spread token to make a move
+          if (isSpread && gameState.remainingMoves.length > 0) {
+            for (let i = 0; i < intersects.length; i++) {
+              let object = intersects[i].object;
+
+              // Traverse up to find the token group
+              while (
+                object.parent &&
+                !object.userData.playerId &&
+                object.userData.playerId !== 0
+              ) {
+                object = object.parent;
+              }
+
+              if (object.userData && object.userData.playerId !== undefined) {
+                const allTokens = getAllTokens(currentPlayer);
+                const token = allTokens.find(
+                  (t) =>
+                    t.mesh === object ||
+                    t.mesh.children.includes(object) ||
+                    object.parent === t.mesh
+                );
+
+                if (token && spreadTokens.includes(token)) {
+                  // Make the move with this token
+                  const currentMoveValue =
+                    gameState.remainingMoves[gameState.currentMoveIndex];
+                  const movableTokens = getMovableTokens(
+                    currentPlayer,
+                    currentMoveValue
+                  );
+                  if (movableTokens.includes(token)) {
+                    moveToken(token, currentMoveValue);
+                    return;
+                  }
+                }
+              }
+            }
+          }
+
+          // Check if we should spread tokens (in 2-player mode only)
+          if (gameState.twoPlayerMode && intersects.length > 0) {
+            let object = intersects[0].object;
+
+            // Traverse up to find the token group
+            while (
+              object.parent &&
+              !object.userData.playerId &&
+              object.userData.playerId !== 0
+            ) {
+              object = object.parent;
+            }
+
+            if (object.userData && object.userData.playerId !== undefined) {
+              const allTokens = getAllTokens(currentPlayer);
+              const clickedToken = allTokens.find(
+                (t) =>
+                  t.mesh === object ||
+                  t.mesh.children.includes(object) ||
+                  object.parent === t.mesh
+              );
+
+              if (
+                clickedToken &&
+                clickedToken.position >= 0 &&
+                !clickedToken.inHome &&
+                clickedToken.homePosition < 0
+              ) {
+                // Find all player's tokens at the same position with DIFFERENT colors
+                const tokensAtPosition = allTokens.filter((t) => {
+                  if (t.color === clickedToken.color) return false;
+                  return (
+                    t.position === clickedToken.position &&
+                    !t.inHome &&
+                    t.homePosition < 0
+                  );
+                });
+
+                // Include the clicked token itself
+                if (tokensAtPosition.length > 0) {
+                  tokensAtPosition.push(clickedToken);
+
+                  // Reset any existing spread
+                  if (isSpread) {
+                    resetTokenHoverState();
+                  }
+
+                  // Spread tokens in a circle
+                  const radius = 0.8;
+                  const angleStep = (Math.PI * 2) / tokensAtPosition.length;
+
+                  tokensAtPosition.forEach((token, index) => {
+                    originalPositions.set(
+                      token.mesh,
+                      token.mesh.position.clone()
+                    );
+                    const angle = angleStep * index;
+                    const offsetX = Math.cos(angle) * radius;
+                    const offsetZ = Math.sin(angle) * radius;
+                    token.mesh.position.x += offsetX;
+                    token.mesh.position.z += offsetZ;
+                    token.mesh.position.y += 0.5;
+                  });
+
+                  spreadTokens = tokensAtPosition;
+                  isSpread = true;
+                  return; // Don't proceed to regular move logic
+                }
+              }
+            }
+          }
+
+          // Regular move logic (when not spreading or no dice to use)
+          if (gameState.remainingMoves.length === 0) return;
+
+          // Check intersections with tokens
+          for (let i = 0; i < intersects.length; i++) {
+            let object = intersects[i].object;
+
+            // Traverse up to find the token group
+            while (
+              object.parent &&
+              !object.userData.playerId &&
+              object.userData.playerId !== 0
+            ) {
+              object = object.parent;
+            }
+
+            // Check if this token belongs to current player
+            if (object.userData && object.userData.playerId !== undefined) {
+              const tokenColorIndex = object.userData.playerId;
+              const tokenColor = PLAYER_COLORS[tokenColorIndex];
+
+              // Check if current player owns this color
+              const playerOwnsColor = currentPlayer.colors
+                ? currentPlayer.colors.includes(tokenColor)
+                : currentPlayer.colors &&
+                  currentPlayer.colors[0] === tokenColor;
+
+              if (!playerOwnsColor) continue;
+
+              // Find the token - need to search through all player's tokens
+              const allTokens = getAllTokens(currentPlayer);
+              const token = allTokens.find((t) => {
+                // Match by checking if this is the same mesh
+                return (
+                  t.mesh === object ||
+                  t.mesh.children.includes(object) ||
+                  object.parent === t.mesh
+                );
+              });
+
+              if (!token) continue;
+
+              // Get current die value to use
+              const currentMoveValue =
+                gameState.remainingMoves[gameState.currentMoveIndex];
+
+              // Check if this token can move
+              const movableTokens = getMovableTokens(
+                currentPlayer,
+                currentMoveValue
+              );
+              if (movableTokens.includes(token)) {
+                moveToken(token, currentMoveValue);
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      // Global handler functions for inline events
+      window.handleNewGameClick = function () {
+        if (gameState.gameStarted) {
+          if (confirm("Start a new game? Current progress will be lost.")) {
+            clearSavedGame();
+            location.reload();
+          }
+        } else {
+          clearSavedGame();
+          location.reload();
+        }
+      };
+
+      window.handleSaveGameClick = function () {
+        if (gameState.gameStarted) {
+          saveGameState();
+        } else {
+          showNotification("Start a game first! 🎲");
+        }
+      };
+
+      window.handleLoadGameClick = function () {
+        const savedData = loadGameState();
+        if (savedData) {
+          if (confirm("Load saved game? Current progress will be lost.")) {
+            restoreGameFromSave(savedData);
+          }
+        } else {
+          showNotification("No saved game found! 💾");
+        }
+      };
+
+      let lastRulesClickTime = 0;
+      window.handleRulesClick = function (event) {
+        // Prevent double-firing from both touch and click events
+        const now = Date.now();
+        if (now - lastRulesClickTime < 500) {
+          return;
+        }
+        lastRulesClickTime = now;
+
+        const modal = document.getElementById("modal");
+        // Toggle between none and flex
+        if (modal.style.display === "flex") {
+          modal.style.display = "none";
+        } else {
+          modal.style.display = "flex";
+        }
+      };
+
+      window.handleCloseModal = function () {
+        document.getElementById("modal").style.display = "none";
+      };
+
+      // Event Listeners
+      const rollBtn = document.getElementById("rollBtn");
+
+      rollBtn.addEventListener("click", rollDice);
+
+      rollBtn.addEventListener(
+        "touchend",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          rollDice();
+        },
+        { passive: false }
+      );
+
+      // Add click and touch event to dice display
+      const diceDisplay = document.getElementById("diceDisplay");
+      const rollDiceFromDisplay = () => {
+        const rollBtn = document.getElementById("rollBtn");
+        if (!rollBtn.disabled) {
+          rollDice();
+        }
+      };
+      diceDisplay.addEventListener("click", rollDiceFromDisplay);
+      diceDisplay.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        rollDiceFromDisplay();
+      });
+
+      const newGameBtn = document.getElementById("newGameBtn");
+      const doNewGame = () => {
+        if (gameState.gameStarted) {
+          if (confirm("Start a new game? Current progress will be lost.")) {
+            clearSavedGame();
+            location.reload();
+          }
+        } else {
+          clearSavedGame();
+          location.reload();
+        }
+      };
+      newGameBtn.addEventListener("click", doNewGame);
+      newGameBtn.addEventListener(
+        "touchend",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          doNewGame();
+        },
+        { passive: false }
+      );
+
+      const saveGameBtn = document.getElementById("saveGameBtn");
+      const doSaveGame = () => {
+        if (gameState.gameStarted) {
+          saveGameState();
+        } else {
+          showNotification("Start a game first! 🎲");
+        }
+      };
+      saveGameBtn.addEventListener("click", doSaveGame);
+      saveGameBtn.addEventListener(
+        "touchend",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          doSaveGame();
+        },
+        { passive: false }
+      );
+
+      const loadGameBtn = document.getElementById("loadGameBtn");
+      const doLoadGame = () => {
+        const savedData = loadGameState();
+        if (savedData) {
+          if (confirm("Load saved game? Current progress will be lost.")) {
+            restoreGameFromSave(savedData);
+          }
+        } else {
+          showNotification("No saved game found! 💾");
+        }
+      };
+      loadGameBtn.addEventListener("click", doLoadGame);
+      loadGameBtn.addEventListener(
+        "touchend",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          doLoadGame();
+        },
+        { passive: false }
+      );
+
+      // Sidebar toggle for mobile
+      const sidebar = document.getElementById("sidebar");
+      const sidebarToggle = document.getElementById("sidebarToggle");
+      let sidebarVisible = false;
+
+      const toggleSidebar = () => {
+        sidebarVisible = !sidebarVisible;
+        if (sidebarVisible) {
+          sidebar.classList.add("visible");
+          sidebar.classList.remove("hidden");
+        } else {
+          sidebar.classList.remove("visible");
+          sidebar.classList.add("hidden");
+        }
+      };
+
+      sidebarToggle.addEventListener("click", toggleSidebar);
+      sidebarToggle.addEventListener(
+        "touchend",
+        (e) => {
+          e.preventDefault();
+          toggleSidebar();
+        },
+        { passive: false }
+      );
+
+      // Inline handlers are used for Rules and Close Modal buttons
+      // No need for addEventListener here as ontouchend/onclick are in HTML
+
+      // Keyboard shortcut for rolling dice
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.code === "Space" &&
+          !document.getElementById("rollBtn").disabled
+        ) {
+          e.preventDefault();
+          rollDice();
+        }
+      });
+
+      // Animation loop
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // Rotate dice slowly
+        if (diceMeshes.length === 2) {
+          diceMeshes[0].rotation.x += 0.008;
+          diceMeshes[0].rotation.y += 0.012;
+          diceMeshes[1].rotation.x += 0.01;
+          diceMeshes[1].rotation.y += 0.008;
+        }
+
+        // Subtle pulsing animation for accent lights to make board feel alive
+        const time = Date.now() * 0.001;
+        accentLights.forEach((light, index) => {
+          const offset = (index * Math.PI) / 2; // Offset each light's pulse
+          light.intensity = 0.6 + Math.sin(time * 1.5 + offset) * 0.15;
+        });
+
+        // Animate flame indicators (bounce and flicker)
+        Object.values(tokenMeshes).forEach((colorTokens) => {
+          colorTokens.forEach((tokenMesh) => {
+            const flame = tokenMesh.userData.ringMesh;
+            if (flame && flame.visible) {
+              // Bounce animation
+              const bounce = Math.abs(Math.sin(time * 4)) * 0.15;
+              flame.position.y = 0.8 + bounce;
+
+              // Flicker effect on flame elements
+              flame.children.forEach((child, idx) => {
+                const flicker = 1 + Math.sin(time * 10 + idx) * 0.1;
+                child.material.emissiveIntensity =
+                  child.material.emissiveIntensity * flicker;
+              });
+            }
+          });
+        });
+
+        renderer.render(scene, camera);
+      }
+
+      // GSAP animation library (lightweight implementation)
+      const gsap = {
+        to: (target, vars) => {
+          const duration = (vars.duration || 1) * 1000;
+          const start = Date.now();
+          const startValues = {};
+
+          Object.keys(vars).forEach((key) => {
+            if (
+              key !== "duration" &&
+              key !== "ease" &&
+              key !== "onComplete" &&
+              key !== "yoyo" &&
+              key !== "repeat"
+            ) {
+              startValues[key] = target[key];
+            }
+          });
+
+          function update() {
+            const now = Date.now();
+            const progress = Math.min((now - start) / duration, 1);
+            const eased =
+              vars.ease === "power2.out"
+                ? 1 - Math.pow(1 - progress, 2)
+                : vars.ease === "power2.inOut"
+                ? progress < 0.5
+                  ? 2 * progress * progress
+                  : 1 - Math.pow(-2 * progress + 2, 2) / 2
+                : progress;
+
+            Object.keys(vars).forEach((key) => {
+              if (
+                key !== "duration" &&
+                key !== "ease" &&
+                key !== "onComplete" &&
+                key !== "yoyo" &&
+                key !== "repeat"
+              ) {
+                target[key] =
+                  startValues[key] + (vars[key] - startValues[key]) * eased;
+              }
+            });
+
+            if (progress < 1) {
+              requestAnimationFrame(update);
+            } else {
+              if (vars.yoyo && vars.repeat) {
+                // Reverse animation
+                const reverseVars = { ...vars, repeat: vars.repeat - 1 };
+                Object.keys(startValues).forEach((key) => {
+                  const temp = reverseVars[key];
+                  reverseVars[key] = startValues[key];
+                  startValues[key] = temp;
+                });
+                if (vars.repeat > 0) {
+                  gsap.to(target, reverseVars);
+                }
+              }
+              if (vars.onComplete) {
+                vars.onComplete();
+              }
+            }
+          }
+
+          update();
+        },
+      };
+
+      // Handle orientation change
+      window.addEventListener("orientationchange", function () {
+        setTimeout(function () {
+          // Force reflow
+          window.scrollTo(0, 0);
+          // Ensure handlers are active
+          document.body.style.webkitUserSelect = "none";
+          document.body.style.webkitTouchCallout = "none";
+        }, 100);
+      });
+
+      // Handle resize
+      window.addEventListener("resize", function () {
+        setTimeout(function () {
+          window.scrollTo(0, 0);
+        }, 100);
+      });
+
+      // Initialize
+      initScene();
+      createBoard();
+      diceMeshes = createDicePair();
+      setupTokenSelection();
+      setupCameraControls();
+      setupGame();
+      animate();
+    </script>
+  </body>
+</html>

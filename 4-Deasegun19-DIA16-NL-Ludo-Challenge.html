@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Ludo Rush 3D</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Titan+One&display=swap');
+        
+        body { 
+            margin: 0; overflow: hidden; 
+            background: #eef2f3; /* Clean bright background */
+            font-family: 'Titan One', cursive;
+            user-select: none; touch-action: none; 
+        }
+
+        /* --- UI SYSTEM --- */
+        #ui-layer { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10; display: flex; flex-direction: column; }
+
+        /* MENU SCREEN */
+        #menu-screen {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: linear-gradient(135deg, #FF9966, #FF5E62);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto; z-index: 20; text-align: center;
+        }
+        #logo {
+            font-size: 50px; color: #fff; text-shadow: 0 5px 0 #bf360c;
+            margin-bottom: 20px; line-height: 1.1;
+        }
+        .subtitle { font-size: 18px; color: #fff; margin-bottom: 40px; opacity: 0.9; font-family: sans-serif; }
+        
+        .menu-btn {
+            background: #fff; color: #bf360c; border: none; border-bottom: 6px solid #d9d9d9;
+            padding: 20px 60px; border-radius: 50px; font-size: 22px; font-family: 'Titan One';
+            margin: 10px; cursor: pointer; width: 280px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15); transition: transform 0.1s;
+        }
+        .menu-btn:active { transform: translateY(4px); border-bottom: 2px solid #ccc; }
+
+        /* WIN SCREEN */
+        #win-screen {
+            display: none; position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); z-index: 30; pointer-events: auto;
+            flex-direction: column; align-items: center; justify-content: center; color: white;
+        }
+        #win-msg { font-size: 60px; color: #FFD700; text-shadow: 0 0 20px #FFD700; margin-bottom: 20px; }
+        #restart-btn { background: #2E7D32; color: white; border-bottom: 6px solid #1B5E20; padding: 15px 40px; border-radius: 30px; font-size: 20px; border: none; cursor: pointer;}
+
+        /* GAME HUD */
+        #game-ui { display: none; width: 100%; height: 100%; flex-direction: column; justify-content: space-between; }
+        
+        #top-bar { padding: 15px; text-align: center; display: flex; justify-content: center; gap: 8px; }
+        .p-badge {
+            background: #fff; padding: 5px 12px; border-radius: 12px;
+            border: 3px solid #ddd; font-size: 12px; color: #888;
+        }
+        .active { border-color: #333; color: #000; transform: scale(1.1); box-shadow: 0 5px 10px rgba(0,0,0,0.1); }
+
+        #bottom-bar { padding: 30px; text-align: center; pointer-events: auto; }
+        #roll-btn {
+            background: linear-gradient(to bottom, #FFD700, #FFC107);
+            border: 4px solid #fff; border-bottom: 6px solid #FFA000;
+            color: #5d4037; font-size: 22px; padding: 20px 50px; border-radius: 60px;
+            font-family: 'Titan One'; cursor: pointer;
+            box-shadow: 0 10px 30px rgba(255, 193, 7, 0.4);
+        }
+        #roll-btn:active { transform: translateY(4px); border-bottom: 2px solid #FFA000; }
+        #roll-btn:disabled { filter: grayscale(1); transform: scale(0.95); }
+        
+        #toast {
+            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95); color: #333; padding: 15px 40px; border-radius: 40px;
+            font-size: 24px; opacity: 0; pointer-events: none; border: 4px solid #333;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js",
+                "gsap": "https://unpkg.com/gsap@3.12.5/index.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="menu-screen">
+        <div id="logo">LUDO RUSH<br>3D</div>
+        <div class="subtitle">First to finish ONE LAP wins!</div>
+        <button class="menu-btn" onclick="startGame('CPU')">PLAY VS CPU</button>
+        <button class="menu-btn" onclick="startGame('LOCAL')">PASS N PLAY</button>
+    </div>
+
+    <div id="win-screen">
+        <div id="win-msg">YOU WIN!</div>
+        <button id="restart-btn" onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+
+    <div id="ui-layer">
+        <div id="game-ui">
+            <div id="top-bar">
+                <div class="p-badge" id="p0">RED</div>
+                <div class="p-badge" id="p1">BLUE</div>
+                <div class="p-badge" id="p2">GREEN</div>
+                <div class="p-badge" id="p3">YELLOW</div>
+            </div>
+            <div id="toast"></div>
+            <div id="bottom-bar">
+                <button id="roll-btn">ROLL DICE</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import * as CANNON from 'cannon-es';
+        import gsap from 'gsap';
+
+        window.startGame = function(mode) {
+            document.getElementById('menu-screen').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'flex';
+            GAME_MODE = mode;
+            initGame();
+        };
+
+        // --- CONFIG ---
+        let GAME_MODE = 'CPU'; 
+        const COLORS = [0xd32f2f, 0x1976d2, 0x388e3c, 0xfbc02d]; 
+        const BASES = [{x:4.5,z:4.5}, {x:-4.5,z:4.5}, {x:-4.5,z:-4.5}, {x:4.5,z:-4.5}];
+        
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeef2f3); 
+
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 100);
+        camera.position.set(0, 38, 22);
+        camera.lookAt(0,0,0);
+
+        const renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const world = new CANNON.World({gravity: new CANNON.Vec3(0,-80,0)});
+
+        // --- ASSETS ---
+        const amb = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(amb);
+        const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+        dir.position.set(5, 20, 5);
+        dir.castShadow = true;
+        dir.shadow.mapSize.set(1024,1024);
+        scene.add(dir);
+
+        // Board
+        const board = new THREE.Mesh(new THREE.BoxGeometry(18, 0.5, 18), new THREE.MeshStandardMaterial({color:0xffffff}));
+        board.position.y = -0.25;
+        board.receiveShadow = true;
+        scene.add(board);
+
+        // Visual Zones
+        const zoneGeo = new THREE.PlaneGeometry(7,7);
+        const zones = [
+            {x:4.5,z:4.5,c:COLORS[0]}, {x:-4.5,z:4.5,c:COLORS[1]}, 
+            {x:-4.5,z:-4.5,c:COLORS[2]}, {x:4.5,z:-4.5,c:COLORS[3]}
+        ];
+        zones.forEach(z => {
+            const m = new THREE.Mesh(zoneGeo, new THREE.MeshBasicMaterial({color:z.c}));
+            m.rotation.x = -Math.PI/2; m.position.set(z.x, 0.01, z.z);
+            scene.add(m);
+        });
+
+        // Path (40 tiles)
+        const path = [];
+        const tileGeo = new THREE.BoxGeometry(1.4, 0.1, 1.4);
+        function addTile(x,z,c) {
+            const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({color:c}));
+            m.position.set(x,0.06,z);
+            m.receiveShadow = true;
+            // Border
+            const border = new THREE.Mesh(new THREE.BoxGeometry(1.45,0.05,1.45), new THREE.MeshBasicMaterial({color:0x333333}));
+            border.position.y = -0.05; m.add(border);
+            scene.add(m);
+            return {x,z};
+        }
+        for(let i=0; i<10; i++) path.push(addTile(9-(i*2), 9, 0xffffff)); 
+        for(let i=0; i<10; i++) path.push(addTile(-9, 9-(i*2), 0xffffff)); 
+        for(let i=0; i<10; i++) path.push(addTile(-9+(i*2), -9, 0xffffff)); 
+        for(let i=0; i<10; i++) path.push(addTile(9, -9+(i*2), 0xffffff)); 
+
+        // Dice
+        let dice, dBody;
+        function createDice() {
+            const geo = new THREE.BoxGeometry(1.2,1.2,1.2);
+            const mats = [1,6,2,5,3,4].map(n => {
+                const c = document.createElement('canvas'); c.width=64; c.height=64;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle='white'; ctx.fillRect(0,0,64,64);
+                ctx.strokeStyle='#ccc'; ctx.strokeRect(0,0,64,64);
+                ctx.fillStyle='black'; ctx.beginPath();
+                if(n%2!==0) ctx.arc(32,32,6,0,7);
+                if(n>1){ctx.arc(12,12,6,0,7); ctx.arc(52,52,6,0,7);}
+                if(n>3){ctx.arc(52,12,6,0,7); ctx.arc(12,52,6,0,7);}
+                if(n===6){ctx.arc(12,32,6,0,7); ctx.arc(52,32,6,0,7);}
+                ctx.fill();
+                return new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(c)});
+            });
+            dice = new THREE.Mesh(geo, mats);
+            dice.castShadow = true;
+            scene.add(dice);
+            dBody = new CANNON.Body({mass:1, shape:new CANNON.Box(new CANNON.Vec3(0.6,0.6,0.6))});
+            dBody.position.set(0,5,0); world.addBody(dBody);
+        }
+        createDice();
+
+        // Tokens (With Logic for "One Lap")
+        const tokens = [[],[],[],[]];
+        const hitboxes = [];
+        
+        function createTokens() {
+            const pawnGeo = new THREE.CylinderGeometry(0.3, 0.5, 1, 32);
+            const headGeo = new THREE.SphereGeometry(0.35, 32, 32);
+            
+            for(let p=0; p<4; p++) {
+                for(let t=0; t<2; t++) {
+                    const mat = new THREE.MeshStandardMaterial({color: COLORS[p], roughness:0.2, metalness:0.3});
+                    const base = new THREE.Mesh(pawnGeo, mat);
+                    const head = new THREE.Mesh(headGeo, mat);
+                    head.position.y = 0.6; base.add(head);
+                    
+                    const tx = BASES[p].x + (t===0?-1.2:1.2);
+                    const tz = BASES[p].z;
+                    base.position.set(tx, 0.5, tz);
+                    base.castShadow = true;
+                    
+                    const hit = new THREE.Mesh(new THREE.BoxGeometry(3,2,3), new THREE.MeshBasicMaterial({visible:false}));
+                    base.add(hit);
+                    // LOGIC: totalSteps tracks how far they have gone
+                    hit.userData = { parent: base, pIdx: p, pos: -1, totalSteps: 0, startX: tx, startZ: tz };
+                    
+                    scene.add(base);
+                    tokens[p].push(base);
+                    if(p===0 || GAME_MODE === 'LOCAL') hitboxes.push(hit);
+                }
+            }
+        }
+        
+        // GAME LOGIC
+        let turn = 0;
+        let phase = 'IDLE';
+        let rollVal = 1;
+        const btn = document.getElementById('roll-btn');
+        const toast = document.getElementById('toast');
+
+        function showMsg(txt) {
+            toast.innerText = txt;
+            gsap.fromTo(toast, {opacity:1, scale:0.8}, {opacity:0, scale:1, delay:1.2, duration:0.3});
+        }
+
+        function initGame() {
+            createTokens();
+            updateUI();
+        }
+
+        btn.addEventListener('click', () => {
+            if(phase !== 'IDLE') return;
+            if(GAME_MODE === 'CPU' && turn !== 0) return; 
+            startRoll();
+        });
+
+        function startRoll() {
+            phase = 'ROLLING';
+            btn.disabled = true;
+            
+            dBody.position.set(0,10,0);
+            dBody.velocity.set(0,0,0);
+            dBody.angularVelocity.set(15,15,15);
+            
+            setTimeout(() => {
+                rollVal = Math.floor(Math.random()*6)+1;
+                showMsg(`ROLLED ${rollVal}`);
+                
+                if(GAME_MODE === 'CPU' && turn !== 0) {
+                    cpuMove();
+                } else {
+                    phase = 'INPUT';
+                    btn.innerText = "TAP TOKEN";
+                    tokens[turn].forEach(t => gsap.to(t.scale, {x:1.3, z:1.3, yoyo:true, repeat:-1, duration:0.3}));
+                }
+            }, 500);
+        }
+
+        // TOUCH
+        const ray = new THREE.Raycaster();
+        const ptr = new THREE.Vector2();
+        
+        window.addEventListener('touchstart', onTouch, {passive:false});
+        window.addEventListener('mousedown', onTouch);
+
+        function onTouch(e) {
+            if(phase !== 'INPUT') return;
+            
+            let x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            let y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            ptr.x = (x/window.innerWidth)*2-1;
+            ptr.y = -(y/window.innerHeight)*2+1;
+            
+            ray.setFromCamera(ptr, camera);
+            const hits = ray.intersectObjects(hitboxes);
+            
+            if(hits.length > 0) {
+                const data = hits[0].object.userData;
+                if(data.pIdx === turn) {
+                    moveToken(data.parent, data);
+                }
+            }
+        }
+
+        function moveToken(mesh, data) {
+            phase = 'MOVING';
+            tokens[turn].forEach(t => {
+                gsap.killTweensOf(t.scale);
+                gsap.to(t.scale, {x:1,z:1,duration:0.2});
+            });
+
+            // LOGIC: SPEED RUSH (First to 40 steps wins)
+            let steps = rollVal;
+            
+            // If in base, move to start (counts as 1 step on track)
+            if(data.pos === -1) {
+                data.pos = turn * 10;
+                data.totalSteps = 1;
+            } else {
+                data.pos = (data.pos + steps) % 40;
+                data.totalSteps += steps;
+            }
+            
+            // CHECK WIN
+            if(data.totalSteps >= 41) { // Completed lap
+               winGame(turn);
+               return;
+            }
+
+            const pt = path[data.pos];
+            
+            gsap.to(mesh.position, {
+                x: pt.x, z: pt.z, duration: 0.5, ease: "power2.out",
+                onComplete: () => { nextTurn(); }
+            });
+            gsap.to(mesh.position, {y:2, duration:0.25, yoyo:true, repeat:1});
+        }
+
+        function winGame(winnerIdx) {
+            const names = ["YOU", "BLUE", "GREEN", "YELLOW"];
+            document.getElementById('win-msg').innerText = `${names[winnerIdx]} WINS!`;
+            document.getElementById('win-screen').style.display = 'flex';
+        }
+
+        function cpuMove() {
+            const myTokens = tokens[turn];
+            const choice = myTokens[Math.floor(Math.random()*myTokens.length)];
+            moveToken(choice, choice.children[1].userData);
+        }
+
+        function nextTurn() {
+            turn = (turn + 1) % 4;
+            phase = 'IDLE';
+            updateUI();
+            
+            const rots = [{x:0,z:20}, {x:-20,z:0}, {x:0,z:-20}, {x:20,z:0}];
+            gsap.to(camera.position, {x:rots[turn].x, z:rots[turn].z, duration:0.4, onUpdate:()=>camera.lookAt(0,0,0)});
+
+            if(GAME_MODE === 'CPU' && turn !== 0) {
+                btn.innerText = "...";
+                setTimeout(startRoll, 300);
+            } else {
+                btn.innerText = "ROLL DICE";
+                btn.disabled = false;
+            }
+        }
+
+        function updateUI() {
+            for(let i=0; i<4; i++) {
+                const el = document.getElementById(`p${i}`);
+                if(i === turn) el.classList.add('active');
+                else el.classList.remove('active');
+            }
+        }
+
+        function anim() {
+            requestAnimationFrame(anim);
+            world.step(1/60);
+            dice.position.copy(dBody.position);
+            dice.quaternion.copy(dBody.quaternion);
+            renderer.render(scene, camera);
+        }
+        anim();
+        
+    </script>
+</body>
+  </html>

@@ -1,0 +1,2722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIDDY LUDO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #16213e 100%);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Panel */
+        #uiPanel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 10, 26, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            padding: 20px;
+            min-width: 250px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+
+        /* Progress Dashboard */
+        #progressDashboard {
+            position: absolute;
+            top: 80px; /* Moved down to make room for Help button */
+            left: 20px;
+            background: rgba(10, 10, 26, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid #ff00ff;
+            border-radius: 15px;
+            padding: 12px;
+            min-width: 240px;
+            max-width: 260px;
+            max-height: calc(100vh - 350px); /* Reduced to avoid overlap with Players panel */
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+            z-index: 10;
+        }
+
+        #progressDashboard h2 {
+            color: #ff00ff;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 1.2em;
+            text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        }
+
+        #progressContent {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .player-progress-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+            transition: all 0.3s;
+        }
+
+        .player-progress-item.leader {
+            border-color: #ff00ff;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.6);
+            background: rgba(255, 0, 255, 0.15);
+            transform: scale(1.01);
+        }
+
+        .player-progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .player-progress-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: bold;
+            font-size: 0.95em;
+        }
+
+        .leader-badge {
+            background: linear-gradient(135deg, #ff00ff, #ff0088);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 0.65em;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 0 8px rgba(255, 0, 255, 0.5);
+        }
+
+        .player-progress-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 0.8em;
+        }
+
+        .progress-stat {
+            text-align: center;
+            padding: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        .progress-stat-label {
+            font-size: 0.7em;
+            opacity: 0.7;
+            margin-bottom: 2px;
+        }
+
+        .progress-stat-value {
+            font-size: 1em;
+            font-weight: bold;
+        }
+
+        .progress-bar-container {
+            margin-top: 6px;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            transition: width 0.3s;
+            border-radius: 2px;
+        }
+
+        #uiPanel h2 {
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 1.5em;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .player-info {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .player-info.active {
+            border-color: #00ffff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+            background: rgba(0, 255, 255, 0.1);
+        }
+
+        .player-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        #diceDisplay {
+            text-align: center;
+            font-size: 3em;
+            margin: 20px 0;
+            color: #ff00ff;
+            text-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+        }
+
+        #rollButton {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #ff00ff, #00ffff);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+        }
+
+        #rollButton:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.8);
+        }
+
+        #rollButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #gameStatus {
+            margin-top: 15px;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            min-height: 40px;
+        }
+
+        #helpButton {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 12px 20px;
+            background: rgba(10, 10, 26, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid #ff00ff;
+            border-radius: 10px;
+            color: #ff00ff;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+            z-index: 20; /* Higher z-index to stay above dashboard */
+        }
+
+        #helpButton:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.6);
+        }
+
+        #restartButton {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: rgba(10, 10, 26, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid #ff6600;
+            border-radius: 10px;
+            color: #ff6600;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(255, 102, 0, 0.3);
+            z-index: 20;
+        }
+
+        #restartButton:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 102, 0, 0.6);
+            background: rgba(255, 102, 0, 0.1);
+        }
+
+        #playerSetup {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 10, 26, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid #00ff00;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+        }
+
+        #playerSetup h3 {
+            color: #00ff00;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .players-table {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .players-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .header-player {
+            text-align: left;
+        }
+
+        .header-human {
+            text-align: center;
+        }
+
+        .header-ai {
+            text-align: center;
+        }
+
+        .player-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            padding: 6px 0;
+        }
+
+        .player-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #fff;
+        }
+
+        .player-checkbox,
+        .ai-checkbox {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .player-checkbox input[type="checkbox"],
+        .ai-checkbox input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .player-select {
+            margin: 8px 0;
+        }
+
+        .player-select label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .player-select input[type="checkbox"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .ai-toggle {
+            margin-left: 10px;
+            font-size: 0.9em;
+            color: #ffff00;
+        }
+
+        /* Instruction Page */
+        #instructionsOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            overflow-y: auto;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        #instructionsOverlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        #instructionsContent {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            color: #fff;
+        }
+
+        .instructions-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.2));
+            border-radius: 20px;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.4);
+        }
+
+        .instructions-header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #00ffff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        .instructions-header p {
+            font-size: 1.2em;
+            color: #00ffff;
+        }
+
+        .instruction-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: rgba(10, 10, 26, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 2px solid;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .instruction-section h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .instruction-section h2::before {
+            content: "◆";
+            margin-right: 10px;
+            font-size: 0.8em;
+        }
+
+        .section-red { border-color: #ff4444; }
+        .section-red h2 { color: #ff4444; }
+        .section-blue { border-color: #4488ff; }
+        .section-blue h2 { color: #4488ff; }
+        .section-yellow { border-color: #ffdd00; }
+        .section-yellow h2 { color: #ffdd00; }
+        .section-green { border-color: #00ff88; }
+        .section-green h2 { color: #00ff88; }
+        .section-cyan { border-color: #00ffff; }
+        .section-cyan h2 { color: #00ffff; }
+
+        .instruction-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .instruction-section li {
+            margin: 15px 0;
+            padding-left: 30px;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .instruction-section li::before {
+            content: "▶";
+            position: absolute;
+            left: 0;
+            color: currentColor;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #00ffff, #ff00ff);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+
+        .close-button {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid #ff4444;
+            border-radius: 50%;
+            color: #ff4444;
+            font-size: 1.5em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.4);
+        }
+
+        .close-button:hover {
+            transform: scale(1.1) rotate(90deg);
+            background: rgba(255, 0, 0, 0.5);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.8);
+        }
+
+        .start-button {
+            display: block;
+            width: 300px;
+            margin: 40px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #00ffff, #ff00ff);
+            border: none;
+            border-radius: 15px;
+            color: #fff;
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        .start-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.8);
+        }
+
+        .rule-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid;
+        }
+
+        .highlight {
+            color: #00ffff;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            #uiPanel {
+                top: 10px;
+                right: 10px;
+                min-width: 200px;
+                padding: 15px;
+            }
+
+            #instructionsContent {
+                padding: 20px 10px;
+            }
+
+            .instructions-header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="canvas"></canvas>
+        
+        <button id="helpButton">📖 Help</button>
+        <button id="restartButton">🔄 Restart</button>
+        
+        <div id="uiPanel">
+            <h2>Game Control</h2>
+            <div id="diceDisplay">🎲</div>
+            <button id="rollButton">Roll Dice</button>
+            <div id="gameStatus">Welcome! Click Help for instructions.</div>
+            <div id="playersList"></div>
+        </div>
+
+        <div id="progressDashboard">
+            <h2>Player Progress</h2>
+            <div id="progressContent"></div>
+        </div>
+
+        <div id="playerSetup">
+            <h3>Players</h3>
+            <div class="players-table">
+                <div class="players-header">
+                    <div class="header-player">Player</div>
+                    <div class="header-human">Human</div>
+                    <div class="header-ai">AI</div>
+                </div>
+                <div class="player-row">
+                    <div class="player-name">
+                        <span class="player-color" style="color: #ff4444;">●</span> Red
+                    </div>
+                    <div class="player-checkbox">
+                        <input type="checkbox" id="player1">
+                    </div>
+                    <div class="ai-checkbox">
+                        <input type="checkbox" id="ai1">
+                    </div>
+                </div>
+                <div class="player-row">
+                    <div class="player-name">
+                        <span class="player-color" style="color: #4488ff;">●</span> Blue
+                    </div>
+                    <div class="player-checkbox">
+                        <input type="checkbox" id="player2">
+                    </div>
+                    <div class="ai-checkbox">
+                        <input type="checkbox" id="ai2">
+                    </div>
+                </div>
+                <div class="player-row">
+                    <div class="player-name">
+                        <span class="player-color" style="color: #ffdd00;">●</span> Yellow
+                    </div>
+                    <div class="player-checkbox">
+                        <input type="checkbox" id="player3">
+                    </div>
+                    <div class="ai-checkbox">
+                        <input type="checkbox" id="ai3">
+                    </div>
+                </div>
+                <div class="player-row">
+                    <div class="player-name">
+                        <span class="player-color" style="color: #00ff88;">●</span> Green
+                    </div>
+                    <div class="player-checkbox">
+                        <input type="checkbox" id="player4">
+                    </div>
+                    <div class="ai-checkbox">
+                        <input type="checkbox" id="ai4">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instruction Page -->
+    <div id="instructionsOverlay" class="show">
+        <div id="instructionsContent">
+            <div class="instructions-header">
+                <h1>FIDDY LUDO</h1>
+                <p>Master the Board</p>
+            </div>
+
+            <div class="instruction-section section-cyan">
+                <h2>Objective</h2>
+                <p>Be the first player to move all four of your pieces from your home base, around the board, and into your home column to win the game!</p>
+            </div>
+
+            <div class="instruction-section section-red">
+                <h2>How to Play</h2>
+                <ul>
+                    <li><span class="step-number">1</span> <span class="highlight">Roll the Dice:</span> Click the "Roll Dice" button on your turn.</li>
+                    <li><span class="step-number">2</span> <span class="highlight">Enter a Piece:</span> You need to roll a <span class="highlight">6</span> to move a piece from your home base onto the starting position.</li>
+                    <li><span class="step-number">3</span> <span class="highlight">Move Pieces:</span> Click on a piece to move it forward by the number shown on the dice.</li>
+                    <li><span class="step-number">4</span> <span class="highlight">Capture Opponents:</span> Landing on an opponent's piece sends it back to their home base.</li>
+                    <li><span class="step-number">5</span> <span class="highlight">Reach Home:</span> Move all pieces into your colored home column and reach the center to win!</li>
+                </ul>
+            </div>
+
+            <div class="instruction-section section-blue">
+                <h2>Game Rules</h2>
+                <div class="rule-box" style="border-left-color: #4488ff;">
+                    <strong>Starting:</strong> Pieces begin in their colored home base. Roll a 6 to enter a piece onto the board.
+                </div>
+                <div class="rule-box" style="border-left-color: #4488ff;">
+                    <strong>Movement:</strong> Pieces move clockwise around the cross-shaped board following their colored path.
+                </div>
+                <div class="rule-box" style="border-left-color: #4488ff;">
+                    <strong>Safe Zones:</strong> Marked spaces protect your pieces from being captured. Multiple pieces can occupy safe zones.
+                </div>
+                <div class="rule-box" style="border-left-color: #4488ff;">
+                    <strong>Capturing:</strong> Landing exactly on an opponent's piece (not in a safe zone) sends it back to their home base.
+                </div>
+                <div class="rule-box" style="border-left-color: #4488ff;">
+                    <strong>Home Column:</strong> The final 6 spaces before the center. You need the exact number to enter and move within it.
+                </div>
+                <div class="rule-box" style="border-left-color: #4488ff;">
+                    <strong>Extra Turn:</strong> Rolling a 6 gives you another turn. You can choose to move an existing piece or enter a new one.
+                </div>
+            </div>
+
+            <div class="instruction-section section-yellow">
+                <h2>Controls</h2>
+                <ul>
+                    <li><strong>Player Selection:</strong> Before starting, select players in the Players panel. Check the "Human" checkbox to add a player, and check "AI" to make them AI-controlled. The Game Control and Player Progress dashboards will populate when players are selected.</li>
+                    <li><strong>Roll Dice Button:</strong> Click to roll the dice on your turn</li>
+                    <li><strong>Click Pieces:</strong> Select and move your pieces by clicking on them</li>
+                    <li><strong>3D View:</strong> The board rotates automatically for the best viewing angle</li>
+                    <li><strong>Help Button:</strong> Access these instructions anytime during the game</li>
+                    <li><strong>Restart Button:</strong> Click to restart the game and reset all progress</li>
+                </ul>
+            </div>
+
+            <div class="instruction-section section-green">
+                <h2>Winning</h2>
+                <p>To win, you must:</p>
+                <ul>
+                    <li>Move all 4 pieces from your home base onto the board</li>
+                    <li>Navigate them around the entire board path</li>
+                    <li>Enter your home column (the colored vertical path)</li>
+                    <li>Move each piece to the center space</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>The first player to get all 4 pieces to the center wins!</strong></p>
+            </div>
+
+            <button class="start-button" onclick="hideInstructions()">Start Playing</button>
+        </div>
+        <button class="close-button" onclick="hideInstructions()">×</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Global variables
+        let scene, camera, renderer;
+        let board, pieces = [], dice;
+        let gameEngine;
+        let selectedPiece = null;
+        let isAnimating = false;
+        let raycaster, mouse;
+        let confettiParticles = [];
+
+        // Player colors
+        const PLAYER_COLORS = [
+            { name: 'Red', color: 0xff5555, emissive: 0x660000 }, // Brighter red, stronger glow
+            { name: 'Blue', color: 0x5599ff, emissive: 0x002266 }, // Brighter blue, stronger glow
+            { name: 'Yellow', color: 0xffee00, emissive: 0x664400 }, // Brighter yellow, stronger glow
+            { name: 'Green', color: 0x00ff99, emissive: 0x006644 } // Brighter green, stronger glow
+        ];
+
+        // Board dimensions - balanced size to fill viewport
+        const BOARD_SIZE = 50;
+        const CELL_SIZE = 2.5;
+        const PIECE_HEIGHT = 1.1; // Increased to accommodate larger pieces (2.2x scale)
+
+        // Path positions for each player (simplified - will calculate dynamically)
+        let paths = {};
+
+        // Initialize
+        function init() {
+            // Clear existing scene if it exists
+            if (scene) {
+                // Remove all objects from scene
+                while(scene.children.length > 0) {
+                    scene.remove(scene.children[0]);
+                }
+            }
+            
+            // Reset pieces array
+            pieces = [];
+            
+            // Reset paths
+            paths = {};
+            
+            // Reset animation flag
+            isAnimating = false;
+            
+            setupScene();
+            createBoard();
+            createPieces();
+            createDice();
+            setupLights();
+            setupCamera();
+            setupControls();
+            createUI();
+            
+            gameEngine = new GameEngine();
+            gameEngine.init();
+            
+            // Update dashboard after initialization
+            setTimeout(() => {
+                updateProgressDashboard();
+            }, 200);
+            
+            animate();
+        }
+
+        function setupScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+            scene.fog = new THREE.Fog(0x0a0a1a, 50, 150);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(30, 35, 30);
+            camera.lookAt(0, -5, 0);
+
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupLights() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            // Directional light
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 50, 25);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Point lights for neon effect - balanced for board size
+            const pointLight1 = new THREE.PointLight(0x00ffff, 1, 150);
+            pointLight1.position.set(25, 25, 25);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0xff00ff, 1, 150);
+            pointLight2.position.set(-25, 25, -25);
+            scene.add(pointLight2);
+        }
+
+        function setupCamera() {
+            // Fixed camera angle for better gameplay - no rotation
+            // Camera positioned higher and adjusted to show full board including bottom
+            camera.position.set(30, 35, 30);
+            camera.lookAt(0, -5, 0); // Look slightly down to show bottom of board
+            
+            // Optional: Add manual camera controls later if needed
+            // For now, fixed camera prevents interference with clicking
+        }
+
+        function createBoard() {
+            const boardGroup = new THREE.Group();
+
+            // Base board - dark futuristic background
+            const baseGeometry = new THREE.PlaneGeometry(BOARD_SIZE, BOARD_SIZE);
+            const baseMaterial = new THREE.MeshStandardMaterial({
+                color: 0x0f0f1f,
+                emissive: 0x050510,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.rotation.x = -Math.PI / 2;
+            base.position.y = -0.1;
+            base.receiveShadow = true;
+            boardGroup.add(base);
+
+            // Subtle grid for reference
+            const gridHelper = new THREE.GridHelper(BOARD_SIZE, BOARD_SIZE / 2, 0x1a1a2e, 0x0a0a1a);
+            gridHelper.position.y = 0.01;
+            boardGroup.add(gridHelper);
+
+            // Create classic Ludo structure: home bases first
+            createHomeBases(boardGroup);
+
+            // Create entry paths (colored paths from home bases to main path)
+            createEntryPaths(boardGroup);
+
+            // Create main cross-shaped path (neutral/white)
+            createMainPath(boardGroup);
+
+            // Create home columns (colored paths to center)
+            createHomeColumns(boardGroup);
+
+            // Create safe zones
+            createSafeZones(boardGroup);
+
+            // Create center area
+            createCenterArea(boardGroup);
+
+            scene.add(boardGroup);
+            board = boardGroup;
+
+            // Calculate paths
+            calculatePaths();
+        }
+
+        function createMainPath(group) {
+            // Main perimeter path - classic Ludo style: pieces go around the board avoiding home bases
+            // Home bases are at corners - scaled appropriately
+            // Make path squares match grid cell size exactly
+            // Grid has BOARD_SIZE / 2 divisions, so each cell is 2 units (50 / 25 = 2)
+            const squareSize = 2.0; // Match grid cell size exactly
+            const squareGeometry = new THREE.BoxGeometry(squareSize, 0.08, squareSize);
+            const squareMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0x222222,
+                roughness: 0.4,
+                metalness: 0.3
+            });
+
+            // Main path positions - bigger path (from -12 to 12)
+            // Path goes around the center, avoiding corners where home bases are
+            // Top horizontal (left to right) - bigger path from -12 to 12
+            for (let x = -12; x <= 12; x++) {
+                const square = new THREE.Mesh(squareGeometry, squareMaterial);
+                square.position.set(x, 0.13, 12);
+                group.add(square);
+                
+                // Add visible border/edges to each square
+                const edges = new THREE.EdgesGeometry(squareGeometry);
+                const edgeMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x333333, 
+                    linewidth: 2 
+                });
+                const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
+                edgeLines.position.set(x, 0.13, 12);
+                group.add(edgeLines);
+            }
+            
+            // Right vertical (top to bottom) - bigger path from 12 to -12
+            for (let z = 12; z >= -12; z--) {
+                const square = new THREE.Mesh(squareGeometry, squareMaterial);
+                square.position.set(12, 0.13, z);
+                group.add(square);
+                
+                // Add visible border/edges
+                const edges = new THREE.EdgesGeometry(squareGeometry);
+                const edgeMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x333333, 
+                    linewidth: 2 
+                });
+                const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
+                edgeLines.position.set(12, 0.13, z);
+                group.add(edgeLines);
+            }
+            
+            // Bottom horizontal (right to left) - bigger path from 12 to -12
+            for (let x = 12; x >= -12; x--) {
+                const square = new THREE.Mesh(squareGeometry, squareMaterial);
+                square.position.set(x, 0.13, -12);
+                group.add(square);
+                
+                // Add visible border/edges
+                const edges = new THREE.EdgesGeometry(squareGeometry);
+                const edgeMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x333333, 
+                    linewidth: 2 
+                });
+                const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
+                edgeLines.position.set(x, 0.13, -12);
+                group.add(edgeLines);
+            }
+            
+            // Left vertical (bottom to top) - bigger path from -12 to 12
+            for (let z = -12; z <= 12; z++) {
+                const square = new THREE.Mesh(squareGeometry, squareMaterial);
+                square.position.set(-12, 0.13, z);
+                group.add(square);
+                
+                // Add visible border/edges
+                const edges = new THREE.EdgesGeometry(squareGeometry);
+                const edgeMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x333333, 
+                    linewidth: 2 
+                });
+                const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
+                edgeLines.position.set(-12, 0.13, z);
+                group.add(edgeLines);
+            }
+
+            // Also add center cross for visual reference (but pieces don't use it)
+            const pathWidth = 4.5;
+            const pathHeight = 0.1;
+            const mainPathMaterial = new THREE.MeshStandardMaterial({
+                color: 0x444444,
+                emissive: 0x111111,
+                roughness: 0.5,
+                metalness: 0.2,
+                transparent: true,
+                opacity: 0.3
+            });
+
+            const hPath = new THREE.BoxGeometry(BOARD_SIZE - 2, pathHeight, pathWidth);
+            const hMesh = new THREE.Mesh(hPath, mainPathMaterial);
+            hMesh.position.y = 0.11;
+            group.add(hMesh);
+
+            const vPath = new THREE.BoxGeometry(pathWidth, pathHeight, BOARD_SIZE - 2);
+            const vMesh = new THREE.Mesh(vPath, mainPathMaterial);
+            vMesh.position.y = 0.11;
+            group.add(vMesh);
+        }
+
+        function createEntryPaths(group) {
+            // Entry paths: colored paths from home bases to main path (5 squares each)
+            // These connect home bases to the main perimeter path
+            const squareSize = 2.0; // Match grid cell size exactly
+            const squareGeometry = new THREE.BoxGeometry(squareSize, 0.08, squareSize);
+            
+            const entryPaths = [
+                // Red: from bottom-left home (-20,-20) to bottom of main path (0,-12)
+                { color: PLAYER_COLORS[0], start: { x: -15, z: -15 }, dir: { x: 1, z: 0 }, count: 5, end: { x: 0, z: -12 } },
+                // Blue: from bottom-right home (20,-20) to right of main path (12,0)
+                { color: PLAYER_COLORS[1], start: { x: 15, z: -15 }, dir: { x: 0, z: 1 }, count: 5, end: { x: 12, z: 0 } },
+                // Yellow: from top-right home (20,20) to top of main path (0,12)
+                { color: PLAYER_COLORS[2], start: { x: 15, z: 15 }, dir: { x: -1, z: 0 }, count: 5, end: { x: 0, z: 12 } },
+                // Green: from top-left home (-20,20) to left of main path (-12,0)
+                { color: PLAYER_COLORS[3], start: { x: -15, z: 15 }, dir: { x: 0, z: -1 }, count: 5, end: { x: -12, z: 0 } }
+            ];
+
+            entryPaths.forEach(path => {
+                const material = new THREE.MeshStandardMaterial({
+                    color: path.color.color,
+                    emissive: path.color.emissive,
+                    roughness: 0.3,
+                    metalness: 0.5
+                });
+
+                for (let i = 0; i < path.count; i++) {
+                    const x = path.start.x + path.dir.x * i;
+                    const z = path.start.z + path.dir.z * i;
+                    const square = new THREE.Mesh(squareGeometry, material);
+                    square.position.set(x, 0.13, z);
+                    group.add(square);
+                    
+                    // Add visible border/edges to entry path squares
+                    const edges = new THREE.EdgesGeometry(squareGeometry);
+                    const edgeMaterial = new THREE.LineBasicMaterial({ 
+                        color: 0x333333, 
+                        linewidth: 2 
+                    });
+                    const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
+                    edgeLines.position.set(x, 0.13, z);
+                    group.add(edgeLines);
+                }
+
+                // Add start marker (triangle pointing to main path)
+                const triangleShape = new THREE.Shape();
+                triangleShape.moveTo(0, 0.3);
+                triangleShape.lineTo(-0.2, 0);
+                triangleShape.lineTo(0.2, 0);
+                triangleShape.lineTo(0, 0.3);
+                const triangleGeometry = new THREE.ShapeGeometry(triangleShape);
+                const triangleMaterial = new THREE.MeshBasicMaterial({
+                    color: path.color.color,
+                    side: THREE.DoubleSide
+                });
+                const triangle = new THREE.Mesh(triangleGeometry, triangleMaterial);
+                triangle.rotation.x = -Math.PI / 2;
+                triangle.position.set(path.end.x, 0.18, path.end.z);
+                group.add(triangle);
+            });
+        }
+
+        function createHomeBases(group) {
+            // Classic Ludo home bases at corners - balanced size
+            const baseSize = 10; // Balanced size
+            const positions = [
+                { x: -20, z: -20, color: PLAYER_COLORS[0] }, // Red (bottom-left)
+                { x: 20, z: -20, color: PLAYER_COLORS[1] },  // Blue (bottom-right)
+                { x: 20, z: 20, color: PLAYER_COLORS[2] },   // Yellow (top-right)
+                { x: -20, z: 20, color: PLAYER_COLORS[3] }   // Green (top-left)
+            ];
+
+            positions.forEach((pos, idx) => {
+                // Main base
+                const geometry = new THREE.BoxGeometry(baseSize, 0.15, baseSize);
+                const material = new THREE.MeshStandardMaterial({
+                    color: pos.color.color,
+                    emissive: pos.color.emissive,
+                    roughness: 0.3,
+                    metalness: 0.6
+                });
+                const base = new THREE.Mesh(geometry, material);
+                base.position.set(pos.x, 0.1, pos.z);
+                base.castShadow = true;
+                group.add(base);
+
+                // Neon border glow
+                const edges = new THREE.EdgesGeometry(geometry);
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
+                    color: pos.color.color,
+                    linewidth: 3
+                }));
+                line.position.set(pos.x, 0.11, pos.z);
+                group.add(line);
+
+                // Center symbol (star/X pattern)
+                const starGeometry = new THREE.RingGeometry(0.5, 1.5, 4);
+                const starMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x000000,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                const star = new THREE.Mesh(starGeometry, starMaterial);
+                star.rotation.x = -Math.PI / 2;
+                star.rotation.z = Math.PI / 4;
+                star.position.set(pos.x, 0.16, pos.z);
+                group.add(star);
+            });
+        }
+
+        function createHomeColumns(group) {
+            // Home columns: colored paths leading from main path to center (6 squares each)
+            const squareSize = 2.0; // Match grid cell size exactly
+            const squareGeometry = new THREE.BoxGeometry(squareSize, 0.08, squareSize);
+            
+            const homeColumns = [
+                // Red: from bottom of main path (0, -12) to center, moving up
+                { color: PLAYER_COLORS[0], start: { x: 0, z: -12 }, dir: { x: 0, z: 1 }, count: 6 },
+                // Blue: from right of main path (12, 0) to center, moving left
+                { color: PLAYER_COLORS[1], start: { x: 12, z: 0 }, dir: { x: -1, z: 0 }, count: 6 },
+                // Yellow: from top of main path (0, 12) to center, moving down
+                { color: PLAYER_COLORS[2], start: { x: 0, z: 12 }, dir: { x: 0, z: -1 }, count: 6 },
+                // Green: from left of main path (-12, 0) to center, moving right
+                { color: PLAYER_COLORS[3], start: { x: -12, z: 0 }, dir: { x: 1, z: 0 }, count: 6 }
+            ];
+
+            homeColumns.forEach((column, idx) => {
+                const material = new THREE.MeshStandardMaterial({
+                    color: column.color.color,
+                    emissive: column.color.emissive,
+                    roughness: 0.2,
+                    metalness: 0.6
+                });
+
+                for (let i = 1; i <= column.count; i++) {
+                    const x = column.start.x + column.dir.x * i;
+                    const z = column.start.z + column.dir.z * i;
+                    const square = new THREE.Mesh(squareGeometry, material);
+                    square.position.set(x, 0.13, z);
+                    group.add(square);
+                    
+                    // Add visible border/edges to home column squares
+                    const edges = new THREE.EdgesGeometry(squareGeometry);
+                    const edgeMaterial = new THREE.LineBasicMaterial({ 
+                        color: 0x333333, 
+                        linewidth: 2 
+                    });
+                    const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
+                    edgeLines.position.set(x, 0.13, z);
+                    group.add(edgeLines);
+                }
+            });
+        }
+
+        function createCenterArea(group) {
+            // Center area - where pieces finish
+            const centerSize = 5;
+            const centerGeometry = new THREE.BoxGeometry(centerSize, 0.1, centerSize);
+            const centerMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0x444444,
+                roughness: 0.2,
+                metalness: 0.7
+            });
+            const center = new THREE.Mesh(centerGeometry, centerMaterial);
+            center.position.set(0, 0.13, 0);
+            group.add(center);
+
+            // Center star symbol
+            const starGeometry = new THREE.RingGeometry(0.3, 0.8, 4);
+            const starMaterial = new THREE.MeshBasicMaterial({
+                color: 0x000000,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
+            const star = new THREE.Mesh(starGeometry, starMaterial);
+            star.rotation.x = -Math.PI / 2;
+            star.rotation.z = Math.PI / 4;
+            star.position.set(0, 0.18, 0);
+            group.add(star);
+        }
+
+        function createSafeZones(group) {
+            // Safe zones: entry points (where pieces enter main path) and center cross positions
+            const safeZonePositions = [
+                { x: 0, z: -12 }, { x: 12, z: 0 }, { x: 0, z: 12 }, { x: -12, z: 0 }, // Entry points
+                { x: 0, z: -6 }, { x: 6, z: 0 }, { x: 0, z: 6 }, { x: -6, z: 0 }  // Center cross safe zones
+            ];
+
+            safeZonePositions.forEach((pos, idx) => {
+                // Safe zone marker - yellow/neon with glow
+                const geometry = new THREE.CylinderGeometry(0.9, 0.9, 0.12, 16);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0xffff00,
+                    emissive: 0x664400,
+                    roughness: 0.1,
+                    metalness: 0.8
+                });
+                const safeZone = new THREE.Mesh(geometry, material);
+                safeZone.position.set(pos.x, 0.17, pos.z);
+                safeZone.rotation.x = Math.PI / 2;
+                group.add(safeZone);
+                
+                // Star symbol on safe zones
+                const starGeometry = new THREE.RingGeometry(0.25, 0.5, 4);
+                const starMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x000000,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const star = new THREE.Mesh(starGeometry, starMaterial);
+                star.rotation.x = -Math.PI / 2;
+                star.rotation.z = Math.PI / 4;
+                star.position.set(pos.x, 0.22, pos.z);
+                group.add(star);
+            });
+        }
+
+        function calculatePaths() {
+            // Calculate Ludo board paths - classic cross-shaped path
+            // Each player: 51 spaces on main path + 6 spaces in home column = 57 total
+            // Main path squares are spaced 1 unit apart
+            for (let playerIdx = 0; playerIdx < 4; playerIdx++) {
+                paths[playerIdx] = [];
+                
+                // Entry points for each player (where colored entry path meets main path)
+                const entryPoints = [
+                    { x: 0, z: -12 },   // Red: bottom of main path
+                    { x: 12, z: 0 },   // Blue: right of main path
+                    { x: 0, z: 12 },   // Yellow: top of main path
+                    { x: -12, z: 0 }   // Green: left of main path
+                ];
+                
+                const entry = entryPoints[playerIdx];
+                const step = 1.0; // Distance between squares (matches board layout)
+                
+                // Classic Ludo path: Each player starts at their entry point and goes clockwise around the perimeter
+                // Red (player 0): Starts at bottom entry (0, -12)
+                if (playerIdx === 0) {
+                    // Start at entry point (where colored path meets main path)
+                    paths[playerIdx].push(new THREE.Vector3(entry.x, 0.3, entry.z));
+                    // Go right along bottom edge of main path
+                    for (let x = 1; x <= 12; x++) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, -12));
+                    }
+                    // Go up right edge of main path
+                    for (let z = -11; z <= 12; z++) {
+                        paths[playerIdx].push(new THREE.Vector3(12, 0.3, z));
+                    }
+                    // Go left along top edge of main path
+                    for (let x = 11; x >= -12; x--) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, 12));
+                    }
+                    // Go down left edge of main path
+                    for (let z = 11; z >= -12; z--) {
+                        paths[playerIdx].push(new THREE.Vector3(-12, 0.3, z));
+                    }
+                    // Go right along bottom edge back to entry
+                    for (let x = -11; x <= -1; x++) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, -12));
+                    }
+                }
+                // Blue (player 1): Starts at right entry (12, 0)
+                else if (playerIdx === 1) {
+                    paths[playerIdx].push(new THREE.Vector3(entry.x, 0.3, entry.z));
+                    // Go up right edge of main path
+                    for (let z = 1; z <= 12; z++) {
+                        paths[playerIdx].push(new THREE.Vector3(12, 0.3, z));
+                    }
+                    // Go left along top edge of main path
+                    for (let x = 11; x >= -12; x--) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, 12));
+                    }
+                    // Go down left edge of main path
+                    for (let z = 11; z >= -12; z--) {
+                        paths[playerIdx].push(new THREE.Vector3(-12, 0.3, z));
+                    }
+                    // Go right along bottom edge of main path
+                    for (let x = -11; x <= 12; x++) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, -12));
+                    }
+                    // Go up right edge back to entry
+                    for (let z = -11; z <= -1; z++) {
+                        paths[playerIdx].push(new THREE.Vector3(12, 0.3, z));
+                    }
+                }
+                // Yellow (player 2): Starts at top entry (0, 12)
+                else if (playerIdx === 2) {
+                    paths[playerIdx].push(new THREE.Vector3(entry.x, 0.3, entry.z));
+                    // Go left along top edge of main path
+                    for (let x = -1; x >= -12; x--) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, 12));
+                    }
+                    // Go down left edge of main path
+                    for (let z = 11; z >= -12; z--) {
+                        paths[playerIdx].push(new THREE.Vector3(-12, 0.3, z));
+                    }
+                    // Go right along bottom edge of main path
+                    for (let x = -11; x <= 12; x++) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, -12));
+                    }
+                    // Go up right edge of main path
+                    for (let z = -11; z <= 12; z++) {
+                        paths[playerIdx].push(new THREE.Vector3(12, 0.3, z));
+                    }
+                    // Go left along top edge back to entry
+                    for (let x = 11; x >= 1; x--) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, 12));
+                    }
+                }
+                // Green (player 3): Starts at left entry (-12, 0)
+                else {
+                    paths[playerIdx].push(new THREE.Vector3(entry.x, 0.3, entry.z));
+                    // Go down left edge of main path
+                    for (let z = -1; z >= -12; z--) {
+                        paths[playerIdx].push(new THREE.Vector3(-12, 0.3, z));
+                    }
+                    // Go right along bottom edge of main path
+                    for (let x = -11; x <= 12; x++) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, -12));
+                    }
+                    // Go up right edge of main path
+                    for (let z = -11; z <= 12; z++) {
+                        paths[playerIdx].push(new THREE.Vector3(12, 0.3, z));
+                    }
+                    // Go left along top edge of main path
+                    for (let x = 11; x >= -12; x--) {
+                        paths[playerIdx].push(new THREE.Vector3(x, 0.3, 12));
+                    }
+                    // Go down left edge back to entry
+                    for (let z = 11; z >= 1; z--) {
+                        paths[playerIdx].push(new THREE.Vector3(-12, 0.3, z));
+                    }
+                }
+
+                // Home column (6 spaces leading to center)
+                // Home column starts at entry point and moves toward center
+                const homeColumnStep = 2; // Steps for home column (12 units / 6 steps)
+                
+                for (let i = 1; i <= 6; i++) {
+                    let x, z;
+                    if (playerIdx === 0) { // Red - moves up toward center (from z=-12 to z=0)
+                        x = 0;
+                        z = -12 + i * homeColumnStep;
+                    } else if (playerIdx === 1) { // Blue - moves left toward center (from x=12 to x=0)
+                        x = 12 - i * homeColumnStep;
+                        z = 0;
+                    } else if (playerIdx === 2) { // Yellow - moves down toward center (from z=12 to z=0)
+                        x = 0;
+                        z = 12 - i * homeColumnStep;
+                    } else { // Green - moves right toward center (from x=-12 to x=0)
+                        x = -12 + i * homeColumnStep;
+                        z = 0;
+                    }
+                    paths[playerIdx].push(new THREE.Vector3(x, 0.3, z));
+                }
+            }
+        }
+
+        function createPieces() {
+            // Helper function to create a modern futuristic pawn piece
+            function createPawnPiece(material) {
+                const group = new THREE.Group();
+                
+                // Scale factor to make pieces bigger (2.2x larger for better visibility)
+                const scale = 2.2;
+                
+                // Base (wider bottom) - tapered outward for stability
+                const baseGeometry = new THREE.CylinderGeometry(0.35 * scale, 0.4 * scale, 0.15 * scale, 16);
+                const base = new THREE.Mesh(baseGeometry, material);
+                base.position.y = 0.075 * scale;
+                base.castShadow = true;
+                base.receiveShadow = true;
+                group.add(base);
+                
+                // Body (tapered middle) - sleek vertical section
+                const bodyGeometry = new THREE.CylinderGeometry(0.25 * scale, 0.3 * scale, 0.25 * scale, 16);
+                const body = new THREE.Mesh(bodyGeometry, material);
+                body.position.y = 0.225 * scale;
+                body.castShadow = true;
+                body.receiveShadow = true;
+                group.add(body);
+                
+                // Head (rounded top) - modern spherical cap
+                const headGeometry = new THREE.SphereGeometry(0.2 * scale, 16, 16);
+                const head = new THREE.Mesh(headGeometry, material);
+                head.position.y = 0.4 * scale;
+                head.castShadow = true;
+                head.receiveShadow = true;
+                group.add(head);
+                
+                // Accent ring - futuristic decorative detail
+                const ringGeometry = new THREE.TorusGeometry(0.3 * scale, 0.02 * scale, 8, 16);
+                const ring = new THREE.Mesh(ringGeometry, material);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = 0.2 * scale;
+                ring.castShadow = true;
+                ring.receiveShadow = true;
+                group.add(ring);
+                
+                return group;
+            }
+            
+            for (let playerIdx = 0; playerIdx < 4; playerIdx++) {
+                const playerPieces = [];
+                const color = PLAYER_COLORS[playerIdx];
+                
+                for (let pieceIdx = 0; pieceIdx < 4; pieceIdx++) {
+                    // Enhanced materials with more contrast and visibility
+                    const material = new THREE.MeshStandardMaterial({
+                        color: color.color,
+                        emissive: color.emissive, // Increased emissive for glow effect
+                        emissiveIntensity: 0.8, // Strong glow for better visibility
+                        roughness: 0.2, // More reflective for better contrast
+                        metalness: 0.5 // Slightly reduced for better color visibility
+                    });
+                    
+                    // Create futuristic pawn piece using the helper function
+                    const piece = createPawnPiece(material);
+                    piece.castShadow = true;
+                    piece.receiveShadow = true;
+                    
+                    // Position in home base (balanced positions)
+                    const homePositions = [
+                        [{ x: -20, z: -20 }, { x: -15, z: -20 }, { x: -20, z: -15 }, { x: -15, z: -15 }], // Red (bottom-left)
+                        [{ x: 20, z: -20 }, { x: 25, z: -20 }, { x: 20, z: -15 }, { x: 25, z: -15 }],     // Blue (bottom-right)
+                        [{ x: 20, z: 20 }, { x: 25, z: 20 }, { x: 20, z: 25 }, { x: 25, z: 25 }],         // Yellow (top-right)
+                        [{ x: -20, z: 20 }, { x: -15, z: 20 }, { x: -20, z: 25 }, { x: -15, z: 25 }]       // Green (top-left)
+                    ];
+                    
+                    const pos = homePositions[playerIdx][pieceIdx];
+                    piece.position.set(pos.x, PIECE_HEIGHT / 2, pos.z);
+                    piece.userData = {
+                        playerIdx: playerIdx,
+                        pieceIdx: pieceIdx,
+                        position: -1, // -1 means in home base
+                        isFinished: false
+                    };
+                    
+                    scene.add(piece);
+                    playerPieces.push(piece);
+                }
+                
+                pieces.push(playerPieces);
+            }
+        }
+
+        function createDice() {
+            const diceGeometry = new THREE.BoxGeometry(1.2, 1.2, 1.2); // Increased from 0.8 to 1.2 (1.5x larger)
+            const diceMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0x222222,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            
+            dice = new THREE.Mesh(diceGeometry, diceMaterial);
+            dice.position.set(25, 2.5, 0); // Slightly adjusted Y position for larger dice
+            dice.castShadow = true;
+            scene.add(dice);
+        }
+
+        function setupControls() {
+            document.getElementById('canvas').addEventListener('click', onCanvasClick);
+            document.getElementById('rollButton').addEventListener('click', rollDice);
+            document.getElementById('helpButton').addEventListener('click', showInstructions);
+            document.getElementById('restartButton').addEventListener('click', restartGame);
+            
+            // Player setup - listen to both player and AI checkbox changes
+            for (let i = 1; i <= 4; i++) {
+                const playerCheckbox = document.getElementById(`player${i}`);
+                const aiCheckbox = document.getElementById(`ai${i}`);
+                
+                // Human checkbox: when checked, uncheck AI
+                playerCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        aiCheckbox.checked = false;
+                    }
+                    updatePlayers();
+                });
+                
+                // AI checkbox: when checked, uncheck Human
+                aiCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        playerCheckbox.checked = false;
+                    }
+                    updatePlayers();
+                });
+            }
+        }
+
+        function restartGame() {
+            // Confirm with user before restarting
+            if (confirm('Are you sure you want to restart the game? All progress will be lost.')) {
+                // Store current player selections before resetting
+                const playerSelections = [];
+                for (let i = 1; i <= 4; i++) {
+                    const playerCheckbox = document.getElementById(`player${i}`);
+                    const aiCheckbox = document.getElementById(`ai${i}`);
+                    playerSelections.push({
+                        human: playerCheckbox.checked,
+                        ai: aiCheckbox.checked
+                    });
+                }
+                
+                // Reset the entire game by calling the global init function
+                init();
+                
+                // Restore player selections after a short delay to ensure UI is ready
+                setTimeout(() => {
+                    for (let i = 1; i <= 4; i++) {
+                        const playerCheckbox = document.getElementById(`player${i}`);
+                        const aiCheckbox = document.getElementById(`ai${i}`);
+                        const selection = playerSelections[i - 1];
+                        
+                        // Restore checkboxes
+                        playerCheckbox.checked = selection.human;
+                        aiCheckbox.checked = selection.ai;
+                    }
+                    
+                    // Update players to restore dashboards
+                    updatePlayers();
+                }, 300);
+            }
+        }
+
+        function onCanvasClick(event) {
+            if (isAnimating || !gameEngine) {
+                console.log('Cannot click: animating=', isAnimating, 'gameEngine=', !!gameEngine);
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const rect = event.target.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Only check pieces, not the entire scene
+            // Since pieces are now THREE.Group objects, we need to check recursively
+            const allPieces = [];
+            pieces.forEach(playerPieces => {
+                playerPieces.forEach(piece => {
+                    allPieces.push(piece);
+                    // Also add all children of the group for raycasting
+                    if (piece.children) {
+                        piece.children.forEach(child => {
+                            allPieces.push(child);
+                        });
+                    }
+                });
+            });
+            
+            const intersects = raycaster.intersectObjects(allPieces, true); // true = recursive
+
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                console.log('Object clicked:', obj);
+                
+                // Find the parent piece group if we clicked a child mesh
+                let pieceGroup = obj;
+                while (pieceGroup && (!pieceGroup.userData || pieceGroup.userData.playerIdx === undefined)) {
+                    pieceGroup = pieceGroup.parent;
+                    if (!pieceGroup) break;
+                }
+                
+                if (pieceGroup && pieceGroup.userData && pieceGroup.userData.playerIdx !== undefined) {
+                    console.log('Piece clicked:', pieceGroup.userData);
+                    gameEngine.selectPiece(pieceGroup.userData.playerIdx, pieceGroup.userData.pieceIdx);
+                } else {
+                    console.log('Could not find piece data');
+                }
+            } else {
+                console.log('No piece clicked');
+            }
+        }
+
+        function rollDice() {
+            if (isAnimating || !gameEngine || !gameEngine.canRoll()) return;
+            
+            const roll = gameEngine.rollDice();
+            animateDiceRoll(roll);
+            updateUI();
+        }
+
+        function animateDiceRoll(result) {
+            isAnimating = true;
+            let rotations = 0;
+            const maxRotations = 30;
+            
+            // Update dice display with numbers
+            const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+            const diceNumbers = ['1', '2', '3', '4', '5', '6'];
+            
+            const animate = () => {
+                rotations++;
+                dice.rotation.x += 0.4;
+                dice.rotation.y += 0.4;
+                dice.rotation.z += 0.4;
+                
+                // Show random number during roll
+                if (rotations % 3 === 0) {
+                    const randomNum = Math.floor(Math.random() * 6);
+                    document.getElementById('diceDisplay').textContent = diceFaces[randomNum];
+                }
+                
+                if (rotations < maxRotations) {
+                    requestAnimationFrame(animate);
+                } else {
+                    dice.rotation.set(0, 0, 0);
+                    document.getElementById('diceDisplay').textContent = diceFaces[result - 1] + ' ' + diceNumbers[result - 1];
+                    isAnimating = false;
+                    gameEngine.afterDiceRoll();
+                }
+            };
+            
+            animate();
+        }
+
+        function createUI() {
+            updateUI();
+            updateProgressDashboard();
+        }
+
+        // Update the progress dashboard
+        function updateProgressDashboard() {
+            if (!gameEngine || !gameEngine.players) return;
+
+            const progressContent = document.getElementById('progressContent');
+            if (!progressContent) return;
+
+            progressContent.innerHTML = '';
+
+            const leaderIdx = getLeader();
+            const colorHexes = ['#ff5555', '#5599ff', '#ffee00', '#00ff99'];
+
+            // Show only selected players from gameEngine
+            if (!gameEngine.players || gameEngine.players.length === 0) return;
+            
+            gameEngine.players.forEach((player, activeIdx) => {
+                const idx = player.originalIdx; // Get original player index (0-3)
+                
+                // Calculate progress (function handles case when pieces don't exist)
+                const progress = calculatePlayerProgress(idx);
+                // Only show leader badge if there's actual progress (not just default state)
+                const isLeader = leaderIdx !== null && leaderIdx === idx && (progress.piecesFinished > 0 || progress.furthestPosition >= 0);
+                const colorHex = colorHexes[idx];
+
+                // Calculate progress percentage for visual bar
+                const maxProgress = 400; // 4 finished pieces * 100
+                const progressPercent = Math.min((progress.totalProgress / maxProgress) * 100, 100);
+
+                const item = document.createElement('div');
+                item.className = `player-progress-item ${isLeader ? 'leader' : ''}`;
+                
+                item.innerHTML = `
+                    <div class="player-progress-header">
+                        <div class="player-progress-name">
+                            <span class="player-color" style="color: ${colorHex};">●</span>
+                            ${PLAYER_COLORS[idx].name}
+                        </div>
+                        ${isLeader ? '<span class="leader-badge">👑 LEADER</span>' : ''}
+                    </div>
+                    <div class="player-progress-stats">
+                        <div class="progress-stat">
+                            <div class="progress-stat-label">Finished</div>
+                            <div class="progress-stat-value">${progress.piecesFinished}/4</div>
+                        </div>
+                        <div class="progress-stat">
+                            <div class="progress-stat-label">Out</div>
+                            <div class="progress-stat-value">${progress.piecesOut}</div>
+                        </div>
+                        <div class="progress-stat">
+                            <div class="progress-stat-label">Home</div>
+                            <div class="progress-stat-value">${progress.piecesInHome}</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: ${progressPercent}%; background: ${colorHex};"></div>
+                    </div>
+                `;
+
+                progressContent.appendChild(item);
+            });
+        }
+
+        // Calculate player progress statistics
+        function calculatePlayerProgress(playerIdx) {
+            if (!pieces[playerIdx] || pieces[playerIdx].length === 0) {
+                return {
+                    piecesOut: 0,
+                    piecesFinished: 0,
+                    piecesInHome: 0,
+                    totalProgress: 0,
+                    furthestPosition: -1
+                };
+            }
+
+            let piecesOut = 0;
+            let piecesFinished = 0;
+            let piecesInHome = 0;
+            let furthestPosition = -1;
+
+            pieces[playerIdx].forEach(piece => {
+                const pieceData = piece.userData;
+                if (pieceData.isFinished) {
+                    piecesFinished++;
+                } else if (pieceData.position >= 0) {
+                    piecesOut++;
+                    if (pieceData.position > furthestPosition) {
+                        furthestPosition = pieceData.position;
+                    }
+                } else {
+                    piecesInHome++;
+                }
+            });
+
+            // Calculate total progress: finished pieces count most, then furthest position
+            const pathLength = paths[playerIdx] ? paths[playerIdx].length : 0;
+            const finishedScore = piecesFinished * 100; // Each finished piece = 100 points
+            const positionScore = pathLength > 0 ? (furthestPosition / pathLength) * 50 : 0; // Position progress = up to 50 points
+            const totalProgress = finishedScore + positionScore;
+
+            return {
+                piecesOut,
+                piecesFinished,
+                piecesInHome,
+                totalProgress,
+                furthestPosition
+            };
+        }
+
+        // Determine the leading player
+        function getLeader() {
+            if (!gameEngine || !gameEngine.players || gameEngine.players.length === 0) return null;
+
+            let leaderIdx = null;
+            let maxFinished = -1;
+            let maxPosition = -1;
+            let hasAnyProgress = false;
+
+            gameEngine.players.forEach((player, activeIdx) => {
+                const originalIdx = player.originalIdx; // Get original player index (0-3)
+                const progress = calculatePlayerProgress(originalIdx);
+                
+                // Check if this player has made any progress
+                if (progress.piecesFinished > 0 || progress.furthestPosition >= 0) {
+                    hasAnyProgress = true;
+                }
+                
+                // Primary: Most finished pieces
+                if (progress.piecesFinished > maxFinished) {
+                    maxFinished = progress.piecesFinished;
+                    maxPosition = progress.furthestPosition;
+                    leaderIdx = originalIdx; // Return original index for comparison
+                } 
+                // Secondary: If tied on finished pieces, furthest position wins
+                else if (progress.piecesFinished === maxFinished && progress.furthestPosition > maxPosition) {
+                    maxPosition = progress.furthestPosition;
+                    leaderIdx = originalIdx; // Return original index for comparison
+                }
+            });
+
+            // Only return a leader if at least one player has made progress
+            return hasAnyProgress ? leaderIdx : null;
+        }
+
+        function updateUI() {
+            if (!gameEngine) return;
+
+            // Handle case when no players are selected
+            if (!gameEngine.players || gameEngine.players.length === 0) {
+                document.getElementById('diceDisplay').textContent = '🎲';
+                document.getElementById('gameStatus').textContent = 'Please select at least one player to start the game.';
+                document.getElementById('rollButton').disabled = true;
+                document.getElementById('rollButton').textContent = 'Select Players';
+                document.getElementById('playersList').innerHTML = '';
+                return;
+            }
+
+            const currentPlayer = gameEngine.getCurrentPlayer();
+            if (!currentPlayer) {
+                // This should not happen due to the check above, but just in case
+                return;
+            }
+            
+            const diceValue = gameEngine.getDiceValue();
+            
+            if (diceValue) {
+                const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+                document.getElementById('diceDisplay').textContent = diceFaces[diceValue - 1] + ' ' + diceValue;
+            } else {
+                document.getElementById('diceDisplay').textContent = '🎲';
+            }
+            
+            const status = gameEngine.getStatus();
+            document.getElementById('gameStatus').textContent = status;
+
+            // Update roll button state
+            const rollButton = document.getElementById('rollButton');
+            if (gameEngine.canRoll() && !currentPlayer.isAI) {
+                rollButton.disabled = false;
+                rollButton.textContent = 'Roll Dice';
+            } else {
+                rollButton.disabled = true;
+                if (currentPlayer.isAI) {
+                    rollButton.textContent = 'AI Thinking...';
+                } else {
+                    rollButton.textContent = 'Select Piece';
+                }
+            }
+
+            // Update players list - only show active players from gameEngine
+            const playersList = document.getElementById('playersList');
+            playersList.innerHTML = '';
+            
+            gameEngine.players.forEach((player, activeIdx) => {
+                const originalIdx = player.originalIdx; // Get original player index (0-3)
+                const div = document.createElement('div');
+                div.className = 'player-info';
+                if (activeIdx === gameEngine.currentPlayerIdx) {
+                    div.classList.add('active');
+                }
+                const colorHex = ['#ff4444', '#4488ff', '#ffdd00', '#00ff88'][originalIdx];
+                div.innerHTML = `
+                    <span class="player-color" style="color: ${colorHex};">●</span>
+                    ${PLAYER_COLORS[originalIdx].name} ${player.isAI ? '(AI)' : ''}
+                `;
+                playersList.appendChild(div);
+            });
+        }
+
+            function updatePlayers() {
+            if (!gameEngine) return;
+            
+            const activePlayers = [];
+            for (let i = 1; i <= 4; i++) {
+                const playerCheckbox = document.getElementById(`player${i}`);
+                const aiCheckbox = document.getElementById(`ai${i}`);
+                
+                // Add player if either Human OR AI checkbox is checked
+                if (playerCheckbox.checked || aiCheckbox.checked) {
+                    const isAI = aiCheckbox.checked; // If AI is checked, player is AI; otherwise human
+                    activePlayers.push({
+                        isAI: isAI,
+                        color: PLAYER_COLORS[i - 1],
+                        originalIdx: i - 1  // Store original player index (0-3)
+                    });
+                }
+            }
+            
+            if (activePlayers.length > 0) {
+                gameEngine.setPlayers(activePlayers);
+                updateUI();
+                updateProgressDashboard();
+            } else {
+                // No players selected - clear dashboards
+                gameEngine.players = [];
+                gameEngine.currentPlayerIdx = 0;
+                gameEngine.diceValue = null;
+                gameEngine.hasRolled = false;
+                updateUI();
+                updateProgressDashboard();
+                
+                // Show message in game status
+                document.getElementById('gameStatus').textContent = 'Please select at least one player to start the game.';
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update confetti particles
+            updateConfetti();
+            
+            renderer.render(scene, camera);
+        }
+
+        function createConfetti(position, playerIdx) {
+            // Create colorful confetti particles bursting from the piece position
+            const confettiColors = [
+                0xff4444, 0x4488ff, 0xffdd00, 0x00ff88, 0xff00ff, 0x00ffff, 0xffffff
+            ];
+            
+            const particleCount = 50;
+            const playerColor = PLAYER_COLORS[playerIdx].color;
+            
+            for (let i = 0; i < particleCount; i++) {
+                // Create confetti piece (small colored box)
+                const size = Math.random() * 0.2 + 0.1;
+                const geometry = new THREE.BoxGeometry(size, size * 0.3, size * 0.1);
+                const color = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+                const material = new THREE.MeshStandardMaterial({
+                    color: color,
+                    emissive: color,
+                    roughness: 0.3,
+                    metalness: 0.7
+                });
+                
+                const confetti = new THREE.Mesh(geometry, material);
+                
+                // Start position at piece location
+                confetti.position.copy(position);
+                confetti.position.y += 0.5;
+                
+                // Random rotation
+                confetti.rotation.set(
+                    Math.random() * Math.PI * 2,
+                    Math.random() * Math.PI * 2,
+                    Math.random() * Math.PI * 2
+                );
+                
+                // Random velocity
+                const velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.3,
+                    Math.random() * 0.4 + 0.2,
+                    (Math.random() - 0.5) * 0.3
+                );
+                
+                const rotationSpeed = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.2
+                );
+                
+                const gravity = -0.01;
+                const life = 2000; // 2 seconds
+                
+                confetti.userData = {
+                    velocity: velocity,
+                    rotationSpeed: rotationSpeed,
+                    gravity: gravity,
+                    life: life,
+                    maxLife: life,
+                    playerColor: playerColor
+                };
+                
+                scene.add(confetti);
+                confettiParticles.push(confetti);
+            }
+            
+            // Also create some sparkles/glitter effect
+            for (let i = 0; i < 30; i++) {
+                const sparkleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+                const sparkleMaterial = new THREE.MeshBasicMaterial({
+                    color: playerColor,
+                    emissive: playerColor
+                });
+                const sparkle = new THREE.Mesh(sparkleGeometry, sparkleMaterial);
+                
+                sparkle.position.copy(position);
+                sparkle.position.y += 0.5;
+                
+                const sparkleVelocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.5,
+                    Math.random() * 0.6 + 0.3,
+                    (Math.random() - 0.5) * 0.5
+                );
+                
+                sparkle.userData = {
+                    velocity: sparkleVelocity,
+                    gravity: -0.015,
+                    life: 1500,
+                    maxLife: 1500
+                };
+                
+                scene.add(sparkle);
+                confettiParticles.push(sparkle);
+            }
+        }
+
+        function updateConfetti() {
+            // Update all confetti particles
+            for (let i = confettiParticles.length - 1; i >= 0; i--) {
+                const particle = confettiParticles[i];
+                const data = particle.userData;
+                
+                // Update life
+                data.life -= 16; // ~60fps
+                
+                if (data.life <= 0) {
+                    // Remove particle
+                    scene.remove(particle);
+                    if (particle.geometry) particle.geometry.dispose();
+                    if (particle.material) particle.material.dispose();
+                    confettiParticles.splice(i, 1);
+                    continue;
+                }
+                
+                // Update position
+                particle.position.add(data.velocity);
+                data.velocity.y += data.gravity;
+                
+                // Update rotation
+                if (data.rotationSpeed) {
+                    particle.rotation.x += data.rotationSpeed.x;
+                    particle.rotation.y += data.rotationSpeed.y;
+                    particle.rotation.z += data.rotationSpeed.z;
+                }
+                
+                // Fade out as life decreases
+                const alpha = data.life / data.maxLife;
+                if (particle.material.transparent !== undefined) {
+                    particle.material.opacity = alpha;
+                }
+                
+                // Scale down as it falls
+                const scale = 0.5 + alpha * 0.5;
+                particle.scale.set(scale, scale, scale);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Instruction page functions
+        function showInstructions() {
+            document.getElementById('instructionsOverlay').classList.add('show');
+        }
+
+        function hideInstructions() {
+            document.getElementById('instructionsOverlay').classList.remove('show');
+        }
+
+        // Game Engine
+        class GameEngine {
+            constructor() {
+                this.players = [];
+                this.currentPlayerIdx = 0;
+                this.diceValue = null;
+                this.hasRolled = false;
+                this.selectedPiece = null;
+                this.playerIndexMap = []; // Maps active player index to original player index (0-3)
+            }
+
+            init() {
+                // Start with empty players array - players must be selected via UI
+                this.players = [];
+                this.currentPlayerIdx = 0;
+                this.diceValue = null;
+                this.hasRolled = false;
+                this.selectedPiece = null;
+                this.playerIndexMap = [];
+            }
+
+            setPlayers(playerConfigs) {
+                // Reorder players: humans first, then AIs
+                const humanPlayers = playerConfigs.filter(p => !p.isAI);
+                const aiPlayers = playerConfigs.filter(p => p.isAI);
+                const reorderedConfigs = [...humanPlayers, ...aiPlayers];
+                
+                this.playerIndexMap = reorderedConfigs.map(config => config.originalIdx);
+                this.players = reorderedConfigs.map((config, idx) => ({
+                    isAI: config.isAI,
+                    color: config.color,
+                    originalIdx: config.originalIdx,
+                    pieces: pieces[config.originalIdx] || []
+                }));
+                this.currentPlayerIdx = 0;
+                this.diceValue = null;
+                this.hasRolled = false;
+                this.selectedPiece = null;
+                
+                // If first player is AI, auto-start their turn
+                if (this.players.length > 0 && this.players[0].isAI) {
+                    setTimeout(() => {
+                        if (this.canRoll() && !isAnimating) {
+                            const roll = this.rollDice();
+                            if (roll) {
+                                animateDiceRoll(roll);
+                            }
+                        }
+                    }, 1000);
+                }
+            }
+
+            getOriginalPlayerIdx() {
+                // Get the original player index (0-3) for the current active player
+                return this.playerIndexMap[this.currentPlayerIdx];
+            }
+
+            getCurrentPlayer() {
+                if (!this.players || this.players.length === 0) {
+                    return null;
+                }
+                return this.players[this.currentPlayerIdx];
+            }
+
+            canRoll() {
+                return !this.hasRolled && !isAnimating;
+            }
+
+            rollDice() {
+                if (!this.canRoll()) return null;
+                
+                this.diceValue = Math.floor(Math.random() * 6) + 1;
+                this.hasRolled = true;
+                return this.diceValue;
+            }
+
+            afterDiceRoll() {
+                const currentPlayer = this.getCurrentPlayer();
+                
+                // Don't proceed if no players are selected
+                if (!currentPlayer) {
+                    return;
+                }
+                
+                if (currentPlayer.isAI) {
+                    setTimeout(() => {
+                        this.aiMove();
+                    }, 1000);
+                } else {
+                    // Check if human player has any valid moves
+                    setTimeout(() => {
+                        if (!this.hasValidMoves()) {
+                            // No valid moves - automatically advance turn
+                            setTimeout(() => {
+                                this.nextTurn();
+                            }, 1500);
+                        }
+                    }, 500);
+                }
+            }
+
+            hasValidMoves() {
+                const originalIdx = this.getOriginalPlayerIdx();
+                const playerPieces = pieces[originalIdx];
+                const mainPathLength = paths[originalIdx].length - 6;
+
+                for (let i = 0; i < 4; i++) {
+                    const pieceData = playerPieces[i].userData;
+
+                    // Check if can enter piece (rolled 6 and piece is in home)
+                    if (this.diceValue === 6 && pieceData.position === -1) {
+                        return true;
+                    }
+
+                    // Check if can move existing piece
+                    if (pieceData.position >= 0 && !pieceData.isFinished) {
+                        const newPos = pieceData.position + this.diceValue;
+                        
+                        if (newPos < paths[originalIdx].length) {
+                            const isInHomeColumn = pieceData.position >= mainPathLength;
+                            
+                            if (isInHomeColumn) {
+                                // In home column - valid if doesn't overshoot
+                                if (newPos < paths[originalIdx].length) {
+                                    return true;
+                                }
+                            } else {
+                                // On main path - valid if doesn't overshoot home column entry
+                                if (newPos <= mainPathLength) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            selectPiece(playerIdx, pieceIdx) {
+                // playerIdx is the original player index (0-3), need to check if it matches current player's original index
+                const currentOriginalIdx = this.getOriginalPlayerIdx();
+                if (!this.hasRolled) {
+                    console.log('Cannot select: dice not rolled yet');
+                    return;
+                }
+                if (playerIdx !== currentOriginalIdx) {
+                    console.log('Cannot select: playerIdx=', playerIdx, 'currentOriginalIdx=', currentOriginalIdx, 'Not your turn!');
+                    return;
+                }
+                if (isAnimating) {
+                    // Wait for animation to complete
+                    setTimeout(() => {
+                        this.selectPiece(playerIdx, pieceIdx);
+                    }, 100);
+                    return;
+                }
+
+                const originalIdx = this.getOriginalPlayerIdx();
+                const piece = pieces[originalIdx][pieceIdx];
+                const pieceData = piece.userData;
+                const currentPlayer = this.getCurrentPlayer();
+                const isAI = currentPlayer.isAI;
+
+                // Visual feedback - highlight piece (only for human players)
+                if (!isAI) {
+                    this.highlightPiece(piece, true);
+                }
+
+                // Check if move is valid
+                let canMove = false;
+                
+                if (this.diceValue === 6 && pieceData.position === -1) {
+                    // Can enter piece
+                    canMove = true;
+                } else if (pieceData.position >= 0 && !pieceData.isFinished) {
+                    // Can move existing piece
+                    const newPos = pieceData.position + this.diceValue;
+                    const mainPathLength = paths[originalIdx].length - 6;
+                    const isInHomeColumn = pieceData.position >= mainPathLength;
+                    
+                    if (newPos < paths[originalIdx].length) {
+                        if (isInHomeColumn) {
+                            // In home column - valid if doesn't overshoot
+                            canMove = true;
+                        } else {
+                            // On main path - valid if doesn't overshoot home column entry
+                            if (newPos <= mainPathLength) {
+                                canMove = true;
+                            }
+                        }
+                    }
+                }
+
+                if (canMove) {
+                    const delay = isAI ? 300 : 200;
+                    setTimeout(() => {
+                        if (!isAnimating) {
+                            this.movePiece(originalIdx, pieceIdx);
+                            if (!isAI) {
+                                this.highlightPiece(piece, false);
+                            }
+                        }
+                    }, delay);
+                } else {
+                    if (!isAI) {
+                        setTimeout(() => {
+                            this.highlightPiece(piece, false);
+                        }, 500);
+                    } else {
+                        // AI has no valid move - advance turn
+                        setTimeout(() => {
+                            this.nextTurn();
+                        }, 500);
+                    }
+                }
+            }
+
+            highlightPiece(piece, highlight) {
+                // Handle THREE.Group pieces - update all child mesh materials
+                const playerIdx = piece.userData.playerIdx;
+                
+                if (highlight) {
+                    // Highlight: white emissive and scale up
+                    piece.children.forEach(child => {
+                        if (child.material && child.material.emissive) {
+                            child.material.emissive.setHex(0xffffff);
+                        }
+                    });
+                    piece.scale.set(1.2, 1.2, 1.2);
+                } else {
+                    // Unhighlight: restore original emissive and scale
+                    const originalEmissive = PLAYER_COLORS[playerIdx].emissive;
+                    piece.children.forEach(child => {
+                        if (child.material && child.material.emissive) {
+                            child.material.emissive.setHex(originalEmissive);
+                        }
+                    });
+                    piece.scale.set(1, 1, 1);
+                }
+            }
+
+            movePiece(originalPlayerIdx, pieceIdx) {
+                if (isAnimating) {
+                    // Wait for animation to complete
+                    setTimeout(() => {
+                        this.movePiece(originalPlayerIdx, pieceIdx);
+                    }, 100);
+                    return;
+                }
+
+                const piece = pieces[originalPlayerIdx][pieceIdx];
+                const pieceData = piece.userData;
+                let newPosition;
+
+                if (this.diceValue === 6 && pieceData.position === -1) {
+                    // Enter piece onto board
+                    newPosition = 0;
+                } else if (pieceData.position >= 0 && !pieceData.isFinished) {
+                    newPosition = pieceData.position + this.diceValue;
+                    
+                    // Check if entering home column (last 6 spaces)
+                    const mainPathLength = paths[originalPlayerIdx].length - 6;
+                    const isInHomeColumn = pieceData.position >= mainPathLength;
+                    
+                    if (isInHomeColumn) {
+                        // In home column - need exact number
+                        if (newPosition >= paths[originalPlayerIdx].length) {
+                            return; // Can't move - need exact number
+                        }
+                    } else {
+                        // On main path
+                        if (newPosition >= paths[originalPlayerIdx].length) {
+                            return; // Invalid move - overshoots finish
+                        }
+                        // Check if would overshoot home column entry
+                        if (newPosition > mainPathLength) {
+                            return; // Need exact number to enter home column
+                        }
+                    }
+                } else {
+                    return; // Invalid move
+                }
+
+                // Verify path position exists
+                if (!paths[originalPlayerIdx] || !paths[originalPlayerIdx][newPosition]) {
+                    console.error(`Invalid path position: player ${originalPlayerIdx}, position ${newPosition}`);
+                    return;
+                }
+
+                // Store old position for animation
+                const oldPosition = pieceData.position;
+                
+                // Check for captures BEFORE determining final position (only on main path, not in home column)
+                const mainPathLength = paths[originalPlayerIdx].length - 6;
+                let captureOccurred = false;
+                let finalPosition = newPosition;
+                
+                if (newPosition < mainPathLength) {
+                    captureOccurred = this.checkCaptures(originalPlayerIdx, newPosition);
+                    
+                    // SPECIAL RULE: If capture occurred, piece automatically completes journey to center as reward!
+                    if (captureOccurred) {
+                        finalPosition = paths[originalPlayerIdx].length - 1; // Move to center/finish
+                        console.log(`🎯 Capture reward! Piece automatically completes journey to center!`);
+                    }
+                }
+
+                // Update position (either normal move or center if capture occurred)
+                pieceData.position = finalPosition;
+                if (finalPosition === paths[originalPlayerIdx].length - 1) {
+                    pieceData.isFinished = true;
+                }
+
+                // Animate movement - if capture occurred, animate from capture cell to center; otherwise normal move
+                this.animatePieceMove(piece, oldPosition, finalPosition, originalPlayerIdx);
+                
+                // Check if finished (reached center) - either normally or via capture reward
+                if (finalPosition === paths[originalPlayerIdx].length - 1) {
+                    pieceData.isFinished = true;
+                    // Visual effect for finished piece
+                    setTimeout(() => {
+                        // Update all child mesh materials for THREE.Group pieces
+                        piece.children.forEach(child => {
+                            if (child.material && child.material.emissive) {
+                                child.material.emissive.setHex(0xffffff);
+                            }
+                        });
+                        if (captureOccurred) {
+                            // Special celebration animation for capture reward
+                            piece.scale.set(1.3, 1.3, 1.3);
+                            setTimeout(() => {
+                                piece.scale.set(1, 1, 1);
+                            }, 500);
+                        }
+                        
+                        // Celebrate with confetti!
+                        createConfetti(piece.position, originalPlayerIdx);
+                    }, 600);
+                }
+
+                // Check win condition (after animation completes)
+                setTimeout(() => {
+                    // Update progress dashboard after piece movement
+                    updateProgressDashboard();
+                    
+                    if (this.checkWin(originalPlayerIdx)) {
+                        setTimeout(() => {
+                            alert(`🎉 ${PLAYER_COLORS[originalPlayerIdx].name} wins! 🎉`);
+                            // Reset the entire game by calling the global init function
+                            init();
+                        }, 500);
+                        return;
+                    }
+
+                    // Next turn (unless rolled 6)
+                    if (this.diceValue === 6) {
+                        this.hasRolled = false;
+                        this.diceValue = null;
+                        updateUI();
+                        
+                        // If AI rolled 6, give it another turn
+                        const currentPlayer = this.getCurrentPlayer();
+                        if (currentPlayer.isAI) {
+                            setTimeout(() => {
+                                if (this.canRoll() && !isAnimating) {
+                                    const roll = this.rollDice();
+                                    if (roll) {
+                                        animateDiceRoll(roll);
+                                    }
+                                }
+                            }, 1200);
+                        }
+                    } else {
+                        this.nextTurn();
+                    }
+                }, 700); // Wait for animation to complete
+            }
+
+            animatePieceMove(piece, oldPos, newPos, playerIdx) {
+                isAnimating = true;
+                const path = paths[playerIdx];
+                
+                // Get start position
+                let startPos;
+                if (oldPos === -1) {
+                    // Piece is in home base - use current position
+                    startPos = new THREE.Vector3().copy(piece.position);
+                } else {
+                    startPos = new THREE.Vector3().copy(path[oldPos]);
+                }
+                
+                // Get end position - this is where the piece MUST stop (capture cell or final destination)
+                const endPos = new THREE.Vector3().copy(path[newPos]);
+                
+                // Store the target position to ensure piece stays here
+                const targetPosition = newPos;
+                
+                let progress = 0;
+                const duration = 600; // ms
+                const startTime = Date.now();
+
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    progress = Math.min(elapsed / duration, 1);
+                    
+                    const easeProgress = progress < 0.5 
+                        ? 2 * progress * progress 
+                        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                    // Interpolate position
+                    piece.position.lerpVectors(startPos, endPos, easeProgress);
+                    // Add bounce effect
+                    piece.position.y = PIECE_HEIGHT / 2 + Math.sin(easeProgress * Math.PI) * 0.5;
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        // CRITICAL: Ensure final position is exactly correct and locked
+                        piece.position.copy(endPos);
+                        piece.position.y = PIECE_HEIGHT / 2;
+                        
+                        // Double-check piece position matches the target (prevent any drift)
+                        const pieceData = piece.userData;
+                        if (pieceData.position !== targetPosition) {
+                            console.warn(`Position mismatch! Expected ${targetPosition}, got ${pieceData.position}. Fixing...`);
+                            pieceData.position = targetPosition;
+                        }
+                        
+                        isAnimating = false;
+                    }
+                };
+
+                animate();
+            }
+
+            checkCaptures(playerIdx, newPosition) {
+                // Get the actual 3D position where the moving piece will land
+                const landingPos = paths[playerIdx][newPosition];
+                if (!landingPos) return false;
+                
+                // Check if this is a safe zone (entry points and center cross)
+                const safeZonePositions = [
+                    { x: 0, z: -3 }, { x: 3, z: 0 }, { x: 0, z: 3 }, { x: -3, z: 0 }, // Entry points
+                    { x: 0, z: -1.5 }, { x: 1.5, z: 0 }, { x: 0, z: 1.5 }, { x: -1.5, z: 0 }  // Center cross
+                ];
+                
+                const isSafeZone = safeZonePositions.some(sz => 
+                    Math.abs(sz.x - landingPos.x) < 0.5 && Math.abs(sz.z - landingPos.z) < 0.5
+                );
+                
+                let captureOccurred = false;
+                
+                // Check if landing on opponent piece by comparing actual 3D positions
+                for (let pIdx = 0; pIdx < 4; pIdx++) {
+                    if (pIdx === playerIdx) continue; // Skip own pieces
+                    
+                    for (let pieceIdx = 0; pieceIdx < 4; pieceIdx++) {
+                        const otherPiece = pieces[pIdx][pieceIdx];
+                        const otherData = otherPiece.userData;
+                        
+                        // Skip if piece is in home base or finished
+                        if (otherData.position === -1 || otherData.isFinished) continue;
+                        
+                        // Get the actual 3D position of the opponent piece
+                        const otherPos = paths[pIdx][otherData.position];
+                        if (!otherPos) continue;
+                        
+                        // Check if pieces are at the same location (within small tolerance)
+                        const distance = Math.sqrt(
+                            Math.pow(landingPos.x - otherPos.x, 2) + 
+                            Math.pow(landingPos.z - otherPos.z, 2)
+                        );
+                        
+                        if (distance < 0.5) { // Pieces are at same location
+                            // Only capture if not in a safe zone
+                            if (!isSafeZone) {
+                                captureOccurred = true;
+                                console.log(`Capture! Player ${playerIdx} captures Player ${pIdx}'s piece ${pieceIdx} at position ${newPosition}`);
+                                
+                                // Send captured piece back to home base
+                                otherData.position = -1;
+                                otherData.isFinished = false;
+                                
+                                // Position in home base (balanced positions)
+                                const homePositions = [
+                                    [{ x: -20, z: -20 }, { x: -15, z: -20 }, { x: -20, z: -15 }, { x: -15, z: -15 }], // Red
+                                    [{ x: 20, z: -20 }, { x: 25, z: -20 }, { x: 20, z: -15 }, { x: 25, z: -15 }],     // Blue
+                                    [{ x: 20, z: 20 }, { x: 25, z: 20 }, { x: 20, z: 25 }, { x: 25, z: 25 }],         // Yellow
+                                    [{ x: -20, z: 20 }, { x: -15, z: 20 }, { x: -20, z: 25 }, { x: -15, z: 25 }]       // Green
+                                ];
+                                const homePos = homePositions[pIdx][pieceIdx];
+                                
+                                // Animate piece back to home
+                                setTimeout(() => {
+                                    otherPiece.position.set(homePos.x, PIECE_HEIGHT / 2, homePos.z);
+                                    
+                                    // Visual feedback - flash effect (handle THREE.Group pieces)
+                                    const originalEmissive = PLAYER_COLORS[pIdx].emissive;
+                                    otherPiece.children.forEach(child => {
+                                        if (child.material && child.material.emissive) {
+                                            child.material.emissive.setHex(0xff0000);
+                                        }
+                                    });
+                                    setTimeout(() => {
+                                        otherPiece.children.forEach(child => {
+                                            if (child.material && child.material.emissive) {
+                                                child.material.emissive.setHex(originalEmissive);
+                                            }
+                                        });
+                                    }, 300);
+                                }, 100);
+                                
+                                // Show capture message
+                                setTimeout(() => {
+                                    const statusEl = document.getElementById('gameStatus');
+                                    if (statusEl) {
+                                        statusEl.textContent = `${PLAYER_COLORS[playerIdx].name} captured ${PLAYER_COLORS[pIdx].name}'s piece!`;
+                                    }
+                                }, 200);
+                            }
+                        }
+                    }
+                }
+                
+                return captureOccurred;
+            }
+
+            checkWin(playerIdx) {
+                const playerPieces = pieces[playerIdx];
+                return playerPieces.every(p => p.userData.isFinished);
+            }
+
+            nextTurn() {
+                // Don't proceed if no players are selected
+                if (!this.players || this.players.length === 0) {
+                    updateUI();
+                    return;
+                }
+                
+                this.currentPlayerIdx = (this.currentPlayerIdx + 1) % this.players.length;
+                this.hasRolled = false;
+                this.diceValue = null;
+                this.selectedPiece = null;
+
+                // Update UI immediately
+                updateUI();
+
+                // Auto-roll for AI
+                const currentPlayer = this.getCurrentPlayer();
+                if (currentPlayer && currentPlayer.isAI) {
+                    setTimeout(() => {
+                        if (this.canRoll()) {
+                            const roll = this.rollDice();
+                            if (roll) {
+                                animateDiceRoll(roll);
+                            }
+                        }
+                    }, 800);
+                }
+            }
+
+            aiMove() {
+                // Don't proceed if no players are selected
+                if (!this.players || this.players.length === 0) {
+                    return;
+                }
+                
+                // Wait for any ongoing animations to complete
+                if (isAnimating) {
+                    setTimeout(() => {
+                        this.aiMove();
+                    }, 100);
+                    return;
+                }
+
+                const currentPlayer = this.getCurrentPlayer();
+                if (!currentPlayer) {
+                    return;
+                }
+                
+                // Get the original player index (0-3) for the current AI player
+                const originalIdx = this.getOriginalPlayerIdx();
+                if (originalIdx === null || originalIdx === undefined) {
+                    console.error('AI: Could not get original player index');
+                    return;
+                }
+                
+                const playerPieces = pieces[originalIdx];
+                
+                // Improved AI strategy
+                let bestPiece = null;
+                let bestScore = -Infinity;
+                const mainPathLength = paths[originalIdx].length - 6;
+
+                for (let i = 0; i < 4; i++) {
+                    const piece = playerPieces[i];
+                    const pieceData = piece.userData;
+                    let score = -Infinity;
+
+                    if (this.diceValue === 6 && pieceData.position === -1) {
+                        // Prefer entering pieces
+                        score = 1000;
+                        if (bestPiece === null || score > bestScore) {
+                            bestScore = score;
+                            bestPiece = i;
+                        }
+                    } else if (pieceData.position >= 0 && !pieceData.isFinished) {
+                        const newPos = pieceData.position + this.diceValue;
+                        
+                        // Check if move is valid
+                        if (newPos < paths[originalIdx].length) {
+                            const isInHomeColumn = pieceData.position >= mainPathLength;
+                            
+                            if (isInHomeColumn) {
+                                // In home column - prioritize finishing
+                                score = 2000 + newPos;
+                            } else if (newPos === mainPathLength) {
+                                // Entering home column - high priority
+                                score = 1500;
+                            } else {
+                                // On main path - prefer advancing
+                                score = pieceData.position + this.diceValue;
+                                
+                                // Bonus for reaching safe zones
+                                const safeZones = [0, 8, 13, 21, 26, 34];
+                                if (safeZones.includes(newPos)) {
+                                    score += 100;
+                                }
+                            }
+                            
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestPiece = i;
+                            }
+                        }
+                    }
+                }
+
+                if (bestPiece !== null) {
+                    setTimeout(() => {
+                        if (!isAnimating) {
+                            // Use original player index, not active index
+                            this.selectPiece(originalIdx, bestPiece);
+                        }
+                    }, 1000);
+                } else {
+                    // No valid move
+                    setTimeout(() => {
+                        if (!isAnimating) {
+                            this.nextTurn();
+                        }
+                    }, 1000);
+                }
+            }
+
+            getDiceValue() {
+                return this.diceValue;
+            }
+
+            getStatus() {
+                // Check if players exist
+                if (!this.players || this.players.length === 0) {
+                    return 'Please select at least one player to start the game.';
+                }
+                
+                const originalIdx = this.getOriginalPlayerIdx();
+                if (originalIdx === null || originalIdx === undefined) {
+                    return 'Please select at least one player to start the game.';
+                }
+                
+                if (!this.hasRolled) {
+                    return `${PLAYER_COLORS[originalIdx].name}'s turn - Roll the dice!`;
+                } else {
+                    if (this.hasValidMoves()) {
+                        return `${PLAYER_COLORS[originalIdx].name} rolled ${this.diceValue} - Select a piece to move`;
+                    } else {
+                        return `${PLAYER_COLORS[originalIdx].name} rolled ${this.diceValue} - No valid moves. Turn will advance...`;
+                    }
+                }
+            }
+        }
+
+        // Keyboard support for instructions
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                hideInstructions();
+            }
+        });
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            setTimeout(init, 100);
+        });
+    </script>
+</body>
+</html>
+

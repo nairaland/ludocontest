@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Nigerian Ludo - BENEDICT ABAJUE</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Orbitron', monospace;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            touch-action: none; 
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(30,30,60,0.95) 100%);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            pointer-events: none;
+            user-select: none;
+            min-width: 260px;
+            z-index: 10;
+            transition: all 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto; 
+        }
+        
+        #ui h1 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            font-weight: 900;
+            text-align: center;
+            background: linear-gradient(45deg, #00ff00, #ffffff, #00ff00);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientShift 3s ease-in-out infinite;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        #turn-text {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        #status {
+            margin: 15px 0;
+            font-size: 13px;
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            border-left: 4px solid #4ecdc4;
+            line-height: 1.4;
+        }
+        
+        #dice-btn {
+            margin-top: 15px;
+            pointer-events: auto;
+            padding: 15px 24px;
+            background: linear-gradient(145deg, #2ecc71 0%, #27ae60 100%);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18px;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        #dice-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.6);
+        }
+        
+        #dice-btn:disabled {
+            background: linear-gradient(145deg, #555 0%, #333 100%);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #rules-btn {
+            margin-top: 10px;
+            pointer-events: auto;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #4ecdc4;
+            border-radius: 8px;
+            color: #4ecdc4;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+        }
+        
+        #game-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(30,30,60,0.9) 100%);
+            padding: 15px;
+            border-radius: 15px;
+            border: 2px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            min-width: 200px;
+        }
+        
+        .player-score {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .player-name { font-weight: 700; font-size: 14px; }
+        .player-tokens { font-size: 12px; opacity: 0.8; }
+        
+        #controls {
+            position: absolute; bottom: 20px; left: 20px; right: 20px;
+            text-align: center; color: rgba(255,255,255,0.7); font-size: 12px; pointer-events: none;
+        }
+
+        #move-selector {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(16, 20, 30, 0.95);
+            border: 2px solid #4ecdc4;
+            padding: 20px;
+            border-radius: 15px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(78, 205, 196, 0.3);
+            min-width: 240px;
+            pointer-events: auto;
+        }
+
+        #move-selector h3 {
+            margin: 0 0 10px 0;
+            text-align: center;
+            color: white;
+            font-size: 16px;
+        }
+
+        .move-option-btn {
+            padding: 15px;
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        
+        .move-option-btn:hover { transform: scale(1.05); }
+        .move-option-btn:active { transform: scale(0.95); }
+
+        #close-selector {
+            margin-top: 10px;
+            background: #ff4444;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* --- RULES MODAL --- */
+        #rules-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        #rules-content {
+            background: #16213e;
+            border: 2px solid #4ecdc4;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 20px;
+            color: #ccc;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 13px;
+            line-height: 1.4;
+            box-shadow: 0 0 30px rgba(78, 205, 196, 0.2);
+        }
+
+        #rules-close-btn {
+            display: block;
+            margin: 20px auto 0;
+            padding: 10px 30px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+        }
+
+        #winner-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            z-index: 200; backdrop-filter: blur(5px);
+        }
+        #winner-text {
+            font-size: 48px; font-weight: 900; color: #ffd700;
+            text-shadow: 0 0 20px #ffd700; margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+            text-align: center;
+        }
+        @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.1);} 100% {transform: scale(1);} }
+        
+        .input-group { margin-bottom: 12px; text-align: left; }
+        .input-group label { font-size: 14px; color: #4ecdc4; display: block; margin-bottom: 6px; }
+        .game-select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); color: white; font-family: inherit; font-size: 16px; pointer-events: auto; }
+        
+        /* UPDATED NAME INPUT STYLE: 100% Width & Border-Box to fix sizing issues */
+        .name-input { 
+            width: 100%; 
+            box-sizing: border-box; /* Ensures padding doesn't increase width */
+            padding: 10px; 
+            border-radius: 6px; 
+            border: 1px solid #666; 
+            background: rgba(0,0,0,0.7); 
+            color: white; 
+            font-family: inherit; 
+            margin-bottom: 8px; 
+            pointer-events: auto; 
+        }
+
+        @media (max-width: 600px) {
+            #ui { width: 90%; left: 50%; transform: translateX(-50%); top: 10px; padding: 15px; min-width: 300px; }
+            #game-info { top: auto; bottom: 60px; left: 10px; right: auto; min-width: 150px; padding: 10px; font-size: 10px; }
+            .player-score { padding: 2px 0; }
+            #controls { display: none; }
+            #start-game-btn { padding: 15px; font-size: 18px; }
+        }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+</head>
+<body>
+
+<div id="ui">
+    <h1>NAIJA 3D LUDO</h1>
+    <div id="settings-panel">
+        <div class="input-group">
+            <label>Language:</label>
+            <select id="lang-select" class="game-select">
+                <option value="en">English</option>
+                <option value="pidgin">Pidgin English</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Game Mode:</label>
+            <select id="player-count" class="game-select">
+                <option value="1">1 Player vs Computer</option>
+                <option value="2">2 Players (Diagonal)</option>
+                <option value="4" selected>4 Players</option>
+            </select>
+        </div>
+        
+        <div class="input-group" id="name-fields">
+            <label>Player Names:</label>
+            <input type="text" id="name-0" class="name-input" placeholder="Player 1 Name (Red)" style="border-left: 4px solid #d32f2f;">
+            <input type="text" id="name-1" class="name-input" placeholder="Player 2 Name (Green)" style="border-left: 4px solid #388e3c;">
+            <input type="text" id="name-2" class="name-input" placeholder="Player 3 Name (Yellow)" style="border-left: 4px solid #fbc02d;">
+            <input type="text" id="name-3" class="name-input" placeholder="Player 4 Name (Blue)" style="border-left: 4px solid #1976d2;">
+        </div>
+
+        <button id="start-game-btn" style="margin-top: 10px; width:100%; padding: 12px 16px; border-radius: 8px; border: 1px solid #4ecdc4; background: rgba(76, 205, 196, 0.2); color: #4ecdc4; font-family: inherit; cursor: pointer; pointer-events: auto;">Start Game</button>
+    </div>
+    
+    <div id="turn-area" style="display:none; margin-top: 15px;">
+        <h2 id="turn-text" style="color: #ff4444">Turn: RED</h2>
+        <div id="status">Select players and start game</div>
+        <button id="dice-btn" disabled>ROLL 2 DICE</button>
+    </div>
+    
+    <button id="rules-btn">Rules / How to Play</button>
+</div>
+
+<div id="game-info">
+    <h3 style="margin: 0 0 10px 0; text-align: center; color: #4ecdc4;">Score</h3>
+    <div class="player-score" id="score-0"><span class="player-name" style="color: #ff4444;">🔴 RED</span><span class="player-tokens">Home: 4</span></div>
+    <div class="player-score" id="score-1"><span class="player-name" style="color: #44ff44;">🟢 GRN</span><span class="player-tokens">Home: 4</span></div>
+    <div class="player-score" id="score-2"><span class="player-name" style="color: #ffff44;">🟡 YEL</span><span class="player-tokens">Home: 4</span></div>
+    <div class="player-score" id="score-3"><span class="player-name" style="color: #4444ff;">🔵 BLU</span><span class="player-tokens">Home: 4</span></div>
+</div>
+
+<div id="move-selector">
+    <h3>Choose Move</h3>
+    <div id="move-options-container" style="display: flex; flex-direction: column; gap: 8px;">
+        </div>
+    <button id="close-selector">Cancel</button>
+</div>
+
+<div id="rules-modal">
+    <div id="rules-content">
+================================================================================
+                                NAIJA 3D LUDO
+================================================================================
+
+[ ABOUT THE GAME ]
+This is a modern, 3D web-based adaptation of the classic Ludo board game, 
+specifically tuned to "Naija" (Nigerian) street rules. Built with Three.js, 
+it features a fully rotating board, mobile-responsive controls, and a toggle 
+for "Pidgin English" commentary.
+
+Unlike standard international Ludo, this version is fast-paced and aggressive. 
+It supports 1 Player (vs Computer), 2 Players (Diagonal), or the full 4-Player 
+chaos.
+
+--------------------------------------------------------------------------------
+
+[ OFFICIAL RULES FOR NEWBIES ]
+
+1. THE GOAL
+   - You have 4 Tokens (Pieces).
+   - The first player to get all 4 tokens to the "Finished" state wins.
+
+2. LEAVING THE HOUSE (THE "RAW 6" RULE)
+   - All your pieces start inside your House (Base).
+   - To bring a piece out onto the board, you MUST roll a specific number: 6.
+   - STRICT RULE: You CANNOT use the sum of two dice (e.g., 4 + 2) to bring 
+     a piece out. It must be a single die showing a 6.
+
+3. MOVEMENT
+   - You roll 2 Dice every turn.
+   - You can play the dice separately (move Piece A by 3 steps, Piece B by 4 steps).
+   - OR you can play the SUM (move Piece A by 7 steps).
+
+4. THE "HIT & FLY" RULE (CRITICAL!)
+   - This is the "Naija Style" twist.
+   - If you land exactly on an opponent's piece, you CAPTURE them.
+   - The Opponent: Their piece is sent back to their house (zero progress).
+   - The Attacker (You): Your piece DOES NOT stay on the board. It instantly 
+     "Finishes" (flies to safety/victory). 
+   - Strategy Tip: Hunting opponents is faster than walking around the board.
+
+5. ROLLING AGAIN
+   - If you roll DOUBLE 6 (6-6), you get a bonus roll after your move.
+   - A single 6 does not grant a bonus roll.
+
+6. SAFE ZONES
+   - The colored tiles just outside a player's house are Safe Zones.
+   - You cannot be captured on these specific tiles.
+
+7. COMPUTER MODE
+   - In 1-Player mode, you play as RED. The Computer plays as YELLOW.
+
+        <button id="rules-close-btn">CLOSE</button>
+    </div>
+</div>
+
+<div id="winner-overlay">
+    <div id="winner-text">RED WINS!</div>
+    <button onclick="location.reload()" style="padding: 15px 30px; font-size: 18px; cursor: pointer; background: #4ecdc4; border: none; border-radius: 10px; font-weight: bold;">PLAY AGAIN</button>
+</div>
+
+<div id="controls">
+    1. Roll Dice | 2. Click Piece to Move<br>
+    <span style="color:#00ff00">Rule: You need DOUBLE 6 to roll again!</span>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// --- CONFIGURATION ---
+const TILE_SIZE = 2;
+const COLORS = {
+    RED: 0xd32f2f, 
+    GREEN: 0x388e3c, 
+    YELLOW: 0xfbc02d, 
+    BLUE: 0x1976d2,
+    WHITE: 0xffffff, 
+    SAFE: 0xe0e0e0
+};
+
+// --- DICTIONARY ---
+const TEXTS = {
+    en: {
+        roll: "ROLL 2 DICE",
+        turn: "Turn",
+        start: "Game Started! Roll Dice.",
+        rolling: "Rolling...",
+        noMove: "No moves possible!",
+        clickMove: "Click a piece to move!",
+        double6: "DOUBLE 6! Roll Again!",
+        capture: "CAPTURED! ATTACKER FINISHES!",
+        finished: "Attacker Finished!",
+        win: "WINS!",
+        wait: "Wait small...",
+        cannot: "This piece cannot move.",
+        sum: "Use SUM",
+        select: "Select remaining move.",
+        cpuThink: "Computer is thinking...",
+        cpuRoll: "Computer Rolling..."
+    },
+    pidgin: {
+        roll: "OYA ROLL AM",
+        turn: "Player wey get turn",
+        start: "Game don start! Oya roll.",
+        rolling: "E dey roll...",
+        noMove: "You no get any move!",
+        clickMove: "Touch your person make e waka!",
+        double6: "DOUBLE 6! Oya roll again!",
+        capture: "I DON CHOP AM! I DON GO HOUSE!",
+        finished: "Person don enter house!",
+        win: "DON WIN!",
+        wait: "Dey calm down...",
+        cannot: "This one no fit waka.",
+        sum: "Carry TWO",
+        select: "Play the dice wey remain.",
+        cpuThink: "Computer dey calculate...",
+        cpuRoll: "Computer dey roll..."
+    }
+};
+
+let currentLang = 'en';
+
+// --- AUDIO ---
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(frequency, duration, type = 'sine') {
+    if(audioContext.state === 'suspended') audioContext.resume();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.value = frequency;
+    oscillator.type = type;
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration);
+}
+
+// --- GLOBAL STATE ---
+let currentPlayer = 0; 
+let activePlayers = [0, 1, 2, 3];
+let isComputerMode = false;
+let diceValues = [0, 0];
+let diceUsed = [false, false];
+let isRolling = false;
+let isAnimating = false;
+let gameStarted = false;
+let currentSelectedToken = null;
+let gameEnded = false;
+
+let playerStats = [
+    { name: 'RED', tokensAtHome: 4, tokensFinished: 0 },
+    { name: 'GREEN', tokensAtHome: 4, tokensFinished: 0 },
+    { name: 'YELLOW', tokensAtHome: 4, tokensFinished: 0 },
+    { name: 'BLUE', tokensAtHome: 4, tokensFinished: 0 }
+];
+
+// --- DICE VISUAL ASSETS (THREE.JS) ---
+let diceMesh1, diceMesh2;
+const diceGroup = new THREE.Group();
+
+function createDiceFaceTexture(number, color, dotColor) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = color; ctx.fillRect(0, 0, 128, 128);
+    ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 4; ctx.strokeRect(0,0,128,128);
+    ctx.fillStyle = dotColor;
+    const r = 12, c = 64, g1 = 32, g2 = 96;
+    if(number === 1 || number === 3 || number === 5) { ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI*2); ctx.fill(); }
+    if(number > 1) { ctx.beginPath(); ctx.arc(g1, g2, r, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(g2, g1, r, 0, Math.PI*2); ctx.fill(); }
+    if(number > 3) { ctx.beginPath(); ctx.arc(g1, g1, r, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(g2, g2, r, 0, Math.PI*2); ctx.fill(); }
+    if(number === 6) { ctx.beginPath(); ctx.arc(g1, c, r, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(g2, c, r, 0, Math.PI*2); ctx.fill(); }
+    return new THREE.CanvasTexture(canvas);
+}
+
+const diceMaterials = [
+    new THREE.MeshStandardMaterial({ map: createDiceFaceTexture(3, '#fff', '#000') }), 
+    new THREE.MeshStandardMaterial({ map: createDiceFaceTexture(4, '#fff', '#000') }), 
+    new THREE.MeshStandardMaterial({ map: createDiceFaceTexture(1, '#fff', '#000') }), 
+    new THREE.MeshStandardMaterial({ map: createDiceFaceTexture(6, '#fff', '#000') }), 
+    new THREE.MeshStandardMaterial({ map: createDiceFaceTexture(2, '#fff', '#000') }), 
+    new THREE.MeshStandardMaterial({ map: createDiceFaceTexture(5, '#fff', '#000') }) 
+];
+
+function create3DDice() {
+    const geometry = new THREE.BoxGeometry(3, 3, 3);
+    const m = new THREE.Mesh(geometry, diceMaterials);
+    m.castShadow = true; m.visible = false; return m;
+}
+
+const faceRotations = {
+    1: { x: 0, y: 0, z: 0 }, 6: { x: Math.PI, y: 0, z: 0 },
+    2: { x: -Math.PI/2, y: 0, z: 0 }, 5: { x: Math.PI/2, y: 0, z: 0 },
+    3: { x: 0, y: 0, z: Math.PI/2 }, 4: { x: 0, y: 0, z: -Math.PI/2 }
+};
+
+// --- SCENE SETUP ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f13);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 60, 45); // Initial view
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2.2;
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.7); dirLight.position.set(20, 60, 20); dirLight.castShadow = true; dirLight.shadow.mapSize.set(2048,2048); scene.add(dirLight);
+
+diceMesh1 = create3DDice(); diceMesh2 = create3DDice();
+diceGroup.add(diceMesh1); diceGroup.add(diceMesh2); scene.add(diceGroup);
+
+// --- BOARD ---
+const boardGroup = new THREE.Group(); scene.add(boardGroup);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(300,300), new THREE.MeshStandardMaterial({color:0x050505}));
+floor.rotation.x = -Math.PI/2; floor.position.y = -1; scene.add(floor);
+
+function createTile(x, z, color, isSafe) {
+    const tile = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE*0.95, 0.5, TILE_SIZE*0.95), new THREE.MeshStandardMaterial({color, metalness:0.1, roughness:0.5}));
+    tile.position.set(x*TILE_SIZE, 0, z*TILE_SIZE); tile.receiveShadow = true;
+    if(isSafe) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.1,16), new THREE.MeshStandardMaterial({color:0x888888})); s.position.set(0,0.3,0); tile.add(s); }
+    boardGroup.add(tile);
+}
+
+const MAIN_PATH = [
+    {x:-6,z:-1}, {x:-5,z:-1}, {x:-4,z:-1}, {x:-3,z:-1}, {x:-2,z:-1}, {x:-1,z:-2}, {x:-1,z:-3}, {x:-1,z:-4}, {x:-1,z:-5}, {x:-1,z:-6}, {x:-1,z:-7}, 
+    {x:0,z:-7}, {x:1,z:-7}, {x:1,z:-6}, {x:1,z:-5}, {x:1,z:-4}, {x:1,z:-3}, {x:1,z:-2}, {x:2,z:-1}, {x:3,z:-1}, {x:4,z:-1}, {x:5,z:-1}, {x:6,z:-1}, {x:7,z:-1}, 
+    {x:7,z:0}, {x:7,z:1}, {x:6,z:1}, {x:5,z:1}, {x:4,z:1}, {x:3,z:1}, {x:2,z:1}, {x:1,z:2}, {x:1,z:3}, {x:1,z:4}, {x:1,z:5}, {x:1,z:6}, {x:1,z:7}, 
+    {x:0,z:7}, {x:-1,z:7}, {x:-1,z:6}, {x:-1,z:5}, {x:-1,z:4}, {x:-1,z:3}, {x:-1,z:2}, {x:-2,z:1}, {x:-3,z:1}, {x:-4,z:1}, {x:-5,z:1}, {x:-6,z:1}, {x:-7,z:1}, 
+    {x:-7,z:0}, {x:-7,z:-1} 
+];
+const PLAYER_START_INDEX = { RED: 0, GREEN: 13, YELLOW: 26, BLUE: 39 };
+const HOME_PATHS = {
+    RED: [{x:-6,z:0}, {x:-5,z:0}, {x:-4,z:0}, {x:-3,z:0}, {x:-2,z:0}],
+    GREEN: [{x:0,z:-6}, {x:0,z:-5}, {x:0,z:-4}, {x:0,z:-3}, {x:0,z:-2}],
+    YELLOW: [{x:6,z:0}, {x:5,z:0}, {x:4,z:0}, {x:3,z:0}, {x:2,z:0}],
+    BLUE: [{x:0,z:6}, {x:0,z:5}, {x:0,z:4}, {x:0,z:3}, {x:0,z:2}]
+};
+
+function createBase(x, z, col) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(6*TILE_SIZE-0.1, 0.6, 6*TILE_SIZE-0.1), new THREE.MeshStandardMaterial({color:col}));
+    b.position.set(x*TILE_SIZE, 0.2, z*TILE_SIZE); b.receiveShadow = true;
+    [[-1.5,-1.5],[1.5,-1.5],[1.5,1.5],[-1.5,1.5]].forEach(o => { const c = new THREE.Mesh(new THREE.CylinderGeometry(1,1,0.1,32), new THREE.MeshBasicMaterial({color:0xffffff})); c.position.set(o[0]*TILE_SIZE/2, 0.35, o[1]*TILE_SIZE/2); b.add(c); });
+    boardGroup.add(b);
+}
+createBase(-4.5, -4.5, COLORS.RED); createBase(4.5, -4.5, COLORS.GREEN); createBase(4.5, 4.5, COLORS.YELLOW); createBase(-4.5, 4.5, COLORS.BLUE);
+
+MAIN_PATH.forEach((p, i) => {
+    let col = COLORS.WHITE, safe = false;
+    if(i===0) col=COLORS.RED; else if(i===13) col=COLORS.GREEN; else if(i===26) col=COLORS.YELLOW; else if(i===39) col=COLORS.BLUE;
+    if([8,21,34,47,0,13,26,39].includes(i)) { if(![0,13,26,39].includes(i)) col=COLORS.SAFE; safe=true; }
+    createTile(p.x, p.z, col, safe);
+});
+Object.values(HOME_PATHS).forEach((arr, i) => arr.forEach(p => createTile(p.x, p.z, [COLORS.RED,COLORS.GREEN,COLORS.YELLOW,COLORS.BLUE][i])));
+
+// --- UPDATED CENTER TEXTURE ---
+const cTex = document.createElement('canvas'); cTex.width=256; cTex.height=256; const cCt = cTex.getContext('2d');
+const cols = ['#d32f2f','#388e3c','#fbc02d','#1976d2'];
+cCt.fillStyle=cols[0];cCt.beginPath();cCt.moveTo(0,0);cCt.lineTo(128,128);cCt.lineTo(0,256);cCt.fill();
+cCt.fillStyle=cols[1];cCt.beginPath();cCt.moveTo(0,0);cCt.lineTo(128,128);cCt.lineTo(256,0);cCt.fill();
+cCt.fillStyle=cols[2];cCt.beginPath();cCt.moveTo(256,0);cCt.lineTo(128,128);cCt.lineTo(256,256);cCt.fill();
+cCt.fillStyle=cols[3];cCt.beginPath();cCt.moveTo(0,256);cCt.lineTo(128,128);cCt.lineTo(256,256);cCt.fill();
+
+// ADDED NAIJA LUDO TEXT
+cCt.fillStyle = 'white';
+cCt.font = 'bold 36px "Orbitron", sans-serif'; // Use Orbitron or fallback
+cCt.textAlign = 'center';
+cCt.textBaseline = 'middle';
+cCt.shadowColor = 'black';
+cCt.shadowBlur = 5;
+cCt.fillText('NAIJA', 128, 110);
+cCt.fillText('LUDO', 128, 146);
+
+const center = new THREE.Mesh(new THREE.BoxGeometry(3*TILE_SIZE, 0.6, 3*TILE_SIZE), new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(cTex)}));
+scene.add(center);
+
+// --- PIECES ---
+const playerTokens = [[], [], [], []];
+function createToken(c, pid, sx, sz, idx) {
+    const t = new THREE.Group();
+    // Material is now MeshPhong to support emissive pulses better
+    const mat = new THREE.MeshPhongMaterial({color:c, emissive: 0x000000, shininess: 50});
+    t.add(new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.7,1,16), mat), new THREE.Mesh(new THREE.SphereGeometry(0.4), mat).translateY(0.6));
+    const off = [[-0.75,-0.75],[0.75,-0.75],[0.75,0.75],[-0.75,0.75]][idx];
+    t.userData = { playerId: pid, id: idx, currentStep: -1, stepsFromStart: 0, basePos: {x: sx*TILE_SIZE+off[0]*2, y:1, z: sz*TILE_SIZE+off[1]*2}, isHighlighted: false };
+    t.position.set(t.userData.basePos.x, 1, t.userData.basePos.z); t.castShadow=true;
+    scene.add(t); playerTokens[pid].push(t);
+}
+[[COLORS.RED, [-4.5,-4.5]],[COLORS.GREEN,[4.5,-4.5]],[COLORS.YELLOW,[4.5,4.5]],[COLORS.BLUE,[-4.5,4.5]]].forEach((d,i)=> { for(let j=0;j<4;j++) createToken(d[0],i,d[1][0],d[1][1],j); });
+
+// --- CAMERA ORBIT LOGIC ---
+const ORBIT_RADIUS = 60;
+const ORBIT_HEIGHT = 50;
+
+function updateCameraOrbit() {
+    const baseAngle = (5 * Math.PI / 4); 
+    const offset = Math.PI / 8; 
+    let targetAngle = baseAngle + (currentPlayer * (Math.PI / 2)) + offset;
+    animateOrbit(targetAngle);
+}
+
+let currentCamAngle = (5 * Math.PI / 4) + (Math.PI / 8); 
+
+function animateOrbit(target) {
+    controls.enabled = false;
+    while (target - currentCamAngle > Math.PI) target -= 2 * Math.PI;
+    while (target - currentCamAngle < -Math.PI) target += 2 * Math.PI;
+
+    let start = currentCamAngle;
+    let startTime = null;
+    const duration = 1000; 
+
+    function loop(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const p = Math.min((timestamp - startTime) / duration, 1);
+        const ease = 1 - Math.pow(1 - p, 3); 
+        
+        currentCamAngle = start + (target - start) * ease;
+        
+        camera.position.x = ORBIT_RADIUS * Math.cos(currentCamAngle);
+        camera.position.z = ORBIT_RADIUS * Math.sin(currentCamAngle);
+        camera.position.y = ORBIT_HEIGHT;
+        camera.lookAt(0, 0, 0);
+
+        if (p < 1) {
+            requestAnimationFrame(loop);
+        } else {
+            controls.enabled = true;
+            controls.update();
+        }
+    }
+    requestAnimationFrame(loop);
+}
+
+camera.position.x = ORBIT_RADIUS * Math.cos(currentCamAngle);
+camera.position.z = ORBIT_RADIUS * Math.sin(currentCamAngle);
+camera.position.y = ORBIT_HEIGHT;
+camera.lookAt(0, 0, 0);
+
+
+// --- ANIMATIONS ---
+function throwDiceAnimation(d1Val, d2Val, callback) {
+    isRolling = true; diceMesh1.visible = true; diceMesh2.visible = true;
+    
+    const camX = Math.cos(currentCamAngle);
+    const camZ = Math.sin(currentCamAngle);
+    const landDist = 22;
+    const centerX = camX * landDist;
+    const centerZ = camZ * landDist;
+    const perpX = -camZ;
+    const perpZ = camX;
+    
+    const endX1 = centerX + (perpX * 4);
+    const endZ1 = centerZ + (perpZ * 4);
+    const endX2 = centerX - (perpX * 4);
+    const endZ2 = centerZ - (perpZ * 4);
+    
+    const startPos1 = new THREE.Vector3(endX1, 40, endZ1);
+    const startPos2 = new THREE.Vector3(endX2, 40, endZ2);
+    const endPos1 = new THREE.Vector3(endX1, 1.5, endZ1);
+    const endPos2 = new THREE.Vector3(endX2, 1.5, endZ2);
+
+    const targetRot1 = faceRotations[d1Val]; const targetRot2 = faceRotations[d2Val];
+    const spinMult = 6;
+    const finalRot1 = { x: targetRot1.x + Math.PI*2*spinMult, y: targetRot1.y + Math.PI*2*spinMult, z: targetRot1.z + Math.PI*2*spinMult };
+    const finalRot2 = { x: targetRot2.x + Math.PI*2*spinMult, y: targetRot2.y + Math.PI*2*spinMult, z: targetRot2.z + Math.PI*2*spinMult };
+
+    let startTime = null; const duration = 1000;
+    function animateThrow(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const progress = (timestamp - startTime) / duration;
+        if (progress < 1) {
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            diceMesh1.position.lerpVectors(startPos1, endPos1, easeOut); diceMesh2.position.lerpVectors(startPos2, endPos2, easeOut);
+            const bounce = Math.abs(Math.sin(progress * Math.PI * 3)) * (10 * (1-progress));
+            diceMesh1.position.y += bounce; diceMesh2.position.y += bounce;
+            diceMesh1.rotation.set(finalRot1.x * easeOut, finalRot1.y * easeOut, finalRot1.z * easeOut);
+            diceMesh2.rotation.set(finalRot2.x * easeOut, finalRot2.y * easeOut, finalRot2.z * easeOut);
+            if(progress > 0.3 && progress < 0.35) playSound(200, 0.05, 'square');
+            if(progress > 0.6 && progress < 0.65) playSound(200, 0.05, 'square');
+            requestAnimationFrame(animateThrow);
+        } else {
+            diceMesh1.position.copy(endPos1); diceMesh2.position.copy(endPos2);
+            diceMesh1.rotation.set(targetRot1.x, targetRot1.y, targetRot1.z); diceMesh2.rotation.set(targetRot2.x, targetRot2.y, targetRot2.z);
+            isRolling = false; playSound(600, 0.2); callback();
+        }
+    }
+    requestAnimationFrame(animateThrow);
+}
+
+function animatePath(token, points, finalCallback) {
+    if (points.length === 0) { finalCallback(); return; }
+    const next = points.shift();
+    animateJump(token, next.x, next.z, () => { animatePath(token, points, finalCallback); }, 0.15); 
+}
+
+function animateJump(token, tx, tz, onComplete, speedFactor = 0.05) {
+    const start = token.position.clone();
+    const end = new THREE.Vector3(tx * TILE_SIZE, 1.0, tz * TILE_SIZE);
+    let alpha = 0;
+    function loop() {
+        alpha += speedFactor;
+        if(alpha >= 1) { token.position.copy(end); playSound(400, 0.05); if(onComplete) onComplete(); return; }
+        token.position.lerpVectors(start, end, alpha);
+        token.position.y = 1.0 + Math.sin(alpha * Math.PI) * 2;
+        requestAnimationFrame(loop);
+    }
+    loop();
+}
+
+// --- GAMEPLAY UI EVENTS ---
+document.getElementById('lang-select').addEventListener('change', (e) => {
+    currentLang = e.target.value;
+    document.getElementById('dice-btn').innerText = TEXTS[currentLang].roll;
+    if(gameStarted) {
+        document.getElementById('status').innerText = TEXTS[currentLang].wait;
+        updateTurnText();
+    }
+});
+
+// Update input visibility based on mode
+document.getElementById('player-count').addEventListener('change', (e) => {
+    const count = parseInt(e.target.value);
+    document.getElementById('name-1').style.display = (count === 4) ? 'block' : 'none';
+    document.getElementById('name-2').style.display = (count > 1) ? 'block' : 'none'; 
+    document.getElementById('name-3').style.display = (count === 4) ? 'block' : 'none';
+    
+    document.getElementById('name-0').style.display = 'block';
+    if(count === 1) {
+        document.getElementById('name-1').style.display = 'none';
+        document.getElementById('name-2').style.display = 'none';
+        document.getElementById('name-3').style.display = 'none';
+    } else if (count === 2) {
+        document.getElementById('name-1').style.display = 'none';
+        document.getElementById('name-2').style.display = 'block'; // Yellow
+        document.getElementById('name-3').style.display = 'none';
+    } else {
+        document.getElementById('name-1').style.display = 'block';
+        document.getElementById('name-2').style.display = 'block';
+        document.getElementById('name-3').style.display = 'block';
+    }
+});
+
+document.getElementById('rules-btn').addEventListener('click', () => { document.getElementById('rules-modal').style.display = 'flex'; });
+document.getElementById('rules-close-btn').addEventListener('click', () => { document.getElementById('rules-modal').style.display = 'none'; });
+document.getElementById('dice-btn').addEventListener('click', () => { if(!isRolling && !isAnimating && !gameEnded) rollDice(); });
+
+document.getElementById('start-game-btn').addEventListener('click', () => {
+    const count = parseInt(document.getElementById('player-count').value);
+    
+    // --- CAPTURE NAMES ---
+    const n0 = document.getElementById('name-0').value || "RED";
+    const n1 = document.getElementById('name-1').value || "GREEN";
+    const n2 = document.getElementById('name-2').value || "YELLOW";
+    const n3 = document.getElementById('name-3').value || "BLUE";
+    
+    playerStats[0].name = n0.toUpperCase();
+    playerStats[1].name = n1.toUpperCase();
+    playerStats[2].name = n2.toUpperCase();
+    playerStats[3].name = n3.toUpperCase();
+
+    if(count === 1) {
+        activePlayers = [0, 2];
+        isComputerMode = true;
+        playerStats[2].name = "COMPUTER"; 
+    } else if(count === 2) {
+        activePlayers = [0, 2];
+        isComputerMode = false;
+    } else {
+        activePlayers = [0, 1, 2, 3];
+        isComputerMode = false;
+    }
+    currentPlayer = activePlayers[0];
+
+    document.getElementById('settings-panel').style.display = 'none';
+    document.getElementById('turn-area').style.display = 'block';
+    document.getElementById('dice-btn').disabled = false;
+    document.getElementById('dice-btn').innerText = TEXTS[currentLang].roll;
+    
+    gameStarted = true;
+    document.getElementById('status').innerText = TEXTS[currentLang].start;
+    updateScore(); // Refresh score with names
+    updateTurnText();
+    updateCameraOrbit(); 
+
+    for(let i=0; i<4; i++) {
+        const isActive = activePlayers.includes(i);
+        playerTokens[i].forEach(t => t.visible = isActive);
+    }
+});
+
+function updateTurnText() {
+    const colors = ['#ff4444', '#44ff44', '#ffff44', '#4444ff'];
+    const txt = document.getElementById('turn-text');
+    txt.innerText = `${TEXTS[currentLang].turn}: ${playerStats[currentPlayer].name}`; 
+    txt.style.color = colors[currentPlayer];
+}
+
+function rollDice() {
+    clearHighlights(); // Clear previous
+    isRolling = true; document.getElementById('dice-btn').disabled = true; 
+    if(isComputerMode && currentPlayer === 2) document.getElementById('status').innerText = TEXTS[currentLang].cpuRoll;
+    else document.getElementById('status').innerText = TEXTS[currentLang].rolling;
+
+    diceUsed = [false, false]; currentSelectedToken = null; document.getElementById('move-selector').style.display = 'none';
+    diceValues[0] = Math.floor(Math.random() * 6) + 1; diceValues[1] = Math.floor(Math.random() * 6) + 1;
+    throwDiceAnimation(diceValues[0], diceValues[1], () => { checkValidMoves(); });
+}
+
+// --- HIGHLIGHT SYSTEM ---
+function highlightToken(token, active) {
+    if(active) {
+        token.userData.isHighlighted = true;
+        token.children.forEach(mesh => {
+            if(mesh.material) {
+                mesh.material.emissive.setHex(0x555555); // Glow gray/whiteish
+            }
+        });
+    } else {
+        token.userData.isHighlighted = false;
+        token.children.forEach(mesh => {
+            if(mesh.material) {
+                mesh.material.emissive.setHex(0x000000); // No Glow
+            }
+        });
+    }
+}
+
+function clearHighlights() {
+    playerTokens.forEach(pTokens => {
+        pTokens.forEach(t => highlightToken(t, false));
+    });
+}
+
+function checkValidMoves() {
+    let possible = false;
+    playerTokens[currentPlayer].forEach(t => {
+        let canMoveThis = false;
+        if(canMove(t, diceValues[0]) || canMove(t, diceValues[1])) canMoveThis = true;
+        if(t.userData.currentStep !== -1 && canMove(t, diceValues[0] + diceValues[1])) canMoveThis = true;
+        
+        if(canMoveThis) {
+            possible = true;
+            // Only highlight for Human players
+            if(!(isComputerMode && currentPlayer === 2)) {
+                highlightToken(t, true);
+            }
+        }
+    });
+
+    if(!possible) {
+        document.getElementById('status').innerText = `${diceValues[0]} & ${diceValues[1]}. ${TEXTS[currentLang].noMove}`;
+        diceMesh1.material.forEach(m => m.color.setHex(0xaaaaaa)); diceMesh2.material.forEach(m => m.color.setHex(0xaaaaaa));
+        setTimeout(nextTurn, 2000);
+    } else {
+        if(isComputerMode && currentPlayer === 2) {
+             document.getElementById('status').innerText = TEXTS[currentLang].cpuThink;
+             setTimeout(executeComputerMove, 1000);
+        } else {
+             document.getElementById('status').innerText = `${diceValues[0]} & ${diceValues[1]}. ${TEXTS[currentLang].clickMove}`;
+        }
+    }
+}
+
+// --- COMPUTER LOGIC ---
+function executeComputerMove() {
+    if(gameEnded) return;
+
+    if(!diceUsed[0] && !diceUsed[1]) {
+        const sum = diceValues[0] + diceValues[1];
+        const token = findBestToken(sum, true); 
+        if(token) {
+            currentSelectedToken = token;
+            executeMoveChoice(sum, 'SUM');
+            return;
+        }
+    }
+
+    if(!diceUsed[0]) {
+        const token = findBestToken(diceValues[0], false);
+        if(token) {
+            currentSelectedToken = token;
+            executeMoveChoice(diceValues[0], 0);
+            return;
+        }
+    }
+
+    if(!diceUsed[1]) {
+        const token = findBestToken(diceValues[1], false);
+        if(token) {
+            currentSelectedToken = token;
+            executeMoveChoice(diceValues[1], 1);
+            return;
+        }
+    }
+}
+
+function findBestToken(steps, isSumMove) {
+    const validTokens = playerTokens[currentPlayer].filter(t => {
+        if(isSumMove && t.userData.currentStep === -1) return false;
+        return canMove(t, steps);
+    });
+    
+    if(validTokens.length === 0) return null;
+
+    validTokens.sort((a, b) => {
+        let scoreA = getMoveScore(a, steps);
+        let scoreB = getMoveScore(b, steps);
+        return scoreB - scoreA;
+    });
+
+    return validTokens[0];
+}
+
+function getMoveScore(token, steps) {
+    let current = token.userData.stepsFromStart;
+    let next = current + steps;
+    
+    if(token.userData.currentStep === -1 && steps === 6) return 50;
+    
+    let destX, destZ;
+    const pName = ['RED', 'GREEN', 'YELLOW', 'BLUE'][currentPlayer];
+    
+    if (next > 51) {
+        const homeIndex = next - 52;
+        if(homeIndex >= 5) return 200; 
+    } else {
+        const pathIndex = (PLAYER_START_INDEX[pName] + next - 1) % 52;
+        const coord = MAIN_PATH[pathIndex];
+        destX = coord.x; destZ = coord.z;
+        if(willCapture(destX, destZ)) return 150; 
+        if(isSafeTile(pathIndex)) return 20;
+    }
+    return current; 
+}
+
+function willCapture(x, z) {
+    let capture = false;
+    playerTokens.forEach((tokens, pid) => {
+        if(pid === currentPlayer) return;
+        tokens.forEach(t => {
+            if(t.visible && t.userData.stepsFromStart > 0 && t.userData.stepsFromStart <= 51) {
+                const tx = Math.round(t.position.x / TILE_SIZE);
+                const tz = Math.round(t.position.z / TILE_SIZE);
+                if(tx === x && tz === z) {
+                     if ([{x:-1,z:-5}, {x:5,z:-1}, {x:1,z:5}, {x:-5,z:1}].some(c => c.x === x && c.z === z)) return; 
+                     capture = true;
+                }
+            }
+        });
+    });
+    return capture;
+}
+
+function isSafeTile(idx) {
+    return [8,21,34,47,0,13,26,39].includes(idx);
+}
+
+function canMove(token, value) {
+    if(token.userData.currentStep === -1) {
+         return value === 6;
+    }
+    if(token.userData.stepsFromStart + value > 57) return false; 
+    return true;
+}
+
+// --- CLICK HANDLERS ---
+const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2();
+window.addEventListener('pointerdown', (event) => {
+    if(isRolling || isAnimating || !gameStarted || gameEnded) return;
+    if(isComputerMode && currentPlayer === 2) return; 
+
+    if(event.target.closest('#move-selector') || event.target.closest('#rules-btn')) return;
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1; pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    for (let i = 0; i < intersects.length; i++) {
+        let obj = intersects[i].object; while(obj.parent && obj.parent.type !== 'Scene') obj = obj.parent; 
+        // Only allow clicking highlighted (valid) tokens
+        if(obj.userData && obj.userData.playerId === currentPlayer && obj.userData.isHighlighted) { 
+            openMoveSelector(obj); break; 
+        }
+    }
+});
+
+function openMoveSelector(token) {
+    currentSelectedToken = token;
+    const container = document.getElementById('move-options-container'); container.innerHTML = '';
+    let validOptions = 0;
+    
+    if(!diceUsed[0] && canMove(token, diceValues[0])) {
+        const btn = document.createElement('button'); btn.className = 'move-option-btn'; btn.innerText = `Use ${diceValues[0]}`; btn.onclick = () => executeMoveChoice(diceValues[0], 0); container.appendChild(btn); validOptions++;
+    }
+    if(!diceUsed[1] && canMove(token, diceValues[1])) {
+        if(diceValues[0] !== diceValues[1] || diceUsed[0]) {
+             const btn = document.createElement('button'); btn.className = 'move-option-btn'; btn.innerText = `Use ${diceValues[1]}`; btn.onclick = () => executeMoveChoice(diceValues[1], 1); container.appendChild(btn); validOptions++;
+        } else if (diceValues[0] === diceValues[1] && !diceUsed[0]) {
+             const btn = document.createElement('button'); btn.className = 'move-option-btn'; btn.innerText = `Use ${diceValues[1]} (2nd Die)`; btn.onclick = () => executeMoveChoice(diceValues[1], 1); container.appendChild(btn); validOptions++;
+        }
+    }
+    
+    if(!diceUsed[0] && !diceUsed[1] && token.userData.currentStep !== -1) {
+        const sum = diceValues[0] + diceValues[1];
+        if(canMove(token, sum)) {
+            const btn = document.createElement('button'); btn.className = 'move-option-btn'; btn.style.background = 'linear-gradient(90deg, #e67e22, #d35400)'; btn.innerText = `${TEXTS[currentLang].sum} (${sum})`; btn.onclick = () => executeMoveChoice(sum, 'SUM'); container.appendChild(btn); validOptions++;
+        }
+    }
+    
+    if(validOptions > 0) document.getElementById('move-selector').style.display = 'flex';
+    else { document.getElementById('status').innerText = TEXTS[currentLang].cannot; playSound(150, 0.2, 'sawtooth'); }
+    document.getElementById('close-selector').onclick = () => { document.getElementById('move-selector').style.display = 'none'; currentSelectedToken = null; };
+}
+
+window.executeMoveChoice = function(steps, dieIndex) {
+    document.getElementById('move-selector').style.display = 'none';
+    clearHighlights(); // Clear highlights once a move is chosen
+
+    if (currentSelectedToken) {
+        if(dieIndex === 'SUM') { diceUsed[0] = true; diceUsed[1] = true; diceMesh1.material.forEach(m => m.color.setHex(0xaaaaaa)); diceMesh2.material.forEach(m => m.color.setHex(0xaaaaaa)); }
+        else { diceUsed[dieIndex] = true; if(dieIndex===0) diceMesh1.material.forEach(m => m.color.setHex(0xaaaaaa)); else diceMesh2.material.forEach(m => m.color.setHex(0xaaaaaa)); }
+        
+        moveToken(currentSelectedToken, steps, () => {
+             if(gameEnded) return;
+
+             if(diceUsed[0] && diceUsed[1]) setTimeout(checkBonusOrNext, 1000);
+             else {
+                const remainingIndex = diceUsed[0] ? 1 : 0;
+                let possible = false;
+                playerTokens[currentPlayer].forEach(t => { 
+                    if(canMove(t, diceValues[remainingIndex])) possible = true; 
+                });
+                
+                if(!possible) { 
+                    document.getElementById('status').innerText = TEXTS[currentLang].noMove; 
+                    setTimeout(checkBonusOrNext, 1500); 
+                }
+                else {
+                    document.getElementById('status').innerText = TEXTS[currentLang].select;
+                    
+                    // RE-HIGHLIGHT valid pieces for remaining die
+                    if(!(isComputerMode && currentPlayer === 2)) {
+                        playerTokens[currentPlayer].forEach(t => { 
+                            if(canMove(t, diceValues[remainingIndex])) highlightToken(t, true);
+                        });
+                    }
+
+                    if(isComputerMode && currentPlayer === 2) {
+                        setTimeout(executeComputerMove, 1000);
+                    }
+                }
+            }
+        });
+    }
+    currentSelectedToken = null;
+};
+
+function moveToken(token, steps, onComplete) {
+    isAnimating = true;
+    const data = token.userData;
+    
+    if(data.currentStep === -1 && steps === 6) {
+        const pName = ['RED', 'GREEN', 'YELLOW', 'BLUE'][data.playerId];
+        const startIndex = PLAYER_START_INDEX[pName];
+        data.currentStep = startIndex; data.stepsFromStart = 1;
+        const pos = MAIN_PATH[startIndex];
+        animateJump(token, pos.x, pos.z, () => {
+            playerStats[data.playerId].tokensAtHome--; updateScore();
+            isAnimating = false; if(onComplete) onComplete();
+        }, 0.05);
+        return;
+    }
+    
+    const pathPoints = [];
+    let tempSteps = data.stepsFromStart;
+    for (let s = 1; s <= steps; s++) {
+        let stepIndex = tempSteps + s;
+        let pX, pZ;
+        if (stepIndex > 51) {
+            const homeIndex = stepIndex - 52;
+            if(homeIndex >= 5) { pX = 0; pZ = 0; }
+            else { const coord = HOME_PATHS[['RED','GREEN','YELLOW','BLUE'][data.playerId]][homeIndex]; pX = coord.x; pZ = coord.z; }
+        } else {
+            const pName = ['RED', 'GREEN', 'YELLOW', 'BLUE'][data.playerId];
+            const pathIndex = (PLAYER_START_INDEX[pName] + stepIndex - 1) % 52;
+            const coord = MAIN_PATH[pathIndex];
+            pX = coord.x; pZ = coord.z;
+        }
+        pathPoints.push({x: pX, z: pZ});
+    }
+
+    const finalStepCount = data.stepsFromStart + steps;
+    const finalX = pathPoints[pathPoints.length-1].x;
+    const finalZ = pathPoints[pathPoints.length-1].z;
+
+    if(finalStepCount > 51 && finalStepCount < 57) data.currentStep = 100 + (finalStepCount - 52);
+    else if (finalStepCount <= 51) {
+        const pName = ['RED', 'GREEN', 'YELLOW', 'BLUE'][data.playerId];
+        data.currentStep = (PLAYER_START_INDEX[pName] + finalStepCount - 1) % 52;
+    }
+    data.stepsFromStart = finalStepCount;
+
+    animatePath(token, pathPoints, () => {
+        let isFinished = false;
+        if (finalStepCount > 56) isFinished = true;
+
+        if (!isFinished && finalStepCount <= 51) {
+            const captureHappened = checkForCapture(finalX, finalZ, data.playerId);
+            if(captureHappened) {
+                isFinished = true;
+                document.getElementById('status').innerText = TEXTS[currentLang].capture;
+            }
+        }
+
+        if(isFinished) {
+            playerStats[data.playerId].tokensFinished++;
+            updateScore();
+            setTimeout(() => token.visible = false, 500);
+            token.userData.currentStep = 999;
+            token.userData.stepsFromStart = 999;
+
+            if(playerStats[data.playerId].tokensFinished === 4) {
+                gameEnded = true;
+                const pName = playerStats[data.playerId].name;
+                const overlay = document.getElementById('winner-overlay');
+                const winText = document.getElementById('winner-text');
+                winText.innerText = `${pName} ${TEXTS[currentLang].win}`;
+                winText.style.color = [COLORS.RED, COLORS.GREEN, COLORS.YELLOW, COLORS.BLUE][data.playerId].toString(16).replace('0x','#');
+                overlay.style.display = 'flex';
+                document.getElementById('dice-btn').disabled = true;
+                return;
+            }
+        }
+
+        isAnimating = false; 
+        if(onComplete) onComplete();
+    });
+}
+
+function checkForCapture(x, z, myId) {
+    let captured = false;
+    playerTokens.forEach((tokens, pid) => {
+        if(pid === myId) return;
+        tokens.forEach(t => {
+            if(t.visible && t.userData.stepsFromStart > 0 && t.userData.stepsFromStart <= 51) {
+                const tx = Math.round(t.position.x / TILE_SIZE);
+                const tz = Math.round(t.position.z / TILE_SIZE);
+                if(tx === x && tz === z) {
+                    if ([{x:-1,z:-5}, {x:5,z:-1}, {x:1,z:5}, {x:-5,z:1}].some(c => c.x === x && c.z === z)) return; 
+                    playSound(800, 0.3, 'square');
+                    t.userData.currentStep = -1; 
+                    t.userData.stepsFromStart = 0;
+                    const base = t.userData.basePos;
+                    animateJump(t, base.x/TILE_SIZE, base.z/TILE_SIZE);
+                    playerStats[pid].tokensAtHome++; 
+                    updateScore(); 
+                    captured = true;
+                }
+            }
+        });
+    });
+    return captured;
+}
+
+function checkBonusOrNext() {
+    clearHighlights();
+    if(diceValues[0] === 6 && diceValues[1] === 6) {
+        document.getElementById('status').innerText = TEXTS[currentLang].double6;
+        diceUsed = [false, false]; diceValues = [0, 0];
+        diceMesh1.material.forEach(m => m.color.setHex(0xffffff)); diceMesh2.material.forEach(m => m.color.setHex(0xffffff));
+        if(isComputerMode && currentPlayer === 2) {
+            setTimeout(rollDice, 1500); 
+        } else {
+            document.getElementById('dice-btn').disabled = false;
+        }
+    } else {
+        nextTurn();
+    }
+}
+
+function nextTurn() {
+    clearHighlights();
+    let currentIndex = activePlayers.indexOf(currentPlayer);
+    currentIndex = (currentIndex + 1) % activePlayers.length;
+    currentPlayer = activePlayers[currentIndex];
+
+    diceValues = [0, 0]; diceUsed = [false, false];
+    diceMesh1.material.forEach(m => m.color.setHex(0xffffff)); diceMesh2.material.forEach(m => m.color.setHex(0xffffff));
+    
+    updateTurnText();
+    updateCameraOrbit(); 
+
+    if(isComputerMode && currentPlayer === 2) {
+        document.getElementById('dice-btn').disabled = true;
+        document.getElementById('status').innerText = TEXTS[currentLang].cpuRoll;
+        setTimeout(rollDice, 1500);
+    } else {
+        document.getElementById('dice-btn').disabled = false;
+        document.getElementById('status').innerText = TEXTS[currentLang].roll;
+    }
+}
+
+function updateScore() {
+    const els = document.querySelectorAll('.player-score');
+    for(let i=0; i<4; i++) {
+        const nameSpan = els[i].querySelector('.player-name');
+        const tokenSpan = els[i].querySelector('.player-tokens');
+        nameSpan.innerText = (i === 0 ? "🔴 " : i === 1 ? "🟢 " : i === 2 ? "🟡 " : "🔵 ") + playerStats[i].name;
+        tokenSpan.innerText = `Home: ${playerStats[i].tokensAtHome} | Fin: ${playerStats[i].tokensFinished}`;
+    }
+}
+
+function animate() { 
+    requestAnimationFrame(animate); 
+    controls.update(); 
+    
+    // Highlight Animation (Pulse)
+    const time = Date.now() * 0.005;
+    playerTokens.forEach(pTokens => {
+        pTokens.forEach(t => {
+            if(t.userData.isHighlighted) {
+                const pulse = (Math.sin(time) + 1) * 0.5 + 0.2; // Range 0.2 to 1.2
+                t.children.forEach(m => {
+                    if(m.material && m.material.emissive) {
+                        m.material.emissiveIntensity = pulse;
+                    }
+                });
+            }
+        });
+    });
+
+    renderer.render(scene, camera); 
+}
+animate();
+window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+</script>
+</body>
+</html>
+

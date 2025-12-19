@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Classic Ludo 3D (Offline)</title>
+  <style>
+    :root {
+      --green: #6ddf82;
+      --gold: #ffd65c;
+      --blue: #4cb7ff;
+      --red: #ff7b7b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: radial-gradient(circle at 15% 20%, #0c1d33, #050911 65%);
+      color: #e7f2ff;
+      overflow: hidden;
+    }
+    #bg { position: fixed; inset: 0; width: 100vw; height: 100vh; }
+    #ui { position: fixed; inset: 0; pointer-events: none; }
+    .hud {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      width: 320px;
+      background: rgba(7, 12, 24, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      padding: 14px;
+      pointer-events: auto;
+    }
+    .brand { font-weight: 700; letter-spacing: 0.5px; display: flex; gap: 8px; align-items: center; }
+    .brand .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: linear-gradient(45deg, var(--green), var(--blue));
+      box-shadow: 0 0 12px var(--blue);
+    }
+    button {
+      background: linear-gradient(135deg, #1ec8ff, #7c6aff);
+      color: #0c0f1a;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      transition: transform 0.08s ease, box-shadow 0.2s ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    #diceFace {
+      display: inline-block;
+      min-width: 48px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-left: 10px;
+    }
+    #turnInfo { margin-top: 8px; font-weight: 600; color: #b8e2ff; }
+    .meta-row { margin-top: 4px; font-size: 13px; color: #a5c4e6; }
+    #tips { margin-top: 4px; font-size: 13px; color: #8fb7d9; }
+    #log {
+      margin-top: 10px;
+      max-height: 140px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #cfd8e3;
+    }
+    .scoreboard {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      width: 240px;
+      background: rgba(7, 12, 24, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      padding: 12px;
+      pointer-events: auto;
+    }
+    .score-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; }
+    .score-row.active { background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
+    .swatch { width: 14px; height: 14px; border-radius: 4px; box-shadow: 0 0 12px rgba(255, 255, 255, 0.25); }
+    .controls { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+    #banner {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    #banner.show { opacity: 1; pointer-events: auto; }
+    .banner-body {
+      background: rgba(11, 18, 32, 0.92);
+      padding: 28px;
+      border-radius: 16px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+    #bannerText { font-size: 26px; font-weight: 700; margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div id="ui">
+    <div class="hud">
+      <div class="brand"><span class="dot"></span> Classic Ludo 3D</div>
+      <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <button id="rollBtn">Roll Dice</button>
+        <div id="diceFace">-</div>
+        <button id="autoOrbit">Toggle Drift</button>
+      </div>
+      <div id="turnInfo">Loading board...</div>
+      <div id="nextInfo" class="meta-row"></div>
+      <div id="countdownInfo" class="meta-row"></div>
+      <div id="tips">Tip: each die is used separately. You need a rolled 6 (not a combo) to leave base; double 6 gives another turn.</div>
+      <div id="log"></div>
+      <div class="controls">
+        <button id="snapCam">Center Camera</button>
+        <button id="partyAudio">Audio Burst</button>
+      </div>
+    </div>
+    <div class="scoreboard">
+      <div style="font-weight:700; margin-bottom:6px;">Scoreboard</div>
+      <div id="scoreRows"></div>
+    </div>
+  </div>
+  <div id="banner">
+    <div class="banner-body">
+      <div id="bannerText"></div>
+      <button id="resetBtn">Play Again</button>
+    </div>
+  </div>
+
+  <!-- three.js CDN (with local fallback) -->
+  <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+  <script>window.THREE || document.write('<script src=\"three.min.js\"><\\/script>');</script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script>window.THREE?.OrbitControls || document.write('<script src=\"OrbitControls.js\"><\\/script>');</script>
+  <script>
+    (() => {
+      const canvas = document.getElementById('bg');
+      const rollBtn = document.getElementById('rollBtn');
+      const diceFace = document.getElementById('diceFace');
+      const turnInfo = document.getElementById('turnInfo');
+      const nextInfo = document.getElementById('nextInfo');
+      const countdownInfo = document.getElementById('countdownInfo');
+      const logEl = document.getElementById('log');
+      const scoreRows = document.getElementById('scoreRows');
+      const banner = document.getElementById('banner');
+      const bannerText = document.getElementById('bannerText');
+      const resetBtn = document.getElementById('resetBtn');
+      const autoOrbitBtn = document.getElementById('autoOrbit');
+      const snapCamBtn = document.getElementById('snapCam');
+      const partyAudioBtn = document.getElementById('partyAudio');
+
+      if (!window.THREE) {
+        const fallback = document.createElement('div');
+        fallback.style.position = 'fixed';
+        fallback.style.inset = '0';
+        fallback.style.background = '#0b1220';
+        fallback.style.color = '#ffb4b4';
+        fallback.style.display = 'flex';
+        fallback.style.alignItems = 'center';
+        fallback.style.justifyContent = 'center';
+        fallback.style.fontFamily = 'Segoe UI, sans-serif';
+        fallback.textContent = 'three.min.js is missing. Keep three.min.js next to index.html.';
+        document.body.appendChild(fallback);
+        return;
+      }
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x060b15);
+
+      const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 120);
+      camera.position.set(12, 14, 12);
+      const controls = new THREE.OrbitControls(camera, canvas);
+      controls.enableDamping = true;
+      controls.target.set(0, 0.4, 0);
+      controls.maxPolarAngle = Math.PI * 0.49;
+
+      const light = new THREE.HemisphereLight(0x9fc8ff, 0x0a0a0a, 1.2);
+      scene.add(light);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+      dir.position.set(7, 12, 5);
+      dir.castShadow = true;
+      dir.shadow.mapSize.set(1024, 1024);
+      scene.add(dir);
+      scene.add(new THREE.AmbientLight(0x223344, 0.4));
+
+      const TRACK_LENGTH = 52;
+      const HOME_STEPS = 6;
+      const TILE = 0.92;
+      const BOARD_SIZE = 15;
+      const TILE_H = 0.12;
+      const HALF = (BOARD_SIZE - 1) / 2;
+      const boardGroup = new THREE.Group();
+      scene.add(boardGroup);
+
+      const markFinished = (piece) => {
+        piece.mesh.userData.finishedAt = performance.now();
+      };
+
+      const gridToWorld = (x, y) => new THREE.Vector3(
+        (x - HALF) * TILE,
+        TILE_H / 2,
+        (HALF - y) * TILE
+      );
+
+      const makeBoardTexture = () => {
+        const size = 1024;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        const s = size / BOARD_SIZE;
+        const palette = {
+          blue: '#2fa9e8',
+          yellow: '#f3c84b',
+          green: '#7abf63',
+          red: '#c74b47',
+          outline: '#1f2630',
+          cream: '#f8f8f8',
+          boardBg: '#e7e7e7'
+        };
+
+        const fillSquare = (x, y, color) => {
+          ctx.fillStyle = color;
+          ctx.fillRect(x * s, y * s, s, s);
+        };
+
+        ctx.fillStyle = palette.boardBg;
+        ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = palette.cream;
+        ctx.fillRect(s * 0.35, s * 0.35, size - s * 0.7, size - s * 0.7);
+
+        const quad = (x, y, color) => { ctx.fillStyle = color; ctx.fillRect(x * s, y * s, s * 6, s * 6); };
+        quad(0, 0, palette.blue);
+        quad(9, 0, palette.yellow);
+        quad(0, 9, palette.red);
+        quad(9, 9, palette.green);
+
+        // Home lanes toward the center
+        for (let x = 1; x <= 6; x++) fillSquare(x, 7, '#a9ddf5');
+        for (let y = 1; y <= 6; y++) fillSquare(7, y, '#ffe39c');
+        for (let x = 8; x <= 13; x++) fillSquare(x, 7, '#bde6b5');
+        for (let y = 8; y <= 13; y++) fillSquare(7, y, '#f5b3b1');
+
+        // Center star
+        const centerMin = 6 * s;
+        const centerMax = 9 * s;
+        const center = 7.5 * s;
+        const drawTriangle = (points, color) => {
+          ctx.beginPath();
+          ctx.moveTo(points[0].x, points[0].y);
+          ctx.lineTo(points[1].x, points[1].y);
+          ctx.lineTo(points[2].x, points[2].y);
+          ctx.closePath();
+          ctx.fillStyle = color;
+          ctx.fill();
+        };
+        drawTriangle([
+          { x: centerMin, y: centerMin },
+          { x: centerMin, y: centerMax },
+          { x: center, y: center }
+        ], palette.blue);
+        drawTriangle([
+          { x: centerMin, y: centerMin },
+          { x: centerMax, y: centerMin },
+          { x: center, y: center }
+        ], palette.yellow);
+        drawTriangle([
+          { x: centerMax, y: centerMin },
+          { x: centerMax, y: centerMax },
+          { x: center, y: center }
+        ], palette.green);
+        drawTriangle([
+          { x: centerMin, y: centerMax },
+          { x: centerMax, y: centerMax },
+          { x: center, y: center }
+        ], palette.red);
+
+        // "HOME" labels on each triangle
+        const drawHomeLabel = (x, y, angle, color) => {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `${s * 0.7}px "Segoe UI", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('HOME', 0, 0);
+          ctx.restore();
+        };
+        drawHomeLabel(center - s * 1.2, center, 0, palette.blue);
+        drawHomeLabel(center, center - s * 1.2, Math.PI / 2, palette.yellow);
+        drawHomeLabel(center + s * 1.2, center, Math.PI, palette.green);
+        drawHomeLabel(center, center + s * 1.2, -Math.PI / 2, palette.red);
+
+        // Large home diamonds inside quadrants
+        const drawDiamond = (cx, cy, color) => {
+          ctx.save();
+          ctx.translate((cx + 0.5) * s, (cy + 0.5) * s);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillStyle = '#fdfdfd';
+          ctx.beginPath();
+          ctx.moveTo(0, -2 * s);
+          ctx.lineTo(2 * s, 0);
+          ctx.lineTo(0, 2 * s);
+          ctx.lineTo(-2 * s, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+          const offsets = [
+            [-0.35, -0.35], [0.35, -0.35],
+            [-0.35, 0.35], [0.35, 0.35]
+          ];
+          ctx.fillStyle = color;
+          offsets.forEach(([dx, dy]) => {
+            ctx.beginPath();
+            ctx.arc((cx + 0.5 + dx) * s, (cy + 0.5 + dy) * s, s * 0.18, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        };
+        drawDiamond(1, 1, palette.blue);
+        drawDiamond(10, 1, palette.yellow);
+        drawDiamond(10, 10, palette.green);
+        drawDiamond(1, 10, palette.red);
+
+        // Start tiles with arrows
+        const startTiles = [
+          { x: 1, y: 6, color: palette.blue, dir: 0 },           // Right
+          { x: 8, y: 1, color: palette.yellow, dir: Math.PI / 2 }, // Down
+          { x: 8, y: 9, color: palette.green, dir: Math.PI },    // Left
+          { x: 6, y: 13, color: palette.red, dir: -Math.PI / 2 }  // Up
+        ];
+        const drawStart = ({ x, y, color, dir }) => {
+          fillSquare(x, y, color);
+          ctx.save();
+          ctx.translate((x + 0.5) * s, (y + 0.5) * s);
+          ctx.rotate(dir);
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(-s * 0.4, s * 0.25);
+          ctx.lineTo(s * 0.2, s * 0.25);
+          ctx.lineTo(s * 0.2, s * 0.55);
+          ctx.lineTo(s * 0.7, 0);
+          ctx.lineTo(s * 0.2, -s * 0.55);
+          ctx.lineTo(s * 0.2, -s * 0.25);
+          ctx.lineTo(-s * 0.4, -s * 0.25);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+          ctx.fillStyle = palette.outline;
+          ctx.font = `${s * 0.45}px "Segoe UI", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('START', (x + 0.5) * s, (y + 0.5) * s);
+        };
+        startTiles.forEach(drawStart);
+
+        // Arrow tips pointing to home
+        const drawHomeArrow = (x, y, color, angle) => {
+          ctx.save();
+          ctx.translate((x + 0.5) * s, (y + 0.5) * s);
+          ctx.rotate(angle);
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(-s * 0.9, s * 0.45);
+          ctx.lineTo(s * 0.9, s * 0.45);
+          ctx.lineTo(0, -s * 0.55);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        };
+        drawHomeArrow(6, 7, palette.blue, 0);
+        drawHomeArrow(7, 6, palette.yellow, Math.PI / 2);
+        drawHomeArrow(8, 7, palette.green, Math.PI);
+        drawHomeArrow(7, 8, palette.red, -Math.PI / 2);
+
+        // Grid lines and border
+        ctx.strokeStyle = palette.outline;
+        ctx.lineWidth = s * 0.08;
+        for (let i = 0; i <= BOARD_SIZE; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * s, 0);
+          ctx.lineTo(i * s, size);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, i * s);
+          ctx.lineTo(size, i * s);
+          ctx.stroke();
+        }
+
+        ctx.lineWidth = s * 0.3;
+        ctx.strokeRect(s * 0.2, s * 0.2, size - s * 0.4, size - s * 0.4);
+
+        return new THREE.CanvasTexture(c);
+      };
+
+      const boardTex = makeBoardTexture();
+      boardTex.anisotropy = 4;
+
+      const board = new THREE.Mesh(
+        new THREE.PlaneGeometry(BOARD_SIZE * TILE, BOARD_SIZE * TILE),
+        new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.8, metalness: 0.05 })
+      );
+      board.rotation.x = -Math.PI / 2;
+      board.receiveShadow = true;
+      boardGroup.add(board);
+
+      const boardBase = new THREE.Mesh(
+        new THREE.BoxGeometry(BOARD_SIZE * TILE + 0.6, 0.6, BOARD_SIZE * TILE + 0.6),
+        new THREE.MeshStandardMaterial({ color: 0x111826, roughness: 0.9, metalness: 0.15 })
+      );
+      boardBase.position.y = -0.35;
+      boardBase.receiveShadow = true;
+      boardBase.castShadow = true;
+      boardGroup.add(boardBase);
+
+      const PATH_GRID = [
+        [1, 6], [2, 6], [3, 6], [4, 6], [5, 6], [6, 5], [6, 4], [6, 3], [6, 2], [6, 1], [6, 0], [7, 0], [8, 0],
+        [8, 1], [8, 2], [8, 3], [8, 4], [8, 5], [9, 6], [10, 6], [11, 6], [12, 6], [13, 6], [14, 6], [14, 7],
+        [14, 8], [13, 8], [12, 8], [11, 8], [10, 8], [9, 8], [8, 9], [8, 10], [8, 11], [8, 12], [8, 13], [8, 14],
+        [7, 14], [6, 14], [6, 13], [6, 12], [6, 11], [6, 10], [6, 9], [5, 8], [4, 8], [3, 8], [2, 8], [1, 8],
+        [0, 8], [0, 7]
+      ];
+      const pathPositions = PATH_GRID.map(([x, y]) => gridToWorld(x, y));
+
+      // Safe tiles are only the star tiles; start tiles are now capturable.
+      const SAFE_TILES = [11, 24, 37, 50];
+
+      const homePaths = {
+        blue: [ [1,7],[2,7],[3,7],[4,7],[5,7],[7,7] ].map(([x,y]) => gridToWorld(x,y)),
+        yellow: [ [7,1],[7,2],[7,3],[7,4],[7,5],[7,7] ].map(([x,y]) => gridToWorld(x,y)),
+        green: [ [13,7],[12,7],[11,7],[10,7],[9,7],[7,7] ].map(([x,y]) => gridToWorld(x,y)),
+        red: [ [7,13],[7,12],[7,11],[7,10],[7,9],[7,7] ].map(([x,y]) => gridToWorld(x,y))
+      };
+
+      const baseSpots = {
+        blue: [ [1,1],[4,1],[1,4],[4,4] ],
+        yellow: [ [10,1],[13,1],[10,4],[13,4] ],
+        green: [ [10,10],[13,10],[10,13],[13,13] ],
+        red: [ [1,10],[4,10],[1,13],[4,13] ]
+      };
+
+      const players = [
+        { id: 0, name: 'Blue', color: 0x3ab4ff, startIndex: 0, homeKey: 'blue', ai: false, teamId: 0 },
+        { id: 1, name: 'Green', color: 0x68cf7c, startIndex: 26, homeKey: 'green', ai: false, teamId: 0 },
+        { id: 2, name: 'Red', color: 0xff7b7b, startIndex: 39, homeKey: 'red', ai: true, teamId: 1 },
+        { id: 3, name: 'Yellow', color: 0xffd65c, startIndex: 13, homeKey: 'yellow', ai: true, teamId: 1 }
+      ];
+
+      const pieceGeom = new THREE.CylinderGeometry(0.26, 0.4, 0.72, 22);
+      const headGeom = new THREE.SphereGeometry(0.26, 18, 18);
+      const selectable = [];
+
+      players.forEach(p => {
+        p.homePath = homePaths[p.homeKey];
+        p.baseSpots = baseSpots[p.homeKey].map(([x,y]) => gridToWorld(x,y));
+        p.pieces = [];
+        p.homePath.forEach(h => {
+          const m = new THREE.Mesh(
+            new THREE.BoxGeometry(TILE * 0.8, TILE_H, TILE * 0.8),
+            new THREE.MeshStandardMaterial({
+              color: p.color,
+              emissive: new THREE.Color(p.color).multiplyScalar(0.08),
+              roughness: 0.45,
+              metalness: 0.2
+            })
+          );
+          m.position.copy(h).setY(TILE_H / 2.5);
+          m.receiveShadow = true;
+          boardGroup.add(m);
+        });
+      });
+
+      const createPiece = (player, slot) => {
+        const mat = new THREE.MeshStandardMaterial({
+          color: player.color,
+          metalness: 0.45,
+          roughness: 0.35,
+          emissive: new THREE.Color(player.color).multiplyScalar(0.15)
+        });
+        const body = new THREE.Mesh(pieceGeom, mat);
+        const head = new THREE.Mesh(headGeom, mat.clone());
+        head.position.y = 0.42;
+        const group = new THREE.Group();
+        group.add(body);
+        group.add(head);
+        group.castShadow = true;
+        group.receiveShadow = true;
+        group.position.copy(player.baseSpots[slot]).setY(TILE_H / 2);
+        boardGroup.add(group);
+        const piece = { player, mesh: group, state: 'base', stepsMoved: -1 };
+        group.userData.piece = piece;
+        group.traverse(obj => { obj.userData.piece = piece; });
+        selectable.push(group);
+        return piece;
+      };
+
+      players.forEach(p => { for (let i = 0; i < 4; i++) p.pieces.push(createPiece(p, i)); });
+
+      const resize = () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      };
+      window.addEventListener('resize', resize);
+
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      let audioReady = false;
+      const resumeAudio = () => { if (!audioReady) { audioCtx.resume(); audioReady = true; } };
+      const tone = (freq, dur = 0.2, type = 'sine', gainVal = 0.15) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = freq;
+        osc.type = type;
+        gain.gain.value = gainVal;
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+      };
+      const noiseBlast = () => {
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.2, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 600;
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.25;
+        noise.connect(filter).connect(gain).connect(audioCtx.destination);
+        noise.start();
+      };
+      const playDice = () => { tone(420, 0.1, 'triangle', 0.14); tone(260, 0.08, 'square', 0.12); noiseBlast(); };
+      const playStep = () => tone(520 + Math.random() * 80, 0.09, 'sine', 0.12);
+      const playCapture = () => { tone(220, 0.25, 'sawtooth', 0.18); tone(660, 0.2, 'square', 0.12); };
+      const playWin = () => { tone(440, 0.3, 'sine', 0.2); tone(660, 0.35, 'triangle', 0.16); tone(880, 0.4, 'sine', 0.14); };
+      const playDenied = () => tone(180, 0.3, 'triangle', 0.1);
+
+      const log = (msg) => {
+        const div = document.createElement('div');
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        div.textContent = `[${time}] ${msg}`;
+        logEl.prepend(div);
+        while (logEl.children.length > 8) logEl.removeChild(logEl.lastChild);
+      };
+
+      const scoreRowEls = players.map(p => {
+        const row = document.createElement('div');
+        row.className = 'score-row';
+        const sw = document.createElement('div');
+        sw.className = 'swatch';
+        sw.style.background = `#${p.color.toString(16).padStart(6, '0')}`;
+        row.appendChild(sw);
+        const text = document.createElement('div');
+        text.textContent = `${p.name}`;
+        row.appendChild(text);
+        scoreRows.appendChild(row);
+        return row;
+      });
+
+      const teamNames = ['Blue/Green', 'Red/Yellow'];
+      const teamIsAI = [false, false]; // Pure 2-player mode; no AI
+      let currentTeam = 0;
+      let diceValues = [];
+      let winner = null;
+      let rolling = false;
+      let lastRollDoubleSix = false;
+      let consecutiveDoubles = 0;
+      let countdownInterval = null;
+      let countdownRemaining = 90;
+      let animatingMove = false;
+      const FINISH_GLOW_MS = 4000;
+
+      const getNextTeamName = () => teamNames[(currentTeam + 1) % teamNames.length];
+
+      const updateScoreboard = () => {
+        players.forEach((p, idx) => {
+          const homeCount = p.pieces.filter(pc => pc.state === 'home').length;
+          const activeCount = p.pieces.filter(pc => pc.state !== 'base').length;
+          scoreRowEls[idx].classList.toggle('active', p.teamId === currentTeam);
+          scoreRowEls[idx].lastChild.textContent = `${p.name} - home ${homeCount}/4 | out ${activeCount}/4`;
+        });
+      };
+
+      const updateTurnInfo = () => {
+        const name = teamNames[currentTeam];
+        const ai = teamIsAI[currentTeam];
+        turnInfo.textContent = ai
+          ? `${name}'s turn. AI will roll and move.`
+          : `${name}'s turn. Roll the dice and pick one of your pieces.`;
+        nextInfo.textContent = `Next: ${getNextTeamName()}`;
+      };
+
+      const stopCountdown = () => {
+        if (countdownInterval) clearInterval(countdownInterval);
+        countdownInterval = null;
+      };
+
+      const updateCountdownUI = () => {
+        countdownInfo.textContent = `Time left: ${countdownRemaining}s`;
+      };
+
+      const startCountdown = () => {
+        stopCountdown();
+        if (teamIsAI[currentTeam]) {
+          countdownInfo.textContent = 'AI turn...';
+          return;
+        }
+        countdownRemaining = 90;
+        updateCountdownUI();
+        countdownInterval = setInterval(() => {
+          countdownRemaining -= 1;
+          if (countdownRemaining < 0) countdownRemaining = 0;
+          updateCountdownUI();
+          if (countdownRemaining === 0) {
+            stopCountdown();
+            log(`${teamNames[currentTeam]} ran out of time and loses the turn.`);
+            playDenied();
+            endTurn({ timedOut: true, blocked: true });
+          }
+        }, 1000);
+      };
+
+      const beginTurnCycle = () => {
+        updateTurnInfo();
+        updateScoreboard();
+        startCountdown();
+        maybeAutoTurn();
+      };
+
+      const forceToStart = (piece) => {
+        piece.state = 'board';
+        piece.stepsMoved = 0;
+        piece.mesh.position.copy(positionForPiece(piece));
+      };
+
+      const resetPieces = () => {
+        players.forEach(p => p.pieces.forEach((piece, i) => {
+          piece.state = 'base';
+          piece.stepsMoved = -1;
+          piece.mesh.userData.finishedAt = null;
+          piece.mesh.position.copy(p.baseSpots[i]).setY(TILE_H / 2);
+        }));
+      };
+
+      const resetGame = () => {
+        winner = null;
+        currentTeam = 0;
+        diceValues = [];
+        rolling = false;
+        lastRollDoubleSix = false;
+        consecutiveDoubles = 0;
+        banner.classList.remove('show');
+        resetPieces();
+        setSelectable([]);
+        rollBtn.disabled = false;
+        diceFace.textContent = '-';
+        beginTurnCycle();
+        log('New match started.');
+      };
+
+      const setSelectable = (items) => {
+        selectable.forEach(obj => {
+          obj.userData.canSelect = false;
+          obj.traverse(child => { child.userData.canSelect = false; });
+        });
+        items.forEach(obj => {
+          obj.userData.canSelect = true;
+          obj.traverse(child => { child.userData.canSelect = true; });
+        });
+      };
+
+      const positionForPiece = (piece) => {
+        if (piece.state === 'base') return null;
+        if (piece.state === 'home') {
+          const idx = Math.min(piece.stepsMoved - TRACK_LENGTH, HOME_STEPS - 1);
+          return piece.player.homePath[idx];
+        }
+        return pathPositions[(piece.player.startIndex + piece.stepsMoved) % TRACK_LENGTH];
+      };
+
+      const isSafe = (tileIndex) => SAFE_TILES.includes(tileIndex);
+
+      const occupantAtTile = (tileIndex, excludePiece = null) => {
+        for (const p of players) {
+          for (const pc of p.pieces) {
+            if (pc === excludePiece) continue;
+            if (pc.state === 'board' && (pc.player.startIndex + pc.stepsMoved) % TRACK_LENGTH === tileIndex) return pc;
+          }
+        }
+        return null;
+      };
+
+      const canMovePiece = (piece, roll) => {
+        if (piece.state === 'home') return false;
+        if (piece.state === 'base') {
+          if (roll !== 6) return false; // must roll a natural 6 to exit base
+          const startTile = piece.player.startIndex;
+          const occupant = occupantAtTile(startTile);
+          if (occupant && (occupant.player.teamId === piece.player.teamId || isSafe(startTile))) return false;
+          return true;
+        }
+        const targetSteps = piece.stepsMoved + roll;
+        if (targetSteps > TRACK_LENGTH + HOME_STEPS - 1) return false;
+        return true;
+      };
+
+      const highlightMoves = () => {
+        const movable = players
+          .filter(p => p.teamId === currentTeam)
+          .flatMap(p => p.pieces)
+          .filter(pc => diceValues.some(r => canMovePiece(pc, r)));
+        if (teamIsAI[currentTeam]) {
+          setSelectable([]); // AI doesn't need highlights
+          if (!movable.length) {
+            log(`${teamNames[currentTeam]} has no moves.`);
+            playDenied();
+            endTurn({ blocked: true });
+            return;
+          }
+          aiPlayTurn();
+          return;
+        }
+        setSelectable(movable.map(m => m.mesh));
+        if (!movable.length) {
+          log(`${teamNames[currentTeam]} has no moves.`);
+          playDenied();
+          endTurn({ blocked: true });
+        }
+      };
+
+      const animateMove = (piece, targets, onDone) => {
+        animatingMove = true;
+        let idx = 0;
+        const step = () => {
+          if (idx >= targets.length) {
+            animatingMove = false;
+            onDone && onDone();
+            return;
+          }
+          const from = piece.mesh.position.clone();
+          const to = targets[idx].clone();
+          const start = performance.now();
+          const duration = 220;
+          const animate = (t) => {
+            const k = Math.min(1, (t - start) / duration);
+            piece.mesh.position.lerpVectors(from, to, k);
+            if (k < 1) requestAnimationFrame(animate); else { playStep(); idx++; step(); }
+          };
+          requestAnimationFrame(animate);
+        };
+        if (!targets.length) {
+          animatingMove = false;
+          onDone && onDone();
+          return;
+        }
+        step();
+      };
+
+      const resolveCapture = (piece) => {
+        if (piece.state !== 'board') return false;
+        const tileIndex = (piece.player.startIndex + piece.stepsMoved) % TRACK_LENGTH;
+        if (isSafe(tileIndex)) return false;
+        const victim = occupantAtTile(tileIndex, piece);
+        if (victim && victim.player.teamId !== piece.player.teamId) {
+          const homeSlots = victim.player.baseSpots;
+          const idx = victim.player.pieces.indexOf(victim);
+          victim.state = 'base';
+          victim.stepsMoved = -1;
+          victim.mesh.position.copy(homeSlots[idx]).setY(TILE_H / 2);
+          log(`${piece.player.name} captures a ${victim.player.name} piece and cashes out!`);
+          // Capturing piece leaves the board as a reward (counts as home/finished).
+          piece.state = 'home';
+          piece.stepsMoved = TRACK_LENGTH + HOME_STEPS - 1;
+          const finishSpot = piece.player.homePath[HOME_STEPS - 1];
+          piece.mesh.position.copy(finishSpot).setY(TILE_H / 2);
+          markFinished(piece);
+          playCapture();
+          return true;
+        }
+        return false;
+      };
+
+      const movePiece = (piece, rollVal) => {
+        if (piece.state === 'base') {
+          piece.state = 'board';
+          piece.stepsMoved = 0;
+          animateMove(piece, [positionForPiece(piece)], () => {
+            resolveCapture(piece);
+            const won = checkWin();
+            if (won) return;
+            if (diceValues.length) {
+              highlightMoves();
+              return;
+            }
+            endTurn({ moved: true });
+          });
+          return;
+        }
+        const targets = [];
+        for (let s = 1; s <= rollVal; s++) {
+          const nextSteps = piece.stepsMoved + s;
+          if (nextSteps >= TRACK_LENGTH) {
+            const homeIdx = Math.min(nextSteps - TRACK_LENGTH, HOME_STEPS - 1);
+            targets.push(piece.player.homePath[homeIdx]);
+          } else {
+            const tileIdx = (piece.player.startIndex + nextSteps) % TRACK_LENGTH;
+            targets.push(pathPositions[tileIdx]);
+          }
+        }
+        piece.state = piece.stepsMoved + rollVal >= TRACK_LENGTH ? 'home' : 'board';
+        piece.stepsMoved += rollVal;
+        if (piece.state === 'home' && piece.stepsMoved >= TRACK_LENGTH + HOME_STEPS - 1) {
+          markFinished(piece);
+        }
+        animateMove(piece, targets, () => {
+          const captured = resolveCapture(piece);
+          const won = checkWin();
+          if (won) return;
+          if (diceValues.length) {
+            highlightMoves();
+            return;
+          }
+          endTurn({ moved: true, captured, rollVal });
+        });
+      };
+
+      const checkWin = () => {
+        for (const p of players) {
+          const allHome = p.pieces.every(pc => pc.state === 'home' && pc.stepsMoved >= TRACK_LENGTH + HOME_STEPS - 1);
+          if (allHome) {
+            stopCountdown();
+            winner = p;
+            bannerText.textContent = `${p.name} wins!`;
+            banner.classList.add('show');
+            rollBtn.disabled = true;
+            playWin();
+            log(`${p.name} conquered the board!`);
+            return true;
+          }
+        }
+        return false;
+      };
+
+      const maybeAutoTurn = () => {
+        if (teamIsAI[currentTeam] && !winner) {
+          rollBtn.disabled = true;
+          setTimeout(() => { if (!winner) rollDice(true); }, 400);
+        } else if (!winner) {
+          rollBtn.disabled = false;
+        }
+      };
+
+      const endTurn = ({ moved = false, captured = false, blocked = false } = {}) => {
+        if (winner) return;
+        stopCountdown();
+        const extra = !blocked && (lastRollDoubleSix || captured);
+        if (extra) {
+          log(`${teamNames[currentTeam]} gets another go.`);
+        } else {
+          currentTeam = (currentTeam + 1) % 2;
+        }
+        diceValues = [];
+        lastRollDoubleSix = false;
+        consecutiveDoubles = extra ? consecutiveDoubles : 0;
+        setSelectable([]);
+        beginTurnCycle();
+      };
+
+      const aiScoreMove = (piece, roll) => {
+        let score = piece.stepsMoved;
+        const targetBoardIndex = (() => {
+          if (piece.state === 'base') return piece.player.startIndex;
+          const nextSteps = piece.stepsMoved + roll;
+          if (nextSteps >= TRACK_LENGTH) return null;
+          return (piece.player.startIndex + nextSteps) % TRACK_LENGTH;
+        })();
+        if (piece.state !== 'base') {
+          const endSteps = piece.stepsMoved + roll;
+          if (endSteps >= TRACK_LENGTH + HOME_STEPS - 1) score += 80; // finishing
+        } else {
+          score += roll === 6 ? 40 : 20; // prefer popping out
+        }
+        if (targetBoardIndex !== null && !isSafe(targetBoardIndex)) {
+          const victim = occupantAtTile(targetBoardIndex, piece);
+          if (victim && victim.player.teamId !== piece.player.teamId) score += 100; // capture
+        }
+        return score;
+      };
+
+      const aiMoveBest = (movable) => {
+        if (!movable.length) return false;
+        let bestChoice = null;
+        movable.forEach(piece => {
+          diceValues.forEach((roll, idx) => {
+            if (!canMovePiece(piece, roll)) return;
+            const score = aiScoreMove(piece, roll);
+            if (!bestChoice || score > bestChoice.score) {
+              bestChoice = { piece, roll, idx, score };
+            }
+          });
+        });
+        if (bestChoice) {
+          diceValues.splice(bestChoice.idx, 1);
+          movePiece(bestChoice.piece, bestChoice.roll);
+          return true;
+        }
+        return false;
+      };
+
+      // Unified AI loop: keeps consuming dice until empty, waiting for animations to complete
+      const aiPlayTurn = () => {
+        if (!teamIsAI[currentTeam] || winner) return;
+        
+        // If still animating, wait and try again
+        if (animatingMove) {
+          setTimeout(() => aiPlayTurn(), 100);
+          return;
+        }
+        
+        const teamPieces = players.filter(pl => pl.teamId === currentTeam).flatMap(pl => pl.pieces);
+        
+        // No dice left? End turn
+        if (!diceValues.length) {
+          endTurn();
+          return;
+        }
+        
+        // Find pieces that can move with available dice
+        const movable = teamPieces.filter(pc => diceValues.some(r => canMovePiece(pc, r)));
+        
+        // No valid moves? End turn
+        if (!movable.length) {
+          log(`${teamNames[currentTeam]} has no valid moves with remaining dice.`);
+          endTurn({ blocked: true });
+          return;
+        }
+        
+        // Make the best move (this will trigger an animation)
+        const moved = aiMoveBest(movable);
+        if (!moved) {
+          endTurn({ blocked: true });
+        }
+        // Note: movePiece's callback will call highlightMoves, which recursively calls aiPlayTurn
+      };
+
+      const rollDice = (auto = false) => {
+        if (winner || rolling || diceValues.length) return;
+        if (!auto && teamIsAI[currentTeam]) return;
+        resumeAudio();
+        rollBtn.disabled = true;
+        diceFace.textContent = '...';
+        rolling = true;
+        playDice();
+        const v1 = Math.floor(Math.random() * 6) + 1;
+        const v2 = Math.floor(Math.random() * 6) + 1;
+        diceValues = [v1, v2];
+        lastRollDoubleSix = v1 === 6 && v2 === 6;
+        if (v1 === v2) consecutiveDoubles += 1; else consecutiveDoubles = 0;
+        const rollerName = teamNames[currentTeam];
+        animateDicePair(diceValues, () => {
+          diceFace.textContent = `${v1} + ${v2}`;
+          log(`${rollerName} rolled ${v1} and ${v2}.`);
+          highlightMoves();
+          rolling = false;
+        });
+      };
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      const onPointerDown = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+
+        // Click dice to roll (only on your turn, not rolling)
+        if (!winner && !rolling && !teamIsAI[currentTeam] && !diceValues.length) {
+          const diceHits = raycaster.intersectObjects(diceMeshes, true);
+          if (diceHits.length) { rollDice(false); return; }
+        }
+
+        if (winner || !diceValues.length) return;
+        if (teamIsAI[currentTeam]) return;
+          const hits = raycaster.intersectObjects(selectable, true);
+          for (const hit of hits) {
+            const piece = hit.object.userData.piece;
+            if (piece && piece.player.teamId === currentTeam && hit.object.userData.canSelect) {
+              const rollIdx = diceValues.findIndex(r => canMovePiece(piece, r));
+              if (rollIdx === -1) return;
+              const rollVal = diceValues.splice(rollIdx, 1)[0];
+              movePiece(piece, rollVal);
+              break;
+            }
+          }
+      };
+      window.addEventListener('pointerdown', onPointerDown);
+
+      rollBtn.addEventListener('click', () => rollDice(false));
+      resetBtn.addEventListener('click', resetGame);
+      autoOrbitBtn.addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; controls.autoRotateSpeed = 1.2; });
+      snapCamBtn.addEventListener('click', () => {
+        camera.position.set(12, 11, 12);
+        controls.target.set(0, 0.4, 0);
+        controls.update();
+      });
+      partyAudioBtn.addEventListener('click', () => { resumeAudio(); noiseBlast(); tone(880, 0.25, 'square', 0.15); tone(660, 0.3, 'sine', 0.12); });
+      window.addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); if (!rollBtn.disabled) rollDice(); } });
+
+      const clock = new THREE.Clock();
+      const diceGroup = new THREE.Group();
+      const diceSize = 0.9;
+      const makeDiceFace = (value) => {
+        const size = 256;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#f4f7fb';
+        ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = '#1c2635';
+        const pip = (x, y) => { ctx.beginPath(); ctx.arc(x, y, size * 0.08, 0, Math.PI * 2); ctx.fill(); };
+        const positions = {
+          1: [[0.5, 0.5]],
+          2: [[0.25, 0.25], [0.75, 0.75]],
+          3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
+          4: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]],
+          5: [[0.25, 0.25], [0.75, 0.25], [0.5, 0.5], [0.25, 0.75], [0.75, 0.75]],
+          6: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.5], [0.75, 0.5], [0.25, 0.75], [0.75, 0.75]]
+        }[value];
+        positions.forEach(([px, py]) => pip(px * size, py * size));
+        return new THREE.CanvasTexture(c);
+      };
+      const diceMaterials = [
+        new THREE.MeshStandardMaterial({ map: makeDiceFace(2) }), // right
+        new THREE.MeshStandardMaterial({ map: makeDiceFace(5) }), // left
+        new THREE.MeshStandardMaterial({ map: makeDiceFace(1) }), // top
+        new THREE.MeshStandardMaterial({ map: makeDiceFace(6) }), // bottom
+        new THREE.MeshStandardMaterial({ map: makeDiceFace(3) }), // front
+        new THREE.MeshStandardMaterial({ map: makeDiceFace(4) })  // back
+      ];
+      const diceMeshes = [];
+      [new THREE.Vector3(-0.6, 1.15, 0), new THREE.Vector3(0.6, 1.15, 0)].forEach(pos => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(diceSize, diceSize, diceSize), diceMaterials);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.position.copy(pos);
+        diceGroup.add(mesh);
+        diceMeshes.push(mesh);
+      });
+      boardGroup.add(diceGroup);
+
+      const diceOrientations = {
+        1: new THREE.Euler(0, 0, 0),
+        2: new THREE.Euler(0, 0, -Math.PI / 2),
+        3: new THREE.Euler(-Math.PI / 2, 0, 0),
+        4: new THREE.Euler(Math.PI / 2, 0, 0),
+        5: new THREE.Euler(0, 0, Math.PI / 2),
+        6: new THREE.Euler(Math.PI, 0, 0)
+      };
+
+      const animateDiceSingle = (mesh, value, delay = 0, onDone) => {
+        const start = performance.now() + delay;
+        const duration = 820;
+        const target = diceOrientations[value].clone();
+        target.x += Math.PI * 2 * (1 + Math.random() * 0.5);
+        target.y += Math.PI * 2 * (1 + Math.random() * 0.5);
+        target.z += Math.PI * 2 * (1 + Math.random() * 0.5);
+        const startRot = mesh.rotation.clone();
+        const startY = mesh.position.y;
+        const anim = (t) => {
+          if (t < start) { requestAnimationFrame(anim); return; }
+          const k = Math.min(1, (t - start) / duration);
+          const ease = 1 - Math.pow(1 - k, 3);
+          mesh.rotation.set(
+            startRot.x + (target.x - startRot.x) * ease,
+            startRot.y + (target.y - startRot.y) * ease,
+            startRot.z + (target.z - startRot.z) * ease
+          );
+          mesh.position.y = startY + Math.sin(k * Math.PI) * 0.35;
+          if (k < 1) requestAnimationFrame(anim); else { mesh.position.y = startY; onDone && onDone(); }
+        };
+        requestAnimationFrame(anim);
+      };
+
+      const animateDicePair = (values, onDone) => {
+        let remaining = values.length;
+        values.forEach((v, i) => {
+          animateDiceSingle(diceMeshes[i], v, i * 80, () => {
+            remaining -= 1;
+            if (remaining === 0) onDone && onDone();
+          });
+        });
+      };
+
+      const render = () => {
+        requestAnimationFrame(render);
+        const t = clock.getElapsedTime();
+        selectable.forEach(obj => {
+          const piece = obj.userData.piece;
+          const finishedRecent = piece && piece.state === 'home' && obj.userData.finishedAt && (performance.now() - obj.userData.finishedAt) < FINISH_GLOW_MS;
+          const shouldGlow = obj.userData.canSelect || finishedRecent;
+          if (shouldGlow) {
+            const pulse = 0.35 + Math.abs(Math.sin(t * 4)) * 0.35;
+            obj.rotation.y = Math.sin(t * 1.8) * 0.12;
+            const lift = finishedRecent ? 0.02 : Math.abs(Math.sin(t * 5)) * 0.06;
+            obj.position.y = TILE_H / 2 + lift;
+            obj.children.forEach(child => {
+              if (child.material && child.material.emissive) child.material.emissiveIntensity = pulse;
+            });
+          } else {
+            obj.position.y = TILE_H / 2;
+            obj.rotation.y *= 0.95;
+            obj.children.forEach(child => { if (child.material && child.material.emissive) child.material.emissiveIntensity = 0.08; });
+          }
+        });
+        controls.update();
+        renderer.render(scene, camera);
+      };
+
+      beginTurnCycle();
+      render();
+    })();
+  </script>
+</body>
+</html>

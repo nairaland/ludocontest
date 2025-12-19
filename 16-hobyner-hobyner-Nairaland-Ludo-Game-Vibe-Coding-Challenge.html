@@ -1,0 +1,1673 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Space Ludo (Single-File)</title>
+  <style>
+    :root{
+      --bg:#070915;
+      --panel:rgba(10,14,35,.72);
+      --panel2:rgba(10,14,35,.55);
+      --text:#e8eeff;
+      --muted:#a9b6ff;
+      --glow: 0 0 18px rgba(140,180,255,.55), 0 0 42px rgba(120,120,255,.30);
+      --border: rgba(140,180,255,.22);
+    }
+    html,body{height:100%;margin:0;background:var(--bg);overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+    canvas{position:fixed;inset:0;display:block;}
+
+    /* Header */
+    .header{
+      position:fixed;left:0;right:0;top:0;
+      display:flex;align-items:center;justify-content:center;
+      padding:14px 10px;pointer-events:none;z-index:6;
+    }
+    .title{
+      font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--text);
+      text-shadow: 0 0 10px rgba(120,180,255,.75), 0 0 26px rgba(150,90,255,.55), 0 0 60px rgba(50,90,255,.35);
+      background:linear-gradient(90deg,#d8f0ff,#d6c7ff,#c9f7ff);
+      -webkit-background-clip:text;background-clip:text;color:transparent;
+      filter:drop-shadow(0 0 12px rgba(120,160,255,.35));
+      font-size:clamp(18px,2.8vw,34px);
+    }
+
+    /* Side panels */
+    .panel{
+      position:fixed;top:70px;bottom:14px;width:min(330px,38vw);
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow:var(--glow);
+      backdrop-filter: blur(10px);
+      color:var(--text);
+      z-index:7;
+      display:flex;flex-direction:column;
+      overflow:hidden;
+    }
+    .panel.left{left:14px;}
+    .panel.right{right:14px;background:var(--panel2);}
+    .panelHeader{
+      padding:12px 14px;
+      border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      background:linear-gradient(180deg, rgba(160,190,255,.16), transparent);
+    }
+    .panelHeader h3{
+      margin:0;font-size:14px;letter-spacing:.08em;text-transform:uppercase;
+      color:rgba(230,240,255,.92);
+    }
+    .panelBody{padding:12px 14px;overflow:auto;}
+    .panelBody p,.panelBody li{color:rgba(232,238,255,.9);font-size:13px;line-height:1.45;}
+    .muted{color:var(--muted);}
+
+    .controls{
+      display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+      pointer-events:auto;
+    }
+    button{
+      pointer-events:auto;
+      border:1px solid rgba(170,210,255,.25);
+      background:rgba(20,26,60,.55);
+      color:var(--text);
+      padding:10px 12px;border-radius:12px;
+      font-weight:700;font-size:12px;
+      cursor:pointer;
+      box-shadow:0 0 16px rgba(130,190,255,.12);
+      transition:transform .08s ease, background .18s ease;
+      user-select:none;
+    }
+    button:hover{background:rgba(28,36,86,.62);}
+    button:active{transform:translateY(1px) scale(.99);}
+    button:disabled{opacity:.5;cursor:not-allowed;}
+    .ghost{background:rgba(15,20,40,.25);border-color:rgba(170,210,255,.12);}
+    .pill{
+      padding:6px 10px;border-radius:999px;font-size:12px;
+      border:1px solid rgba(170,210,255,.18);
+      background:rgba(10,14,35,.45);
+      color:rgba(232,238,255,.85);
+      box-shadow:0 0 12px rgba(130,190,255,.08);
+      white-space:nowrap;
+    }
+    .row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;}
+    .kv{display:flex;flex-direction:column;gap:4px;}
+    .kv b{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:rgba(232,238,255,.85);}
+    .kv span{font-size:12px;color:rgba(232,238,255,.78);}
+
+    /* Mission log */
+    .log{
+      display:flex;flex-direction:column;gap:8px;
+      font-size:12px;
+    }
+    .logItem{
+      border:1px solid rgba(170,210,255,.12);
+      background:rgba(8,10,24,.28);
+      border-radius:12px;
+      padding:10px;
+    }
+    .tag{
+      display:inline-flex;align-items:center;gap:6px;
+      font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+      font-size:11px;
+    }
+    .dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 12px rgba(255,255,255,.22);}
+    .small{font-size:11px;color:rgba(232,238,255,.72);margin-top:6px;}
+
+    /* Bottom HUD */
+    .hud{
+      position:fixed;left:50%;transform:translateX(-50%);
+      bottom:12px;z-index:8;
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;
+      background:rgba(10,14,35,.42);
+      border:1px solid rgba(140,180,255,.18);
+      border-radius:16px;
+      padding:10px 12px;
+      box-shadow:var(--glow);
+      backdrop-filter: blur(10px);
+      max-width:min(880px,calc(100vw - 40px));
+      pointer-events:none;
+    }
+    .hud > *{pointer-events:auto;}
+    .hint{font-size:12px;color:rgba(232,238,255,.78);}
+
+    /* Win screen */
+    .winOverlay{
+      position:fixed;inset:0;z-index:20;
+      display:none;align-items:center;justify-content:center;
+      background:radial-gradient(circle at 50% 40%, rgba(80,120,255,.25), rgba(0,0,0,.78));
+      backdrop-filter: blur(6px);
+      color:var(--text);
+      text-align:center;
+    }
+    .winCard{
+      width:min(560px,92vw);
+      padding:22px 18px;
+      border-radius:18px;
+      border:1px solid rgba(170,210,255,.22);
+      background:rgba(10,14,35,.55);
+      box-shadow: 0 0 22px rgba(140,180,255,.20), 0 0 80px rgba(130,80,255,.16);
+    }
+    .winCard h1{margin:0 0 10px 0;font-size:28px;letter-spacing:.08em;text-transform:uppercase;}
+    .winCard p{margin:0 0 16px 0;color:rgba(232,238,255,.78);}
+
+    /* Mobile */
+    @media (max-width: 960px){
+      html,body{height:auto;min-height:100%;overflow:auto;}
+      body{padding-bottom:18px;}
+      .header{
+        position:sticky;top:0;
+        padding:12px 10px;
+        background:linear-gradient(180deg, rgba(7,9,21,.9), rgba(7,9,21,.55));
+        backdrop-filter: blur(6px);
+      }
+      .panel{
+        position:relative;top:auto;bottom:auto;left:auto;right:auto;
+        width:calc(100% - 24px);max-width:640px;
+        margin:12px auto 0 auto;
+        box-sizing:border-box;
+      }
+      .panel.right{background:var(--panel);}
+      .panelBody{max-height:none;}
+      .hud{
+        position:sticky;bottom:10px;left:auto;right:auto;transform:none;
+        width:calc(100% - 24px);max-width:640px;
+        margin:14px auto 0 auto;
+        justify-content:flex-start;align-items:flex-start;
+        gap:8px;
+        flex-direction:column;
+      }
+      .hud .pill{width:100%;text-align:center;}
+      .hud .hint{width:100%;}
+      .winCard{width:calc(100% - 28px);}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div class="header">
+    <div class="title">Space Ludo</div>
+  </div>
+
+  <aside class="panel left">
+    <div class="panelHeader">
+      <h3>Instructions</h3>
+      <span class="pill" id="turnPill">Turn: —</span>
+    </div>
+    <div class="panelBody">
+      <p class="muted">
+        Classic 4-player Ludo in space. Click the neon dice in the center to roll, move clockwise, enter your home lane,
+        and reach the finish with all 4 tokens.
+      </p>
+      <ul>
+        <li><b>Need a 6</b> to exit your yard to your start square (extra turn on 6).</li>
+        <li><b>First turn</b>: on their first play each player must exit their home base before the play turn moves to the next player.</li>
+        <li><b>Capture</b>: land on an opponent (not on safe squares) to send them back to yard.</li>
+        <li><b>Blockade</b>: two same-color tokens on one square block movement for everyone.</li>
+        <li><b>Safe Zones</b>: star squares + entry squares glow neon; tokens there cannot be captured.</li>
+        <li><b>Token Bounce</b>: moves use an arc "jump" animation.</li>
+      </ul>
+
+      <div class="row">
+        <div class="kv">
+          <b>Dice</b>
+          <span class="muted">Roll in the center. Result appears on the top face.</span>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px;">
+        <button id="btnRoll">Roll Dice</button>
+        <button id="btnReset">Reset Game</button>
+      </div>
+
+      <p class="small muted" style="margin-top:12px;"></p>
+    </div>
+  </aside>
+
+  <aside class="panel right">
+    <div class="panelHeader">
+      <h3>Mission Log</h3>
+      <span class="pill" id="leaderPill">Leader: —</span>
+    </div>
+    <div class="panelBody">
+      <div class="log" id="log"></div>
+    </div>
+  </aside>
+
+  <div class="hud">
+    <span class="pill" id="dicePill">Dice: -</span>
+    <span class="pill" id="phasePill">Phase: -</span>
+    <span class="hint" id="hint">Roll to begin.</span>
+    <button id="btnMusic" class="ghost">Music Off</button>
+  </div>
+
+  <div class="winOverlay" id="winOverlay">
+    <div class="winCard">
+      <h1 id="winTitle">Victory!</h1>
+      <p id="winText">A player has completed the mission.</p>
+      <button id="btnPlayAgain">Play Again</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  (() => {
+    // =========================
+    // Utilities
+    // =========================
+    const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+    const lerp  = (a,b,t)=>a+(b-a)*t;
+    const easeInOutCubic = (t)=>t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+    function now(){ return performance.now(); }
+
+    function makeCanvasTexture(drawFn, size=256){
+      const cnv = document.createElement('canvas');
+      cnv.width = cnv.height = size;
+      const ctx = cnv.getContext('2d');
+      drawFn(ctx, size);
+      const tex = new THREE.CanvasTexture(cnv);
+      tex.anisotropy = 4;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function colorToHex(c){
+      // c is THREE.Color
+      return '#' + c.getHexString();
+    }
+
+    // =========================
+    // Scene Setup
+    // =========================
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x050713, 1);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x050713, 12, 65);
+
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 200);
+    camera.position.set(0, 18, 22);
+    camera.lookAt(0, 0, 0);
+
+    const light = new THREE.DirectionalLight(0xffffff, 1.0);
+    light.position.set(8, 14, 10);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x8fb6ff, 0.35));
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    // =========================
+    // Solar System Background (in same scene, far behind board)
+    // =========================
+    class SolarSystem {
+      constructor(scene){
+        this.group = new THREE.Group();
+        this.group.position.set(0, 0, -30);
+        scene.add(this.group);
+
+        // starfield (points)
+        const starCount = 1800;
+        const pos = new Float32Array(starCount * 3);
+        for(let i=0;i<starCount;i++){
+          const r = 110 * Math.pow(Math.random(), 0.55);
+          const theta = Math.random()*Math.PI*2;
+          const phi = Math.acos(2*Math.random()-1);
+          pos[i*3+0] = r*Math.sin(phi)*Math.cos(theta);
+          pos[i*3+1] = r*Math.cos(phi);
+          pos[i*3+2] = r*Math.sin(phi)*Math.sin(theta);
+        }
+        const starGeo = new THREE.BufferGeometry();
+        starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xbcd6ff, size: 0.14, transparent:true, opacity:0.85 });
+        this.stars = new THREE.Points(starGeo, starMat);
+        this.group.add(this.stars);
+
+        // sun
+        this.sun = new THREE.Mesh(
+          new THREE.SphereGeometry(1.2, 24, 24),
+          new THREE.MeshStandardMaterial({ emissive:0xffcc66, emissiveIntensity:1.4, color:0x331900, metalness:0.2, roughness:0.6 })
+        );
+        this.sun.position.set(-10, 10, 0);
+        this.group.add(this.sun);
+
+        // planets
+        const mkPlanet = (radius, color, emissive, orbitR, speed, y, tilt=0) => {
+          const mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(radius, 20, 20),
+            new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity:0.45, roughness:0.75, metalness:0.1 })
+          );
+          mesh.userData.orbitR = orbitR;
+          mesh.userData.speed = speed;
+          mesh.userData.phase = Math.random()*Math.PI*2;
+          mesh.userData.y = y;
+          mesh.rotation.z = tilt;
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(orbitR-0.01, orbitR+0.01, 96),
+            new THREE.MeshBasicMaterial({ color:0x3a4a9a, transparent:true, opacity:0.16, side:THREE.DoubleSide })
+          );
+          ring.rotation.x = Math.PI/2;
+          ring.position.copy(this.sun.position);
+          this.group.add(ring);
+          this.group.add(mesh);
+          return mesh;
+        };
+
+        this.planets = [
+          mkPlanet(0.35, 0xbdbdbd, 0x223355, 2.8,  0.90,  0.1),
+          mkPlanet(0.55, 0xffb36b, 0x442211, 4.2,  0.62, -0.2),
+          mkPlanet(0.62, 0x6bb3ff, 0x113355, 5.9,  0.52,  0.25),
+          mkPlanet(0.48, 0xff6b6b, 0x331111, 7.2,  0.44, -0.05),
+          mkPlanet(0.95, 0xffd36b, 0x332200, 9.1,  0.34,  0.18),
+        ];
+
+        // subtle nebula plane
+        const nebulaTex = makeCanvasTexture((ctx,s)=>{
+          const g = ctx.createRadialGradient(s*0.45,s*0.55, 10, s*0.5,s*0.5, s*0.55);
+          g.addColorStop(0,   'rgba(120,160,255,0.28)');
+          g.addColorStop(0.4, 'rgba(160,90,255,0.18)');
+          g.addColorStop(1,   'rgba(0,0,0,0)');
+          ctx.fillStyle = 'rgba(0,0,0,0)';
+          ctx.fillRect(0,0,s,s);
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(s*0.5,s*0.5,s*0.52,0,Math.PI*2);
+          ctx.fill();
+        }, 512);
+        const nebula = new THREE.Mesh(
+          new THREE.PlaneGeometry(90, 55),
+          new THREE.MeshBasicMaterial({ map:nebulaTex, transparent:true, opacity:0.55, depthWrite:false })
+        );
+        nebula.position.set(0, 12, -55);
+        this.group.add(nebula);
+      }
+
+      update(t){
+        this.stars.rotation.y = t*0.00003;
+        this.stars.rotation.x = t*0.00001;
+        this.sun.rotation.y += 0.004;
+        for(const p of this.planets){
+          const a = p.userData.phase + t*0.00025*p.userData.speed;
+          p.position.set(
+            this.sun.position.x + Math.cos(a)*p.userData.orbitR,
+            this.sun.position.y + p.userData.y + Math.sin(a*1.3)*0.15,
+            this.sun.position.z + Math.sin(a)*p.userData.orbitR
+          );
+          p.rotation.y += 0.01*(0.5+p.userData.speed);
+        }
+      }
+    }
+
+    const solar = new SolarSystem(scene);
+
+    // =========================
+    // Board Geometry & Layout (Ludo track)
+    // =========================
+    class Board {
+      constructor(scene){
+        this.group = new THREE.Group();
+        scene.add(this.group);
+
+        // Ground/base
+        const base = new THREE.Mesh(
+          new THREE.BoxGeometry(18, 0.6, 18),
+          new THREE.MeshStandardMaterial({ color:0x0c1230, roughness:0.75, metalness:0.12, emissive:0x060818, emissiveIntensity:0.6 })
+        );
+        base.position.y = -0.35;
+        this.group.add(base);
+
+        // top panel
+        const top = new THREE.Mesh(
+          new THREE.BoxGeometry(17.6, 0.18, 17.6),
+          new THREE.MeshStandardMaterial({ color:0x101a42, roughness:0.55, metalness:0.22, emissive:0x0b1030, emissiveIntensity:0.7 })
+        );
+        top.position.y = -0.05;
+        this.group.add(top);
+
+        // grid squares (52 + homes)
+        this.squares = []; // world positions for main track
+        this.homeLanes = { red:[], blue:[], yellow:[], green:[] };
+        this.finishPos = { red:null, blue:null, yellow:null, green:null };
+
+        // Ludo track positions on a 11x11-ish loop (stylized)
+        // We'll build a square loop around center with rounded corners.
+        const loop = [];
+        const step = 1.25;
+        const half = 6.25;
+        const y = 0.25;
+
+        // Helper to push segment points
+        const pushLine = (x1,z1,x2,z2,n) => {
+          for(let i=0;i<n;i++){
+            const t = i/(n-1);
+            loop.push(new THREE.Vector3(lerp(x1,x2,t), y, lerp(z1,z2,t)));
+          }
+        };
+
+        // Build loop path as 52 points:
+        // We'll approximate with 4 edges, 13 points each (13*4=52).
+        const nPerEdge = 13;
+        // top edge (left to right)
+        pushLine(-half, -half,  half, -half, nPerEdge);
+        // right edge (top to bottom)
+        pushLine( half, -half,  half,  half, nPerEdge);
+        // bottom edge (right to left)
+        pushLine( half,  half, -half,  half, nPerEdge);
+        // left edge (bottom to top)
+        pushLine(-half,  half, -half, -half, nPerEdge);
+
+        // Remove duplicates at joins to keep exactly 52 (our edges include endpoints)
+        // Current has 52 but with repeated corners (because endpoints repeat). Fix by dropping last point of each edge.
+        const dedup = [];
+        for(let i=0;i<loop.length;i++){
+          const isEdgeEnd = (i===nPerEdge-1)||(i===2*nPerEdge-1)||(i===3*nPerEdge-1)||(i===4*nPerEdge-1);
+          if(isEdgeEnd && i!==loop.length-1) continue;
+          dedup.push(loop[i]);
+        }
+        // Now we should have 49; add 3 more by inserting mid-corner points (stylized) to get 52.
+        // We'll instead regenerate cleanly: 52 points around perimeter without repeating corners.
+        this.squares = [];
+        const per = [
+          {from:new THREE.Vector3(-half,y,-half), to:new THREE.Vector3( half,y,-half)},
+          {from:new THREE.Vector3( half,y,-half), to:new THREE.Vector3( half,y, half)},
+          {from:new THREE.Vector3( half,y, half), to:new THREE.Vector3(-half,y, half)},
+          {from:new THREE.Vector3(-half,y, half), to:new THREE.Vector3(-half,y,-half)}
+        ];
+        // 52 = 4 * 13, but we will not repeat corners: each edge contributes 13, but last point equals next edge first.
+        // We'll take 13 per edge excluding final point (12), then add one final point at end => 4*12 + 4 = 52
+        for(let e=0;e<4;e++){
+          const A = per[e].from, B = per[e].to;
+          for(let i=0;i<13;i++){
+            const t = i/12;
+            if(e>0 && i===0) continue; // skip repeated corner
+            this.squares.push(new THREE.Vector3(lerp(A.x,B.x,t), y, lerp(A.z,B.z,t)));
+          }
+        }
+        // Ensure size 52
+        while(this.squares.length>52) this.squares.pop();
+        while(this.squares.length<52) this.squares.push(this.squares[this.squares.length-1].clone().add(new THREE.Vector3(0,0,0.001)));
+
+        // Define player start indices (classic spacing):
+        // We'll place starts at quarter offsets.
+        this.startIndex = { red: 0, blue: 13, yellow: 26, green: 39 };
+        this.entryIndex = { red: 50, blue: 11, yellow: 24, green: 37 }; // where you turn into home lane (approx)
+        // Star/safe squares
+        this.starIndices = new Set([2,10,15,23,28,36,41,49]); // stylized
+        this.safeIndices = new Set([...this.starIndices, this.startIndex.red, this.startIndex.blue, this.startIndex.yellow, this.startIndex.green]);
+
+        // Draw squares as glowing tiles
+        this.tileMeshes = [];
+        const tileGeo = new THREE.BoxGeometry(1.05, 0.22, 1.05);
+        for(let i=0;i<52;i++){
+          const pos = this.squares[i];
+          const isStar = this.starIndices.has(i);
+          const isEntry = (i===this.startIndex.red)||(i===this.startIndex.blue)||(i===this.startIndex.yellow)||(i===this.startIndex.green);
+          const mat = new THREE.MeshStandardMaterial({
+            color: isStar ? 0x1c2b6a : 0x121a44,
+            emissive: isStar ? 0x63ffd2 : (isEntry ? 0xffd36b : 0x24306a),
+            emissiveIntensity: isStar ? 1.15 : (isEntry ? 0.9 : 0.35),
+            roughness:0.55, metalness:0.18
+          });
+          const m = new THREE.Mesh(tileGeo, mat);
+          m.position.copy(pos);
+          m.position.y = 0.08;
+          this.group.add(m);
+          this.tileMeshes.push(m);
+
+          // Direction arrows (simple triangles) every few squares
+          if(i%4===0){
+            const arrow = new THREE.Mesh(
+              new THREE.ConeGeometry(0.22, 0.38, 3),
+              new THREE.MeshBasicMaterial({ color:0x9bc3ff, transparent:true, opacity:0.55 })
+            );
+            arrow.position.copy(pos);
+            arrow.position.y = 0.42;
+            // orient arrow toward next square
+            const nxt = this.squares[(i+1)%52];
+            const dir = new THREE.Vector3().subVectors(nxt,pos).normalize();
+            const ang = Math.atan2(dir.x, dir.z);
+            arrow.rotation.y = ang;
+            arrow.rotation.x = Math.PI; // point down-ish
+            this.group.add(arrow);
+          }
+        }
+
+        // Center hub
+        const hub = new THREE.Mesh(
+          new THREE.CylinderGeometry(2.2, 2.2, 0.25, 40),
+          new THREE.MeshStandardMaterial({ color:0x0d1438, emissive:0x3b57ff, emissiveIntensity:0.35, roughness:0.35, metalness:0.35 })
+        );
+        hub.position.set(0,0.12,0);
+        this.group.add(hub);
+
+        // Home lanes (6 tiles each)
+        const mkLane = (colorName, dirVec, glowColor) => {
+          const lane = [];
+          for(let i=1;i<=6;i++){
+            const p = dirVec.clone().multiplyScalar(i*0.95);
+            p.y = 0.25;
+            lane.push(p);
+            const tile = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({
+              color:0x121a44,
+              emissive:glowColor, emissiveIntensity:0.85-(i*0.06),
+              roughness:0.55, metalness:0.16
+            }));
+            tile.position.copy(p);
+            tile.position.y = 0.08;
+            this.group.add(tile);
+          }
+          this.homeLanes[colorName] = lane;
+          this.finishPos[colorName] = dirVec.clone().multiplyScalar(6.25);
+          this.finishPos[colorName].y = 0.35;
+        };
+
+        mkLane('red',    new THREE.Vector3(0,0,-1), 0xff5a7a);
+        mkLane('blue',   new THREE.Vector3(1,0,0),  0x54a3ff);
+        mkLane('yellow', new THREE.Vector3(0,0,1),  0xffe36b);
+        mkLane('green',  new THREE.Vector3(-1,0,0), 0x5dffb0);
+
+        // Yards (token spawn pads)
+        this.yards = {
+          red:    [new THREE.Vector3(-3.8,0.3,-3.8), new THREE.Vector3(-2.7,0.3,-3.8), new THREE.Vector3(-3.8,0.3,-2.7), new THREE.Vector3(-2.7,0.3,-2.7)],
+          blue:   [new THREE.Vector3( 2.7,0.3,-3.8), new THREE.Vector3( 3.8,0.3,-3.8), new THREE.Vector3( 2.7,0.3,-2.7), new THREE.Vector3( 3.8,0.3,-2.7)],
+          yellow: [new THREE.Vector3( 2.7,0.3, 2.7), new THREE.Vector3( 3.8,0.3, 2.7), new THREE.Vector3( 2.7,0.3, 3.8), new THREE.Vector3( 3.8,0.3, 3.8)],
+          green:  [new THREE.Vector3(-3.8,0.3, 2.7), new THREE.Vector3(-2.7,0.3, 2.7), new THREE.Vector3(-3.8,0.3, 3.8), new THREE.Vector3(-2.7,0.3, 3.8)],
+        };
+
+        // Glowing trails yard -> center (simple curves)
+        const mkTrail = (from, to, colorHex) => {
+          const c = new THREE.Color(colorHex);
+          const curve = new THREE.CatmullRomCurve3([
+            from.clone().setY(0.35),
+            from.clone().add(new THREE.Vector3(0,1.4,0)),
+            to.clone().add(new THREE.Vector3(0,1.1,0)),
+            to.clone().setY(0.35),
+          ]);
+          const pts = curve.getPoints(60);
+          const g = new THREE.BufferGeometry().setFromPoints(pts);
+          const m = new THREE.LineBasicMaterial({ color:c, transparent:true, opacity:0.45 });
+          const line = new THREE.Line(g,m);
+          this.group.add(line);
+        };
+        mkTrail(this.yards.red[0],    new THREE.Vector3(0,0.3,0), '#ff5a7a');
+        mkTrail(this.yards.blue[0],   new THREE.Vector3(0,0.3,0), '#54a3ff');
+        mkTrail(this.yards.yellow[0], new THREE.Vector3(0,0.3,0), '#ffe36b');
+        mkTrail(this.yards.green[0],  new THREE.Vector3(0,0.3,0), '#5dffb0');
+      }
+
+      worldPosForMainIndex(i){ return this.squares[(i%52+52)%52].clone(); }
+      isSafeMainIndex(i){ return this.safeIndices.has((i%52+52)%52); }
+      isStarMainIndex(i){ return this.starIndices.has((i%52+52)%52); }
+
+      // Convert a "progress" for a token into world position:
+      // - state: 'yard' => yard slot
+      // - state: 'main' => mainIndex
+      // - state: 'home' => homeStep (1..6)
+      // - state: 'finished'
+      worldPos(token){
+        if(token.state==='yard') return this.yards[token.color][token.id].clone();
+        if(token.state==='main') return this.worldPosForMainIndex(token.mainIndex);
+        if(token.state==='home') return this.homeLanes[token.color][token.homeStep-1].clone();
+        if(token.state==='finished') return this.finishPos[token.color].clone();
+        return new THREE.Vector3(0,0.3,0);
+      }
+    }
+
+    const board = new Board(scene);
+
+    // =========================
+    // Dice (3D, "physics-ish" roll + deterministic top face)
+    // =========================
+    class Dice {
+      constructor(scene){
+        this.group = new THREE.Group();
+        scene.add(this.group);
+
+        const faceTex = (n) => makeCanvasTexture((ctx,s)=>{
+          ctx.fillStyle = '#0b1028';
+          ctx.fillRect(0,0,s,s);
+          // neon border
+          ctx.strokeStyle = 'rgba(150,200,255,.55)';
+          ctx.lineWidth = s*0.045;
+          ctx.strokeRect(s*0.06,s*0.06,s*0.88,s*0.88);
+
+          // dots / number
+          ctx.fillStyle = 'rgba(220,245,255,.92)';
+          ctx.shadowColor = 'rgba(120,180,255,.85)';
+          ctx.shadowBlur = s*0.08;
+
+          const drawPip=(x,y)=>{
+            ctx.beginPath();
+            ctx.arc(x,y,s*0.055,0,Math.PI*2);
+            ctx.fill();
+          };
+
+          const cx=s/2, cy=s/2, d=s*0.18;
+          const map = {
+            1:[[cx,cy]],
+            2:[[cx-d,cy-d],[cx+d,cy+d]],
+            3:[[cx-d,cy-d],[cx,cy],[cx+d,cy+d]],
+            4:[[cx-d,cy-d],[cx+d,cy-d],[cx-d,cy+d],[cx+d,cy+d]],
+            5:[[cx-d,cy-d],[cx+d,cy-d],[cx,cy],[cx-d,cy+d],[cx+d,cy+d]],
+            6:[[cx-d,cy-d],[cx+d,cy-d],[cx-d,cy],[cx+d,cy],[cx-d,cy+d],[cx+d,cy+d]],
+          };
+          map[n].forEach(([x,y])=>drawPip(x,y));
+        });
+
+        // Three box UV faces order: +x, -x, +y, -y, +z, -z
+        // We'll map so that:
+        // top (+y) => 1
+        // bottom (-y) => 6
+        // front (+z) => 2
+        // back (-z) => 5
+        // right (+x) => 3
+        // left (-x) => 4
+        const mats = [
+          new THREE.MeshStandardMaterial({ map: faceTex(3), roughness:0.35, metalness:0.3, emissive:0x0c1438, emissiveIntensity:0.35 }),
+          new THREE.MeshStandardMaterial({ map: faceTex(4), roughness:0.35, metalness:0.3, emissive:0x0c1438, emissiveIntensity:0.35 }),
+          new THREE.MeshStandardMaterial({ map: faceTex(1), roughness:0.35, metalness:0.3, emissive:0x0c1438, emissiveIntensity:0.35 }),
+          new THREE.MeshStandardMaterial({ map: faceTex(6), roughness:0.35, metalness:0.3, emissive:0x0c1438, emissiveIntensity:0.35 }),
+          new THREE.MeshStandardMaterial({ map: faceTex(2), roughness:0.35, metalness:0.3, emissive:0x0c1438, emissiveIntensity:0.35 }),
+          new THREE.MeshStandardMaterial({ map: faceTex(5), roughness:0.35, metalness:0.3, emissive:0x0c1438, emissiveIntensity:0.35 }),
+        ];
+
+        this.mesh = new THREE.Mesh(new THREE.BoxGeometry(1.25,1.25,1.25), mats);
+        this.mesh.castShadow = false;
+        this.mesh.position.set(0, 1.2, 0);
+        this.group.add(this.mesh);
+
+        // Glow ring under dice
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(1.1, 1.55, 64),
+          new THREE.MeshBasicMaterial({ color:0x9bc3ff, transparent:true, opacity:0.22, side:THREE.DoubleSide })
+        );
+        ring.rotation.x = -Math.PI/2;
+        ring.position.set(0, 0.16, 0);
+        this.group.add(ring);
+        this.ring = ring;
+        this.ring.userData.isDice = true;
+
+        this.mesh.userData.isDice = true;
+
+        this.rolling = false;
+        this.angularVel = new THREE.Vector3(0,0,0);
+        this.targetQuat = new THREE.Quaternion();
+        this.result = null;
+        this.audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+      }
+
+      // Set cube orientation so that top (+y) equals desired result.
+      // We can choose from a few fixed quaternions (simple mapping).
+      quatForResult(n){
+        // Current face assignment (see mats):
+        // top:1, bottom:6, front:2, back:5, right:3, left:4
+        // We want 'n' on top. We'll rotate from base orientation.
+        const q = new THREE.Quaternion();
+        const e = new THREE.Euler(0,0,0,'YXZ');
+
+        // Put n on top by rotating cube.
+        // We'll pick a canonical orientation per value:
+        switch(n){
+          case 1: e.set(0,0,0); break;
+          case 6: e.set(0,0,Math.PI); break;            // flip
+          case 2: e.set( Math.PI/2,0,0); break;         // front to top
+          case 5: e.set(-Math.PI/2,0,0); break;         // back to top
+          case 3: e.set(0,0,-Math.PI/2); break;         // right to top (rotate around z)
+          case 4: e.set(0,0, Math.PI/2); break;         // left to top
+        }
+        q.setFromEuler(e);
+        return q;
+      }
+
+      playRollSound(){
+        if(!this.audioCtx) return;
+        if(this.audioCtx.state === 'suspended') this.audioCtx.resume();
+
+        const ctx = this.audioCtx;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(360, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.35);
+
+        gain.gain.setValueAtTime(0.32, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
+
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.45);
+      }
+
+      async roll(){
+        if(this.rolling) return null;
+        this.rolling = true;
+        this.result = null;
+
+        this.playRollSound();
+
+        const n = 1 + Math.floor(Math.random()*6);
+        this.result = n;
+
+        // Random spin start
+        this.angularVel.set(
+          (Math.random()*3+4.0) * (Math.random()<.5?-1:1),
+          (Math.random()*3+4.0) * (Math.random()<.5?-1:1),
+          (Math.random()*3+4.0) * (Math.random()<.5?-1:1)
+        );
+
+        // Set target orientation
+        this.targetQuat.copy(this.quatForResult(n));
+
+        // animate briskly for a faster roll
+        const start = now();
+        const dur = 700;
+        return new Promise(resolve=>{
+          const tick = () => {
+            const t = (now()-start)/dur;
+            const tt = clamp(t,0,1);
+            // spin + damp
+            const damp = 1 - easeInOutCubic(tt);
+            this.mesh.rotation.x += this.angularVel.x * 0.016 * (0.4 + damp);
+            this.mesh.rotation.y += this.angularVel.y * 0.016 * (0.4 + damp);
+            this.mesh.rotation.z += this.angularVel.z * 0.016 * (0.4 + damp);
+
+            // slerp into exact final orientation near end
+            const snapT = clamp((tt-0.55)/0.45, 0, 1);
+            this.mesh.quaternion.slerp(this.targetQuat, snapT);
+
+            if(tt<1) requestAnimationFrame(tick);
+            else {
+              this.mesh.quaternion.copy(this.targetQuat);
+              this.rolling = false;
+              resolve(n);
+            }
+          };
+          requestAnimationFrame(tick);
+        });
+      }
+    }
+
+    const dice = new Dice(scene);
+
+    // =========================
+    // Token
+    // =========================
+    class Token {
+      constructor(scene, board, color, id, colorHex){
+        this.scene = scene;
+        this.board = board;
+        this.color = color;
+        this.id = id;
+
+        this.state = 'yard';     // 'yard' | 'main' | 'home' | 'finished'
+        this.mainIndex = null;   // 0..51
+        this.stepsFromStart = 0; // 0..51 before entering home
+        this.homeStep = 0;       // 1..6
+        this.finished = false;
+
+        const mat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(colorHex),
+          emissive: new THREE.Color(colorHex),
+          emissiveIntensity: 0.55,
+          roughness:0.35, metalness:0.3
+        });
+
+        const geo = new THREE.SphereGeometry(0.35, 22, 22);
+        this.mesh = new THREE.Mesh(geo, mat);
+        this.mesh.position.copy(board.worldPos(this));
+        this.mesh.position.y = 0.42;
+        this.mesh.userData.token = this;
+        scene.add(this.mesh);
+
+        // halo
+        const halo = new THREE.Mesh(
+          new THREE.RingGeometry(0.38, 0.62, 40),
+          new THREE.MeshBasicMaterial({ color:new THREE.Color(colorHex), transparent:true, opacity:0.24, side:THREE.DoubleSide })
+        );
+        halo.rotation.x = -Math.PI/2;
+        halo.position.set(0, -0.14, 0);
+        this.mesh.add(halo);
+        this.halo = halo;
+
+        this._moving = false;
+      }
+
+      setToBoardPos(){
+        const p = this.board.worldPos(this);
+        this.mesh.position.set(p.x, 0.42, p.z);
+      }
+
+      async bounceMove(pathPositions, cameraController){
+        if(this._moving) return;
+        this._moving = true;
+
+        for(const p of pathPositions){
+          await this._arcTo(p, cameraController);
+        }
+        this._moving = false;
+      }
+
+      _arcTo(target, cameraController){
+        const startPos = this.mesh.position.clone();
+        const endPos = new THREE.Vector3(target.x, 0.42, target.z);
+
+        // camera zoom in
+        cameraController.focusOn(this.mesh.position.clone(), 0.55);
+
+        const startT = now();
+        const dur = 260; // per step
+        return new Promise(resolve=>{
+          const tick = () => {
+            const t = (now()-startT)/dur;
+            const tt = clamp(t,0,1);
+            const e = easeInOutCubic(tt);
+
+            const x = lerp(startPos.x, endPos.x, e);
+            const z = lerp(startPos.z, endPos.z, e);
+
+            // arc bounce
+            const arc = Math.sin(Math.PI*e) * 0.55;
+            const y = 0.42 + arc;
+
+            this.mesh.position.set(x,y,z);
+
+            if(tt<1) requestAnimationFrame(tick);
+            else {
+              this.mesh.position.set(endPos.x, 0.42, endPos.z);
+              resolve();
+            }
+          };
+          requestAnimationFrame(tick);
+        });
+      }
+    }
+
+    // =========================
+    // Camera Controller
+    // =========================
+    class CameraController {
+      constructor(camera){
+        this.camera = camera;
+        this.basePos = new THREE.Vector3(0, 18, 22);
+        this.baseLook = new THREE.Vector3(0, 0, 0);
+        this.mode = 'idle';
+        this._targetPos = this.basePos.clone();
+        this._targetLook = this.baseLook.clone();
+      }
+
+      pullBackForRoll(){
+        this.mode = 'roll';
+        this._targetPos = this.basePos.clone();
+        this._targetLook = this.baseLook.clone();
+      }
+
+      focusOn(worldPos, strength=0.6){
+        // zoom in with an offset
+        const offset = new THREE.Vector3(6, 7.5, 6);
+        this.mode = 'focus';
+        this._targetPos = worldPos.clone().add(offset.multiplyScalar(strength));
+        this._targetLook = worldPos.clone();
+      }
+
+      update(dt){
+        const p = this.camera.position;
+        p.x = lerp(p.x, this._targetPos.x, 1 - Math.pow(0.001, dt));
+        p.y = lerp(p.y, this._targetPos.y, 1 - Math.pow(0.001, dt));
+        p.z = lerp(p.z, this._targetPos.z, 1 - Math.pow(0.001, dt));
+
+        // lookAt smoothing
+        this.baseLook.lerp(this._targetLook, 1 - Math.pow(0.001, dt));
+        this.camera.lookAt(this.baseLook);
+      }
+    }
+
+    const camCtl = new CameraController(camera);
+
+    // =========================
+    // Music (simple synth loop)
+    // =========================
+    class MusicSystem {
+      constructor(){
+        this.ctx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+        this.master = null;
+        this.running = false;
+        this.sources = [];
+        if(this.ctx){
+          this.master = this.ctx.createGain();
+          this.master.gain.value = 0.32;
+          this.master.connect(this.ctx.destination);
+        }
+      }
+
+      buildPad(freq){
+        const ctx = this.ctx;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'lowpass';
+        filt.frequency.value = 1200;
+        filt.Q.value = 0.2;
+
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        osc.detune.value = -6;
+        gain.gain.value = 0.08;
+
+        osc.connect(filt).connect(gain).connect(this.master);
+        osc.start();
+        return [osc, gain];
+      }
+
+      buildArp(freq){
+        const ctx = this.ctx;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.value = 0.04;
+        osc.connect(gain).connect(this.master);
+        osc.start();
+
+        // slow filter sweep
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'bandpass';
+        filt.frequency.value = 900;
+        filt.Q.value = 8;
+        gain.disconnect();
+        gain.connect(filt).connect(this.master);
+        return [osc, gain, filt];
+      }
+
+      start(){
+        if(!this.ctx || this.running) return this.running;
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+        this.running = true;
+
+        // pad notes (minor-ish, spacey)
+        const base = 196; // G3
+        const pad1 = this.buildPad(base);
+        const pad2 = this.buildPad(base * 1.498); // fifth
+        const pad3 = this.buildPad(base * 1.189); // fourth-ish
+        this.sources.push(pad1[0], pad2[0], pad3[0]);
+
+        // arpeggio wobble
+        const arp = this.buildArp(base * 2);
+        this.sources.push(arp[0]);
+
+        // gentle amplitude modulation on arp
+        const ctx = this.ctx;
+        const mod = ctx.createOscillator();
+        const modGain = ctx.createGain();
+        mod.frequency.value = 0.35;
+        modGain.gain.value = 0.12;
+        mod.connect(modGain).connect(arp[1].gain);
+        mod.start();
+        this.sources.push(mod);
+
+        return true;
+      }
+
+      stop(){
+        if(!this.running) return false;
+        this.sources.forEach(s=>{
+          try{ s.stop(); }catch(e){}
+        });
+        this.sources = [];
+        this.running = false;
+        return true;
+      }
+
+      toggle(){
+        if(this.running) {
+          this.stop();
+          return false;
+        }
+        return this.start();
+      }
+    }
+
+    const music = new MusicSystem();
+
+    // =========================
+    // Fireworks (simple GPU-friendly particles)
+    // =========================
+    class Fireworks {
+      constructor(scene){
+        this.scene = scene;
+        this.group = new THREE.Group();
+        this.group.visible = false;
+        scene.add(this.group);
+
+        const count = 1200;
+        const geo = new THREE.BufferGeometry();
+        const pos = new Float32Array(count*3);
+        const vel = new Float32Array(count*3);
+        const life = new Float32Array(count);
+
+        for(let i=0;i<count;i++){
+          pos[i*3+0]=0;pos[i*3+1]=0;pos[i*3+2]=0;
+          vel[i*3+0]=0;vel[i*3+1]=0;vel[i*3+2]=0;
+          life[i]=0;
+        }
+
+        geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+        geo.setAttribute('velocity', new THREE.BufferAttribute(vel,3));
+        geo.setAttribute('life', new THREE.BufferAttribute(life,1));
+
+        const mat = new THREE.PointsMaterial({ color:0xbcd6ff, size:0.12, transparent:true, opacity:0.95 });
+        this.points = new THREE.Points(geo, mat);
+        this.group.add(this.points);
+
+        this.active = false;
+        this._t = 0;
+      }
+
+      start(){
+        this.group.visible = true;
+        this.active = true;
+        this._t = 0;
+
+        const g = this.points.geometry;
+        const pos = g.getAttribute('position');
+        const vel = g.getAttribute('velocity');
+        const life = g.getAttribute('life');
+
+        for(let i=0;i<life.count;i++){
+          pos.setXYZ(i, (Math.random()-0.5)*2, 1.6 + Math.random()*1.4, (Math.random()-0.5)*2);
+          const sp = 3.2 + Math.random()*5.2;
+          const theta = Math.random()*Math.PI*2;
+          const phi = Math.acos(2*Math.random()-1);
+          vel.setXYZ(i,
+            sp*Math.sin(phi)*Math.cos(theta),
+            sp*Math.cos(phi),
+            sp*Math.sin(phi)*Math.sin(theta)
+          );
+          life.setX(i, 0.8 + Math.random()*1.6);
+        }
+        pos.needsUpdate = vel.needsUpdate = life.needsUpdate = true;
+      }
+
+      stop(){
+        this.active = false;
+        this.group.visible = false;
+      }
+
+      update(dt){
+        if(!this.active) return;
+        this._t += dt;
+
+        const g = this.points.geometry;
+        const pos = g.getAttribute('position');
+        const vel = g.getAttribute('velocity');
+        const life = g.getAttribute('life');
+
+        let alive = 0;
+        for(let i=0;i<life.count;i++){
+          let l = life.getX(i);
+          if(l<=0) continue;
+
+          alive++;
+          l -= dt;
+          life.setX(i, l);
+
+          const vx = vel.getX(i);
+          const vy = vel.getY(i) - 5.5*dt; // gravity
+          const vz = vel.getZ(i);
+
+          vel.setXYZ(i, vx*0.992, vy*0.992, vz*0.992);
+
+          pos.setXYZ(i,
+            pos.getX(i) + vx*dt,
+            pos.getY(i) + vy*dt,
+            pos.getZ(i) + vz*dt
+          );
+        }
+        pos.needsUpdate = vel.needsUpdate = life.needsUpdate = true;
+
+        if(alive===0 || this._t>3.2) this.stop();
+      }
+    }
+
+    const fireworks = new Fireworks(scene);
+
+    // =========================
+    // UI (Mission Log, Pills)
+    // =========================
+    const elLog = document.getElementById('log');
+    const turnPill = document.getElementById('turnPill');
+    const leaderPill = document.getElementById('leaderPill');
+    const dicePill = document.getElementById('dicePill');
+    const phasePill = document.getElementById('phasePill');
+    const hint = document.getElementById('hint');
+
+    function addLog(colorName, colorHex, title, detail){
+      const item = document.createElement('div');
+      item.className = 'logItem';
+      item.innerHTML = `
+        <div class="tag">
+          <span class="dot" style="background:${colorHex}"></span>
+          <span>${title}</span>
+        </div>
+        <div class="small">${detail}</div>
+      `;
+      elLog.prepend(item);
+
+      // cap log
+      while(elLog.children.length>25) elLog.removeChild(elLog.lastChild);
+    }
+
+    function setLeaderText(name, hex, score){
+      leaderPill.textContent = `Leader: ${name} (${score})`;
+      leaderPill.style.boxShadow = `0 0 18px rgba(140,180,255,.25), 0 0 32px ${hex}33`;
+    }
+
+    // =========================
+    // Game State / Rules
+    // =========================
+    class Game {
+      constructor(scene, board, dice, camCtl){
+        this.scene = scene;
+        this.board = board;
+        this.dice = dice;
+        this.camCtl = camCtl;
+
+        this.colors = [
+          { name:'Red',    key:'red',    hex:'#ff5a7a' },
+          { name:'Blue',   key:'blue',   hex:'#54a3ff' },
+          { name:'Yellow', key:'yellow', hex:'#ffe36b' },
+          { name:'Green',  key:'green',  hex:'#5dffb0' },
+        ];
+
+        this.tokensByColor = {};
+        this.allTokens = [];
+        for(const c of this.colors){
+          this.tokensByColor[c.key] = [];
+          for(let i=0;i<4;i++){
+            const t = new Token(scene, board, c.key, i, c.hex);
+            this.tokensByColor[c.key].push(t);
+            this.allTokens.push(t);
+          }
+        }
+
+        this.turnIndex = 0;
+        this.phase = 'await_roll'; // await_roll | await_move | animating | game_over
+        this.lastRoll = null;
+        this.selectedToken = null;
+
+        // simple pointer picking to choose token
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+        canvas.addEventListener('pointerdown', (e)=>this.onPointer(e));
+        canvas.addEventListener('pointermove', (e)=>this.onPointerMove(e));
+
+        this.updateUI();
+      }
+
+      currentPlayer(){ return this.colors[this.turnIndex]; }
+
+      reset(){
+        // reset tokens
+        for(const t of this.allTokens){
+          t.state='yard';
+          t.mainIndex=null;
+          t.stepsFromStart=0;
+          t.homeStep=0;
+          t.finished=false;
+          t.setToBoardPos();
+        }
+        this.turnIndex = 0;
+        this.phase = 'await_roll';
+        this.lastRoll = null;
+        this.selectedToken = null;
+
+        elLog.innerHTML = '';
+        addLog('system', '#cfe6ff', 'Mission Start', 'All crews ready. Roll to begin.');
+        this.updateUI();
+      }
+
+      updateUI(){
+        const p = this.currentPlayer();
+        turnPill.textContent = `Turn: ${p.name}`;
+        turnPill.style.boxShadow = `0 0 22px ${p.hex}33, 0 0 42px rgba(140,180,255,.18)`;
+        dicePill.textContent = `Dice: ${this.lastRoll ?? '—'}`;
+        phasePill.textContent = `Phase: ${this.phase.replace('_',' ')}`;
+
+        // Leader = most finished tokens, then farthest progress sum
+        const scores = this.colors.map(c=>{
+          const arr = this.tokensByColor[c.key];
+          const finishedCount = arr.filter(t=>t.state==='finished').length;
+          const progress = arr.reduce((s,t)=>{
+            if(t.state==='yard') return s;
+            if(t.state==='main') return s + 5 + t.stepsFromStart;
+            if(t.state==='home') return s + 60 + t.homeStep;
+            if(t.state==='finished') return s + 70;
+            return s;
+          },0);
+          return { c, finishedCount, progress, score: finishedCount*1000 + progress };
+        }).sort((a,b)=>b.score-a.score)[0];
+
+        setLeaderText(scores.c.name, scores.c.hex, scores.finishedCount+'/4');
+
+        // Hint line
+        if(this.phase==='await_roll') hint.textContent = 'Roll the die in the center.';
+        else if(this.phase==='await_move') hint.textContent = 'Click one of your tokens to move.';
+        else if(this.phase==='animating') hint.textContent = 'Moving…';
+        else if(this.phase==='game_over') hint.textContent = 'Game over.';
+
+        this.updateActiveIndicators();
+      }
+
+      updateActiveIndicators(){
+        const activeKey = this.currentPlayer().key;
+        const canHighlight = this.phase!=='game_over';
+        for(const t of this.allTokens){
+          const isActive = canHighlight && t.color===activeKey && (this.phase==='await_roll' || this.phase==='await_move');
+          if(t.halo && t.halo.material){
+            t.halo.material.opacity = isActive ? 0.52 : 0.18;
+            const s = isActive ? 1.25 : 1.0;
+            t.halo.scale.set(s,s,1);
+          }
+          if(t.mesh && t.mesh.material){
+            t.mesh.material.emissiveIntensity = isActive ? 0.85 : 0.55;
+          }
+        }
+      }
+
+      // Find if square has blockade: 2+ same-color tokens on same main index (or home doesn't block in this simplified version)
+      blockadeAtMainIndex(mainIndex){
+        const map = new Map(); // color -> count
+        for(const t of this.allTokens){
+          if(t.state==='main' && t.mainIndex===mainIndex){
+            map.set(t.color, (map.get(t.color)||0)+1);
+          }
+        }
+        for(const [color,count] of map.entries()){
+          if(count>=2) return { color, count };
+        }
+        return null;
+      }
+
+      tokensAtMainIndex(mainIndex){
+        return this.allTokens.filter(t=>t.state==='main' && t.mainIndex===mainIndex);
+      }
+
+      isBlockedAlongPath(startIndex, steps, moverColor){
+        // If any intermediate square has a blockade (any color), mover cannot pass through it.
+        // Classic rule: blockades block everyone (including other colors); we’ll keep it strict.
+        for(let s=1; s<=steps; s++){
+          const idx = (startIndex + s) % 52;
+          const b = this.blockadeAtMainIndex(idx);
+          if(b && !(b.color===moverColor && s===steps)) {
+            // if landing on your own blockade square is fine, passing it isn't; treat landing allowed if it's your own and final.
+            return { blocked:true, at:idx, by:b.color };
+          }
+          if(b && b.color!==moverColor) return { blocked:true, at:idx, by:b.color };
+        }
+        return { blocked:false };
+      }
+
+      canMoveToken(token, roll){
+        const player = this.currentPlayer();
+        if(token.color !== player.key) return { ok:false, why:'Not your token.' };
+        if(this.phase !== 'await_move') return { ok:false, why:'Not time to move.' };
+
+        if(token.state==='yard'){
+          if(roll!==6) return { ok:false, why:'Need a 6 to launch from Yard.' };
+          // start square must not be blocked by opponent blockade
+          const startIdx = this.board.startIndex[token.color];
+          const b = this.blockadeAtMainIndex(startIdx);
+          if(b && b.color !== token.color) return { ok:false, why:'Start square is blockaded.' };
+          return { ok:true };
+        }
+
+        if(token.state==='main'){
+          // entering home lane if crossing entry point after completing loop
+          const stepsFromStart = token.stepsFromStart + roll;
+          // if would exceed into home beyond finish
+          if(stepsFromStart > 51 + 6) return { ok:false, why:'Must land exactly in Home.' };
+
+          // if still on main track
+          if(stepsFromStart <= 51){
+            const blocked = this.isBlockedAlongPath(token.mainIndex, roll, token.color);
+            if(blocked.blocked) return { ok:false, why:`Blocked by ${blocked.by} blockade.` };
+            return { ok:true };
+          } else {
+            // moving into home lane
+            // we also ensure no blockade on entry square prevents passing
+            const toEntrySteps = (this.board.entryIndex[token.color] - token.mainIndex + 52) % 52;
+            if(toEntrySteps < roll){
+              // you pass the entry square; check blockades up to entry inclusive
+              const blocked = this.isBlockedAlongPath(token.mainIndex, toEntrySteps, token.color);
+              if(blocked.blocked) return { ok:false, why:`Blocked by ${blocked.by} blockade.` };
+              return { ok:true };
+            }
+            return { ok:true };
+          }
+        }
+
+        if(token.state==='home'){
+          const next = token.homeStep + roll;
+          if(next > 6) return { ok:false, why:'Must land exactly on Finish.' };
+          return { ok:true };
+        }
+
+        return { ok:false, why:'Token already finished.' };
+      }
+
+      async rollDice(){
+        if(this.phase!=='await_roll') return;
+        this.phase = 'animating';
+        this.lastRoll = null;
+        this.camCtl.pullBackForRoll();
+        this.updateUI();
+
+        const p = this.currentPlayer();
+        addLog(p.name, p.hex, `${p.name} rolling…`, `Die is rolling in the center.`);
+        const n = await this.dice.roll();
+        this.lastRoll = n;
+
+        addLog(p.name, p.hex, `${p.name} rolled ${n}`, `Choose a token to move (${n} steps).`);
+        this.phase = 'await_move';
+        this.updateUI();
+
+        // If no legal moves, auto-skip.
+        const hasMove = this.getMovableTokens(n).length>0;
+        if(!hasMove){
+          addLog(p.name, p.hex, `${p.name} has no moves`, `Turn skipped.`);
+          await this.endTurn(false);
+        }
+      }
+
+      getMovableTokens(roll){
+        const player = this.currentPlayer();
+        return this.tokensByColor[player.key].filter(t=>this.canMoveToken(t, roll).ok);
+      }
+
+      async moveToken(token){
+        const roll = this.lastRoll;
+        const player = this.currentPlayer();
+        const check = this.canMoveToken(token, roll);
+        if(!check.ok){
+          addLog(player.name, player.hex, `Move denied`, check.why);
+          return;
+        }
+
+        this.phase = 'animating';
+        this.updateUI();
+
+        // Build path positions for bounce animation (world positions per step)
+        const path = [];
+
+        const startIdx = this.board.startIndex[token.color];
+        const entryIdx = this.board.entryIndex[token.color];
+
+        if(token.state==='yard'){
+          // Launch to start square
+          token.state='main';
+          token.mainIndex = startIdx;
+          token.stepsFromStart = 0;
+          path.push(this.board.worldPosForMainIndex(startIdx));
+          await token.bounceMove(path, this.camCtl);
+
+          addLog(player.name, player.hex, `${player.name} launched`, `Token #${token.id+1} enters orbit.`);
+          // extra turn on 6
+          await this.afterMove(token, { extraTurn:true });
+          return;
+        }
+
+        if(token.state==='main'){
+          const oldIdx = token.mainIndex;
+
+          // Determine if entering home lane
+          const newStepsFromStart = token.stepsFromStart + roll;
+
+          if(newStepsFromStart <= 51){
+            // stay in main track
+            for(let s=1;s<=roll;s++){
+              const idx = (oldIdx + s) % 52;
+              path.push(this.board.worldPosForMainIndex(idx));
+            }
+            token.mainIndex = (oldIdx + roll) % 52;
+            token.stepsFromStart = newStepsFromStart;
+
+            await token.bounceMove(path, this.camCtl);
+            addLog(player.name, player.hex, `${player.name} moved`, `Token #${token.id+1} advanced ${roll}.`);
+
+            const captured = this.tryCapture(token);
+            await this.afterMove(token, { extraTurn:(roll===6), captured });
+            return;
+          } else {
+            // move remaining on main until turning into home
+            const stepsToEntry = (entryIdx - oldIdx + 52) % 52;
+            for(let s=1;s<=stepsToEntry;s++){
+              const idx = (oldIdx + s) % 52;
+              path.push(this.board.worldPosForMainIndex(idx));
+            }
+            // then into home lane
+            const intoHome = newStepsFromStart - 51; // 1..6
+            for(let hs=1;hs<=intoHome;hs++){
+              path.push(this.board.homeLanes[token.color][hs-1]);
+            }
+
+            // update token state
+            token.stepsFromStart = newStepsFromStart;
+            token.state = 'home';
+            token.mainIndex = null;
+            token.homeStep = intoHome;
+
+            await token.bounceMove(path, this.camCtl);
+            addLog(player.name, player.hex, `${player.name} entered Home Lane`, `Token #${token.id+1} is on step ${token.homeStep}/6.`);
+
+            await this.afterMove(token, { extraTurn:(roll===6) });
+            return;
+          }
+        }
+
+        if(token.state==='home'){
+          const old = token.homeStep;
+          const next = old + roll;
+          for(let hs=old+1; hs<=next; hs++){
+            path.push(this.board.homeLanes[token.color][hs-1]);
+          }
+          token.homeStep = next;
+          if(token.homeStep===6){
+            token.state='finished';
+            token.finished = true;
+          }
+
+          await token.bounceMove(path, this.camCtl);
+
+          if(token.state==='finished'){
+            addLog(player.name, player.hex, `${player.name} finished a token`, `Token #${token.id+1} reached the core!`);
+            this.checkWin(player.key);
+          } else {
+            addLog(player.name, player.hex, `${player.name} moved in Home`, `Token #${token.id+1} is on step ${token.homeStep}/6.`);
+          }
+
+          await this.afterMove(token, { extraTurn:(roll===6) });
+        }
+      }
+
+      tryCapture(mover){
+        // capture only in main track
+        if(mover.state!=='main') return false;
+
+        const idx = mover.mainIndex;
+        if(this.board.isSafeMainIndex(idx)) return false;
+
+        // If mover is on a blockade square of someone else, should have been blocked earlier.
+        // Capture: any opponent tokens on same square, unless they form blockade.
+        const occupants = this.tokensAtMainIndex(idx).filter(t=>t!==mover);
+        if(occupants.length===0) return false;
+
+        // If any occupant is same color, it's stacking (possible blockade). No capture.
+        if(occupants.some(t=>t.color===mover.color)) return false;
+
+        // If opponent has blockade (2 tokens) they'd block landing; but we prevented passing, not landing.
+        // We'll treat opponent blockade as "cannot land". If it happens, deny capture & revert (but we prevented earlier).
+        const b = this.blockadeAtMainIndex(idx);
+        if(b && b.color!==mover.color) return false;
+
+        // Capture all opponents on this square (common simplified rule captures single token; we’ll send all present)
+        for(const t of occupants){
+          t.state='yard';
+          t.mainIndex=null;
+          t.stepsFromStart=0;
+          t.homeStep=0;
+          t.setToBoardPos();
+          addLog(this.currentPlayer().name, this.currentPlayer().hex, `Capture!`, `Sent ${t.color.toUpperCase()} token #${t.id+1} back to Yard.`);
+        }
+        return true;
+      }
+
+      checkWin(colorKey){
+        const allFinished = this.tokensByColor[colorKey].every(t=>t.state==='finished');
+        if(!allFinished) return false;
+
+        this.phase = 'game_over';
+        this.updateUI();
+
+        // fireworks
+        fireworks.start();
+
+        // win overlay
+        const winner = this.colors.find(c=>c.key===colorKey);
+        document.getElementById('winTitle').textContent = `${winner.name} Victory!`;
+        document.getElementById('winText').textContent = `Crew ${winner.name} completed the full mission with all 4 tokens.`;
+        const overlay = document.getElementById('winOverlay');
+        overlay.style.display = 'flex';
+
+        addLog(winner.name, winner.hex, `MISSION COMPLETE`, `${winner.name} wins!`);
+        return true;
+      }
+
+      async afterMove(token, { extraTurn=false, captured=false } = {}){
+        // Small camera settle
+        await new Promise(r=>setTimeout(r, 120));
+        this.camCtl.pullBackForRoll();
+
+        // Decide turn
+        if(this.phase==='game_over') return;
+
+        if(extraTurn){
+          addLog(this.currentPlayer().name, this.currentPlayer().hex, `Extra turn`, `Rolled a 6 — roll again.`);
+          this.phase = 'await_roll';
+          this.lastRoll = null;
+          this.updateUI();
+          return;
+        }
+
+        // (Optional variant) extra on capture — if you want, uncomment:
+        // if(captured){ ... }
+
+        await this.endTurn(true);
+      }
+
+      async endTurn(advance=true){
+        this.phase = 'await_roll';
+        this.lastRoll = null;
+        if(advance) this.turnIndex = (this.turnIndex + 1) % this.colors.length;
+        this.updateUI();
+      }
+
+      onPointer(e){
+        const rect = canvas.getBoundingClientRect();
+        this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+
+        this.raycaster.setFromCamera(this.mouse, camera);
+        const hits = this.raycaster.intersectObjects([...this.allTokens.map(t=>t.mesh), this.dice.mesh, this.dice.ring], true);
+        if(!hits.length) return;
+
+        const mesh = hits[0].object;
+
+        if(mesh.userData.isDice && this.phase==='await_roll'){
+          this.rollDice();
+          return;
+        }
+
+        if(this.phase!=='await_move') return;
+
+        const token = mesh.userData.token || (mesh.parent && mesh.parent.userData.token);
+        if(token){
+          this.moveToken(token);
+        }
+      }
+
+      onPointerMove(e){
+        const rect = canvas.getBoundingClientRect();
+        this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+
+        this.raycaster.setFromCamera(this.mouse, camera);
+        const hits = this.raycaster.intersectObjects([this.dice.mesh, this.dice.ring], true);
+        const hoveringDice = hits.some(h=>h.object.userData.isDice || (h.object.parent && h.object.parent.userData.isDice));
+        canvas.style.cursor = (hoveringDice && this.phase==='await_roll') ? 'pointer' : 'default';
+      }
+    }
+
+    const game = new Game(scene, board, dice, camCtl);
+
+    // =========================
+    // Buttons / Overlay
+    // =========================
+    const btnRoll = document.getElementById('btnRoll');
+    const btnReset = document.getElementById('btnReset');
+    const btnPlayAgain = document.getElementById('btnPlayAgain');
+    const btnMusic = document.getElementById('btnMusic');
+
+    btnRoll.addEventListener('click', () => game.rollDice());
+    btnReset.addEventListener('click', () => {
+      document.getElementById('winOverlay').style.display = 'none';
+      fireworks.stop();
+      game.reset();
+    });
+    btnPlayAgain.addEventListener('click', () => {
+      document.getElementById('winOverlay').style.display = 'none';
+      fireworks.stop();
+      game.reset();
+    });
+    btnMusic.addEventListener('click', () => {
+      const on = music.toggle();
+      btnMusic.textContent = on ? 'Music On' : 'Music Off';
+    });
+
+    // Kickoff log
+    game.reset();
+
+    // =========================
+    // Render Loop
+    // =========================
+    let last = now();
+    function animate(){
+      const t = now();
+      const dt = clamp((t-last)/1000, 0, 0.04);
+      last = t;
+
+      solar.update(t);
+      camCtl.update(dt);
+      fireworks.update(dt);
+
+      // slight board breathe
+      board.group.rotation.y = Math.sin(t*0.00025) * 0.04;
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // Expose tiny debug handles (optional)
+    window.SpaceLudo = { game, board, dice };
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ludo Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+        }
+        #diceButton {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+        #diceButton:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        #diceButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #diceResult {
+            font-size: 48px;
+            margin: 10px 0;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .player-info {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.1);
+        }
+        .current-player {
+            background: rgba(255,255,255,0.3);
+            border: 2px solid white;
+        }
+        #rules {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 350px;
+            font-size: 14px;
+        }
+        #rules h3 {
+            margin-bottom: 10px;
+            color: #f093fb;
+        }
+        #rules ul {
+            margin-left: 20px;
+        }
+        #rules li {
+            margin: 5px 0;
+        }
+        #message {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            display: none;
+        }
+        #winnerModal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            border: 3px solid gold;
+        }
+        #winnerModal h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: gold;
+        }
+        #restartButton {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            color: white;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameCanvas"></div>
+    
+    <div id="ui">
+        <h2>🎲 3D Ludo Game</h2>
+        <div id="playersList"></div>
+        <button id="diceButton">Roll Dice</button>
+        <div id="diceResult"></div>
+        <div id="turnInfo"></div>
+    </div>
+
+    <div id="rules">
+        <h3>📜 Game Rules</h3>
+        <ul>
+            <li>2-4 players, each with 4 tokens</li>
+            <li>Roll a 6 to bring tokens out</li>
+            <li>Rolling 6 gives another turn</li>
+            <li>Landing on opponent captures their token</li>
+            <li>Safe squares (★) protect tokens</li>
+            <li>Two same-color tokens form a block</li>
+            <li>Three 6s in a row = lose turn</li>
+            <li>First to get all 4 tokens home wins!</li>
+        </ul>
+    </div>
+
+    <div id="message"></div>
+    <div id="winnerModal">
+        <h2>🏆 Winner! 🏆</h2>
+        <p id="winnerText"></p>
+        <button id="restartButton">Play Again</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game State
+        const gameState = {
+            players: [
+                { id: 0, color: 0xFFEB3B, name: 'Yellow', tokens: [], tokensHome: 0 },
+                { id: 1, color: 0x4CAF50, name: 'Green', tokens: [], tokensHome: 0 },
+                { id: 2, color: 0x2196F3, name: 'Blue', tokens: [], tokensHome: 0 },
+                { id: 3, color: 0xF44336, name: 'Red', tokens: [], tokensHome: 0 }
+            ],
+            currentPlayer: 0,
+            diceValue: 0,
+            consecutiveSixes: 0,
+            selectedToken: null,
+            gameStarted: false,
+            winner: null
+        };
+
+        // Board configuration
+        const boardSize = 15;
+        const startPositions = [
+            { x: 1, y: 6 }, // Yellow
+            { x: 8, y: 1 }, // Green
+            { x: 13, y: 8 }, // Blue
+            { x: 6, y: 13 }  // Red
+        ];
+
+        const homePositions = [
+            [{ x: 2, y: 2 }, { x: 4, y: 2 }, { x: 2, y: 4 }, { x: 4, y: 4 }], // Yellow
+            [{ x: 10, y: 2 }, { x: 12, y: 2 }, { x: 10, y: 4 }, { x: 12, y: 4 }], // Green
+            [{ x: 10, y: 10 }, { x: 12, y: 10 }, { x: 10, y: 12 }, { x: 12, y: 12 }], // Blue
+            [{ x: 2, y: 10 }, { x: 4, y: 10 }, { x: 2, y: 12 }, { x: 4, y: 12 }]  // Red
+        ];
+
+        // Path coordinates for each color (clockwise movement)
+        const paths = generatePaths();
+        const safeSquares = [0, 8, 13, 21, 26, 34, 39, 47]; // Safe positions on main path
+
+        function generatePaths() {
+            const mainPath = [
+                // Yellow start
+                { x: 1, y: 6 }, { x: 2, y: 6 }, { x: 3, y: 6 }, { x: 4, y: 6 }, { x: 5, y: 6 },
+                { x: 6, y: 5 }, { x: 6, y: 4 }, { x: 6, y: 3 }, { x: 6, y: 2 }, { x: 6, y: 1 },
+                { x: 6, y: 0 }, { x: 7, y: 0 }, { x: 8, y: 0 },
+                // Green start
+                { x: 8, y: 1 }, { x: 8, y: 2 }, { x: 8, y: 3 }, { x: 8, y: 4 }, { x: 8, y: 5 },
+                { x: 9, y: 6 }, { x: 10, y: 6 }, { x: 11, y: 6 }, { x: 12, y: 6 }, { x: 13, y: 6 },
+                { x: 14, y: 6 }, { x: 14, y: 7 }, { x: 14, y: 8 },
+                // Blue start
+                { x: 13, y: 8 }, { x: 12, y: 8 }, { x: 11, y: 8 }, { x: 10, y: 8 }, { x: 9, y: 8 },
+                { x: 8, y: 9 }, { x: 8, y: 10 }, { x: 8, y: 11 }, { x: 8, y: 12 }, { x: 8, y: 13 },
+                { x: 8, y: 14 }, { x: 7, y: 14 }, { x: 6, y: 14 },
+                // Red start
+                { x: 6, y: 13 }, { x: 6, y: 12 }, { x: 6, y: 11 }, { x: 6, y: 10 }, { x: 6, y: 9 },
+                { x: 5, y: 8 }, { x: 4, y: 8 }, { x: 3, y: 8 }, { x: 2, y: 8 }, { x: 1, y: 8 },
+                { x: 0, y: 8 }, { x: 0, y: 7 }
+            ];
+
+            const homePaths = [
+                [{ x: 1, y: 7 }, { x: 2, y: 7 }, { x: 3, y: 7 }, { x: 4, y: 7 }, { x: 5, y: 7 }, { x: 6, y: 7 }], // Yellow
+                [{ x: 7, y: 1 }, { x: 7, y: 2 }, { x: 7, y: 3 }, { x: 7, y: 4 }, { x: 7, y: 5 }, { x: 7, y: 6 }], // Green
+                [{ x: 13, y: 7 }, { x: 12, y: 7 }, { x: 11, y: 7 }, { x: 10, y: 7 }, { x: 9, y: 7 }, { x: 8, y: 7 }], // Blue
+                [{ x: 7, y: 13 }, { x: 7, y: 12 }, { x: 7, y: 11 }, { x: 7, y: 10 }, { x: 7, y: 9 }, { x: 7, y: 8 }]  // Red
+            ];
+
+            return { main: mainPath, home: homePaths };
+        }
+
+        // Three.js setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(7.5, 20, 7.5);
+        camera.lookAt(7.5, 0, 7.5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('gameCanvas').appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        scene.add(directionalLight);
+
+        // Create board
+        function createBoard() {
+            const boardGroup = new THREE.Group();
+
+            // Base platform
+            const baseGeometry = new THREE.BoxGeometry(15.5, 0.3, 15.5);
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x2c2c54 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.set(7.5, -0.15, 7.5);
+            base.receiveShadow = true;
+            boardGroup.add(base);
+
+            // Create squares
+            for (let x = 0; x < boardSize; x++) {
+                for (let y = 0; y < boardSize; y++) {
+                    const squareGeometry = new THREE.BoxGeometry(0.9, 0.1, 0.9);
+                    let color = 0xeeeeee;
+
+                    // Home areas
+                    if (x >= 1 && x <= 5 && y >= 1 && y <= 5) color = 0xFFEB3B; // Yellow
+                    else if (x >= 9 && x <= 13 && y >= 1 && y <= 5) color = 0x4CAF50; // Green
+                    else if (x >= 9 && x <= 13 && y >= 9 && y <= 13) color = 0x2196F3; // Blue
+                    else if (x >= 1 && x <= 5 && y >= 9 && y <= 13) color = 0xF44336; // Red
+                    // Main path
+                    else if (x === 6 || x === 8 || y === 6 || y === 8) color = 0xffffff;
+                    // Home columns
+                    else if (x === 7) color = getHomeColumnColor(y);
+                    else if (y === 7) color = getHomeColumnColor(x);
+
+                    const squareMaterial = new THREE.MeshStandardMaterial({ color });
+                    const square = new THREE.Mesh(squareGeometry, squareMaterial);
+                    square.position.set(x, 0.05, y);
+                    square.receiveShadow = true;
+                    boardGroup.add(square);
+
+                    // Add star markers for safe squares
+                    const pathPos = paths.main.findIndex(p => p.x === x && p.y === y);
+                    if (pathPos !== -1 && safeSquares.includes(pathPos)) {
+                        const starGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 5);
+                        const starMaterial = new THREE.MeshStandardMaterial({ color: 0xFFD700 });
+                        const star = new THREE.Mesh(starGeometry, starMaterial);
+                        star.position.set(x, 0.15, y);
+                        star.rotation.x = Math.PI / 2;
+                        boardGroup.add(star);
+                    }
+                }
+            }
+
+            scene.add(boardGroup);
+        }
+
+        function getHomeColumnColor(pos) {
+            if (pos >= 1 && pos <= 6) return 0xFFEB3B; // Yellow
+            if (pos >= 9 && pos <= 13) return 0xF44336; // Red
+            return 0xffffff;
+        }
+
+        // Create tokens
+        function createTokens() {
+            gameState.players.forEach((player, playerIndex) => {
+                for (let i = 0; i < 4; i++) {
+                    const geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.4, 32);
+                    const material = new THREE.MeshStandardMaterial({ color: player.color });
+                    const token = new THREE.Mesh(geometry, material);
+                    
+                    const homePos = homePositions[playerIndex][i];
+                    token.position.set(homePos.x, 0.4, homePos.y);
+                    token.castShadow = true;
+                    
+                    token.userData = {
+                        playerId: playerIndex,
+                        tokenId: i,
+                        position: -1,
+                        inHome: true,
+                        inHomeColumn: false,
+                        homeColumnPosition: -1
+                    };
+                    
+                    scene.add(token);
+                    player.tokens.push(token);
+                }
+            });
+        }
+
+        // Raycaster for token selection
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function onMouseClick(event) {
+            if (gameState.winner || gameState.diceValue === 0) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            
+            const currentPlayer = gameState.players[gameState.currentPlayer];
+            const intersects = raycaster.intersectObjects(currentPlayer.tokens);
+
+            if (intersects.length > 0) {
+                const token = intersects[0].object;
+                if (canMoveToken(token, gameState.diceValue)) {
+                    moveToken(token, gameState.diceValue);
+                } else {
+                    showMessage("Cannot move this token!");
+                }
+            }
+        }
+
+        function canMoveToken(token, steps) {
+            const data = token.userData;
+            
+            if (data.inHome && steps !== 6) return false;
+            if (data.inHomeColumn) {
+                const newPos = data.homeColumnPosition + steps;
+                return newPos <= 6;
+            }
+            return true;
+        }
+
+        function moveToken(token, steps) {
+            const data = token.userData;
+            const player = gameState.players[data.playerId];
+
+            if (data.inHome) {
+                // Bring token out
+                data.inHome = false;
+                data.position = 0;
+                const startPos = getAdjustedStartPosition(data.playerId);
+                animateTokenMove(token, startPos.x, startPos.y);
+                checkCapture(token);
+            } else if (data.inHomeColumn) {
+                // Move in home column
+                const newPos = data.homeColumnPosition + steps;
+                if (newPos === 6) {
+                    // Token reaches home
+                    data.homeColumnPosition = 6;
+                    animateTokenMove(token, 7, 7);
+                    player.tokensHome++;
+                    
+                    setTimeout(() => {
+                        scene.remove(token);
+                        if (player.tokensHome === 4) {
+                            gameState.winner = player;
+                            showWinner(player);
+                        }
+                    }, 500);
+                } else if (newPos < 6) {
+                    data.homeColumnPosition = newPos;
+                    const pos = paths.home[data.playerId][newPos];
+                    animateTokenMove(token, pos.x, pos.y);
+                }
+            } else {
+                // Move on main path
+                const newPosition = data.position + steps;
+                const homeEntryPoint = getHomeEntryPoint(data.playerId);
+                
+                if (newPosition >= homeEntryPoint) {
+                    // Enter home column
+                    data.inHomeColumn = true;
+                    data.homeColumnPosition = newPosition - homeEntryPoint;
+                    const pos = paths.home[data.playerId][data.homeColumnPosition];
+                    animateTokenMove(token, pos.x, pos.y);
+                } else {
+                    data.position = newPosition % paths.main.length;
+                    const pos = paths.main[data.position];
+                    animateTokenMove(token, pos.x, pos.y);
+                    checkCapture(token);
+                }
+            }
+
+            gameState.diceValue = 0;
+            
+            setTimeout(() => {
+                if (gameState.consecutiveSixes < 3 && steps === 6 && !gameState.winner) {
+                    showMessage("Roll again!");
+                    updateUI();
+                } else {
+                    nextTurn();
+                }
+            }, 600);
+        }
+
+        function getAdjustedStartPosition(playerId) {
+            const offset = playerId * 13;
+            const pos = paths.main[offset % paths.main.length];
+            return pos;
+        }
+
+        function getHomeEntryPoint(playerId) {
+            return 51 - (playerId * 13);
+        }
+
+        function checkCapture(token) {
+            const data = token.userData;
+            const pos = paths.main[data.position];
+            
+            if (safeSquares.includes(data.position)) return;
+
+            gameState.players.forEach((player, playerIndex) => {
+                if (playerIndex === data.playerId) return;
+                
+                player.tokens.forEach(otherToken => {
+                    const otherData = otherToken.userData;
+                    if (!otherData.inHome && !otherData.inHomeColumn && otherData.position === data.position) {
+                        // Capture!
+                        sendTokenHome(otherToken);
+                        showMessage(`${gameState.players[data.playerId].name} captured ${player.name}!`);
+                    }
+                });
+            });
+        }
+
+        function sendTokenHome(token) {
+            const data = token.userData;
+            data.inHome = true;
+            data.position = -1;
+            data.inHomeColumn = false;
+            data.homeColumnPosition = -1;
+            
+            const homePos = homePositions[data.playerId][data.tokenId];
+            animateTokenMove(token, homePos.x, homePos.y);
+        }
+
+        function animateTokenMove(token, targetX, targetZ) {
+            const startX = token.position.x;
+            const startZ = token.position.z;
+            const duration = 500;
+            const startTime = Date.now();
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                token.position.x = startX + (targetX - startX) * eased;
+                token.position.z = startZ + (targetZ - startZ) * eased;
+                token.position.y = 0.4 + Math.sin(progress * Math.PI) * 0.5;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            }
+            animate();
+        }
+
+        function rollDice() {
+            if (gameState.winner) return;
+            
+            const value = Math.floor(Math.random() * 6) + 1;
+            gameState.diceValue = value;
+            
+            document.getElementById('diceResult').textContent = `🎲 ${value}`;
+            document.getElementById('diceButton').disabled = true;
+
+            if (value === 6) {
+                gameState.consecutiveSixes++;
+                if (gameState.consecutiveSixes === 3) {
+                    showMessage("Three 6s! Turn lost!");
+                    gameState.consecutiveSixes = 0;
+                    setTimeout(nextTurn, 2000);
+                    return;
+                }
+            } else {
+                gameState.consecutiveSixes = 0;
+            }
+
+            const currentPlayer = gameState.players[gameState.currentPlayer];
+            const movableTokens = currentPlayer.tokens.filter(t => canMoveToken(t, value));
+            
+            if (movableTokens.length === 0) {
+                showMessage("No valid moves!");
+                setTimeout(nextTurn, 1500);
+            } else {
+                showMessage("Select a token to move");
+            }
+
+            updateUI();
+        }
+
+        function nextTurn() {
+            gameState.currentPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
+            gameState.diceValue = 0;
+            gameState.consecutiveSixes = 0;
+            document.getElementById('diceButton').disabled = false;
+            document.getElementById('diceResult').textContent = '';
+            updateUI();
+        }
+
+        function updateUI() {
+            const playersList = document.getElementById('playersList');
+            playersList.innerHTML = '';
+            
+            gameState.players.forEach((player, index) => {
+                const div = document.createElement('div');
+                div.className = 'player-info';
+                if (index === gameState.currentPlayer) {
+                    div.classList.add('current-player');
+                }
+                div.innerHTML = `
+                    <strong>${player.name}</strong><br>
+                    Home: ${player.tokensHome}/4
+                `;
+                div.style.borderLeft = `5px solid #${player.color.toString(16).padStart(6, '0')}`;
+                playersList.appendChild(div);
+            });
+
+            const turnInfo = document.getElementById('turnInfo');
+            turnInfo.innerHTML = `<strong>Current:</strong> ${gameState.players[gameState.currentPlayer].name}`;
+        }
+
+        function showMessage(text) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.style.display = 'block';
+            setTimeout(() => {
+                msg.style.display = 'none';
+            }, 2000);
+        }
+
+        function showWinner(player) {
+            document.getElementById('winnerText').textContent = `${player.name} wins the game!`;
+            document.getElementById('winnerModal').style.display = 'block';
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+
+        // Event listeners
+        document.getElementById('diceButton').addEventListener('click', rollDice);
+        document.getElementById('restartButton').addEventListener('click', restartGame);
+        window.addEventListener('click', onMouseClick);
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        // Initialize game
+        createBoard();
+        createTokens();
+        updateUI();
+        animate();
+    </script>
+</body>
+</html>

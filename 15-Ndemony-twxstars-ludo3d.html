@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Naija Ludo 3D - Ultimate</title>
+    <style>
+        :root {
+            --glass: rgba(5, 5, 5, 0.9);
+            --gold: #ffd700;
+            --font: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: var(--font);
+            user-select: none;
+            color: #fff;
+        }
+
+        #game-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+            display: none;
+            flex-direction: column;
+            flex-direction: column;
+            justify-content: flex-start;
+            /* STACK AT TOP */
+            gap: 20px;
+            /* Space between Header and Controls */
+            padding: 20px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--glass);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 12px;
+            padding: 10px 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .p-badge {
+            padding: 5px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: 0.3s;
+        }
+
+        .active-turn {
+            border: 1px solid currentColor;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        #controls {
+            align-self: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            gap: 20px;
+            margin-bottom: 0px;
+            /* No longer at bottom */
+            pointer-events: auto;
+            /* Ensure buttons clickable */
+            background: rgba(0, 0, 0, 0.5);
+            /* Optional Backing */
+            padding: 10px;
+            border-radius: 20px;
+        }
+
+        .dice-tray {
+            display: flex;
+            gap: 20px;
+        }
+
+        .die-ui {
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            background: rgba(30, 30, 30, 0.95);
+            border: 2px solid #444;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            transition: 0.2s;
+        }
+
+        .die-ui.selected {
+            border-color: var(--gold);
+            background: #222;
+            transform: scale(1.1);
+            color: var(--gold);
+        }
+
+        .die-ui.used {
+            opacity: 0.3;
+            filter: grayscale(1);
+            transform: scale(0.9);
+            cursor: default;
+        }
+
+        #roll-btn {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: none;
+            background: radial-gradient(circle at 30% 30%, #ffd700, #ff8800);
+            color: #220000;
+            font-weight: 900;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(255, 200, 0, 0.4);
+            transition: 0.1s;
+        }
+
+        #roll-btn:active {
+            transform: scale(0.9);
+        }
+
+        #roll-btn:disabled {
+            background: #333;
+            color: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* MODALS */
+        .screen {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        #splash {
+            display: flex;
+            background: url('https://images.unsplash.com/photo-1629814484898-1793740203e0?q=80&w=2070&auto=format&fit=crop') center/cover;
+        }
+
+        #splash::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: -1;
+        }
+
+        .modal {
+            background: #1a1a1a;
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid #444;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .btn-main {
+            padding: 12px 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 40px;
+            background: var(--gold);
+            color: #000;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.2s;
+        }
+
+        .btn-main:hover {
+            transform: scale(1.05);
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            text-align: left;
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .step-num {
+            background: var(--gold);
+            color: #000;
+            font-weight: bold;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        /* TOAST */
+        #toast {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #000;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-layer">
+        <header class="interactive">
+            <h1>Ludo N</h1>
+            <div class="status-bar">
+                <div id="p1-badge" class="p-badge active-turn" style="color:#ff0044;">Player 1</div>
+                <div id="p2-badge" class="p-badge" style="color:#00cc44;">Player 2</div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="btn-rules" class="interactive"
+                    style="background:none; border:none; font-size:1.5rem; cursor:pointer;">❓</button>
+                <button id="btn-settings" class="interactive"
+                    style="background:none; border:none; font-size:1.5rem; cursor:pointer;">⚙️</button>
+            </div>
+        </header>
+        <div id="toast"></div>
+        <div id="controls" class="interactive">
+            <div id="instruction" style="opacity:0.7; font-size:0.9rem;">TAP ROLL</div>
+            <div class="dice-tray">
+                <div id="die-ui-0" class="die-ui">-</div>
+                <div id="die-ui-1" class="die-ui">-</div>
+            </div>
+            <button id="roll-btn">ROLL</button>
+        </div>
+    </div>
+
+    <!-- SPLASH -->
+    <div id="splash" class="screen">
+        <h1 style="font-size:3.5rem; color:var(--gold); margin-bottom:10px;">NAIJA LUDO</h1>
+        <div style="letter-spacing:3px; opacity:0.8; margin-bottom:30px;">ULTIMATE 3D</div>
+        <button id="btn-play" class="btn-main">PLAY GAME</button>
+    </div>
+
+    <!-- RULES -->
+    <div id="rules" class="screen">
+        <div class="modal interactive">
+            <h2 style="color:var(--gold); margin-top:0;">DUAL-HOUSE LUDO RULES</h2>
+
+            <div class="step">
+                <div class="step-num">1</div>
+                <div><b>2 Houses Per Player</b>: <br>Player 1 controls <span style="color:#d91636">Red</span> & <span
+                        style="color:#eab902">Yellow</span>.<br>Player 2 controls <span
+                        style="color:#078a3c">Green</span> & <span style="color:#0f5abc">Blue</span>.</div>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div><b>Active House</b>: You only play one house at a time. The active house glows!</div>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <div><b>Rolling 6</b>: <br>1. <b>PAUSE</b> & Choose: Continue with Active Piece OR Switch to New
+                    Piece.<br>2. Grants an <b>Extra Turn</b>.</div>
+            </div>
+            <div class="step">
+                <div class="step-num">4</div>
+                <div><b>Winning</b>: Move ALL pieces from BOTH houses to the center to win!</div>
+            </div>
+            <button id="btn-close-rules" class="btn-main" style="width:100%">START PLAYING</button>
+        </div>
+    </div>
+
+    <!-- SETTINGS (Includes About and Audio) -->
+    <div id="settings-modal" class="screen">
+        <div class="modal interactive">
+            <h2 style="color:var(--gold);">SETTINGS</h2>
+            <button class="btn-main" onclick="toggleAudio()" style="margin-bottom:10px;">TOGGLE AUDIO</button>
+            <p id="audio-status" style="margin-bottom:20px;">Audio: ON</p>
+            <hr style="border-color:#444; margin:10px 0;">
+            <p style="color:#aaa; font-size:0.9rem; margin-top:10px;">Made with love for NL ❤️ by Ndenony</p>
+            <button class="btn-main"
+                onclick="document.getElementById('settings-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- UI SCRIPT -->
+    <script>
+        // AUDIO ENGINE (Synthetic)
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx();
+        window.audioOn = true;
+
+        const Snds = {
+            playTone: (freq, type, dur, vol = 0.1) => {
+                if (!window.audioOn) return;
+                if (ctx.state === 'suspended') ctx.resume();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(vol, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + dur);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + dur);
+            },
+            playNoise: (dur) => {
+                if (!window.audioOn) return;
+                if (ctx.state === 'suspended') ctx.resume();
+                const bufSize = ctx.sampleRate * dur;
+                const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + dur);
+                src.connect(gain);
+                gain.connect(ctx.destination);
+                src.start();
+            },
+            roll: () => { Snds.playNoise(0.5); },
+            step: () => { Snds.playTone(600, 'sine', 0.1, 0.05); },
+            land: () => { Snds.playTone(300, 'triangle', 0.2, 0.1); },
+            six: () => {
+                Snds.playTone(400, 'square', 0.2);
+                setTimeout(() => Snds.playTone(600, 'square', 0.4), 100);
+            },
+            capture: () => {
+                Snds.playTone(800, 'sawtooth', 0.1);
+                setTimeout(() => Snds.playTone(400, 'sawtooth', 0.3), 100);
+            },
+            home: () => {
+                [440, 554, 659, 880].forEach((f, i) => setTimeout(() => Snds.playTone(f, 'sine', 0.5, 0.1), i * 100));
+            }
+        };
+        window.playSfx = (name) => { if (window.audioOn) Snds[name](); };
+        function toggleAudio() {
+            window.audioOn = !window.audioOn;
+            document.getElementById('audio-status').innerText = "Audio: " + (window.audioOn ? "ON" : "OFF");
+        }
+    </script>
+
+    <!-- UI SCRIPT -->
+    <script>
+        function hide(id) { document.getElementById(id).style.display = 'none'; }
+        function show(id) { document.getElementById(id).style.display = 'flex'; }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // ... existing hooks ...
+            document.getElementById('btn-play').onclick = () => {
+                document.getElementById('btn-play').innerText = "Starting...";
+                document.getElementById('splash').style.opacity = '0';
+                setTimeout(() => { hide('splash'); show('game-layer'); }, 500);
+                try { window.playSfx('start'); } catch (e) { }
+            };
+            document.getElementById('btn-rules').onclick = () => show('rules');
+            document.getElementById('btn-close-rules').onclick = () => hide('rules');
+            document.getElementById('btn-settings').onclick = () => show('settings-modal');
+            document.getElementById('btn-close-settings').onclick = () => hide('settings-modal');
+        });
+    </script>
+
+
+
+    <!-- 3D ENGINE -->
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        // Removed RoundedBoxGeometry due to possible import issues
+
+        // ... (Init) ...
+        const C = { red: 0xd91636, green: 0x078a3c, yellow: 0xeab902, blue: 0x0f5abc, wood: 0x5d4037, gold: 0xffd700 };
+        // DUAL HOUSE OWNERSHIP: P1=Red(0)+Yellow(2), P2=Green(1)+Blue(3)
+        const PLAYER_HOUSES = [
+            [0, 2], // Player 1 Config
+            [1, 3]  // Player 2 Config
+        ];
+        // Current Active House Index per Player (0 or 1)
+        // e.g. pActiveHouseIdx[0] = 0 means P1 is currently using Red(0). =1 means Yellow(2).
+        let pActiveHouseIdx = [0, 0];
+
+        // Physics Mapping ... (Same)
+        const FACES = [
+            { dir: new THREE.Vector3(1, 0, 0), val: 1 },
+            { dir: new THREE.Vector3(-1, 0, 0), val: 6 },
+            { dir: new THREE.Vector3(0, 1, 0), val: 2 },
+            { dir: new THREE.Vector3(0, -1, 0), val: 5 },
+            { dir: new THREE.Vector3(0, 0, 1), val: 3 },
+            { dir: new THREE.Vector3(0, 0, -1), val: 4 }
+        ];
+
+        let directCount = true;
+
+        let scene, camera, renderer, tokens = [], dice = [];
+        // turn.pid = 0 or 1 (only 2 players now)
+        // turn.activeHouse = 0..3 (derived from pActiveHouseIdx)
+        let turn = { pid: 0, activeHouse: 0, state: 'WAIT_ROLL', dVals: [0, 0], dUsed: [false, false], activePiece: null };
+        let playerPaths = [];
+        let physicsEnabled = false;
+
+        // Optimized Vars
+        const _v = new THREE.Vector3();
+        const _q = new THREE.Quaternion();
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        init();
+
+        async function init() {
+            try {
+                // ... (Scene Setup) ...
+                scene = new THREE.Scene(); scene.background = new THREE.Color(0x050505);
+                camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+                camera.position.set(0, 24, 18); camera.lookAt(0, 0, 0);
+
+                renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+                const cont = document.createElement('div');
+                cont.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;z-index:-1;";
+                cont.appendChild(renderer.domElement);
+
+                // Set Direct Count Toggle
+                const dcToggle = document.getElementById('direct-count-toggle');
+                if (dcToggle) dcToggle.checked = true;
+
+                // ... (Controls & Lights) ...
+                document.body.appendChild(cont);
+
+                const ctrl = new OrbitControls(camera, renderer.domElement);
+                ctrl.enableDamping = true; ctrl.enablePan = false;
+                ctrl.maxPolarAngle = Math.PI / 2.1;
+                ctrl.minDistance = 10; ctrl.maxDistance = 40;
+
+                // SHIFT BOARD UP: Move Target Z+ (towards camera/bottom of board)
+                ctrl.target.set(0, 0, 6);
+                camera.lookAt(0, 0, 6);
+
+                scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+                const sun = new THREE.SpotLight(0xffd700, 300); sun.position.set(5, 15, 5); sun.castShadow = true; scene.add(sun);
+
+                createTable();
+                createDice();
+                genPaths();
+
+                // Add Directions
+                createDirectionArrows();
+
+                document.getElementById('roll-btn').onclick = throwDice;
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+
+                window.addEventListener('pointerdown', (e) => {
+                    if (e.target.closest('.interactive')) return;
+                    mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                    raycaster.setFromCamera(mouse, camera);
+                    const hits = raycaster.intersectObjects(tokens);
+                    if (hits.length) {
+                        const t = hits[0].object;
+                        // STICKY INTERACTION: Must match Active House
+                        if (t.userData.pid === turn.activeHouse) {
+                            if (turn.state === 'WAIT_CHOICE') {
+                                // ALLOW ANY PIECE OF ACTIVE HOUSE TO BE CHOSEN
+                                if (t.visible) {
+                                    window.playSfx('land');
+                                    turn.activePiece = t; // Set new active
+                                    attemptMove(t);
+                                }
+                            } else {
+                                attemptMove(t);
+                            }
+                        }
+                    }
+                });
+
+                document.getElementById('die-ui-0').onclick = () => toggleDie(0);
+                document.getElementById('die-ui-1').onclick = () => toggleDie(1);
+
+                renderer.setAnimationLoop(loop);
+                toast("Game Engine Ready");
+
+            } catch (e) {
+                console.error("3D Error", e);
+                toast("Error: " + e.message);
+            }
+        }
+
+        // --- DICE TEXTURES ---
+        function createDiceTexture(n, color) {
+            const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 128;
+            const ctx = cvs.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 128, 128);
+            ctx.strokeStyle = '#999'; ctx.lineWidth = 4; ctx.strokeRect(2, 2, 124, 124);
+
+            ctx.fillStyle = 'black';
+            if (n === 1) { ctx.fillStyle = '#d91636'; }
+
+            // Dots
+            const r = 14;
+            const dot = (x, y) => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); };
+
+            if (n % 2 === 1) dot(64, 64);
+            if (n > 1) { dot(28, 28); dot(100, 100); }
+            if (n > 3) { dot(100, 28); dot(28, 100); }
+            if (n === 6) { dot(28, 64); dot(100, 64); }
+
+            // Debug Number (Small corner text to confirm orientation)
+            // DISABLED for aesthetics unless requested again. 
+            // Actually, user said "hard to see". I'll keep dots big.
+
+            return new THREE.CanvasTexture(cvs);
+        }
+
+        function createDice() {
+            // Use Standard BoxGeometry to guarantee Face Order: +x, -x, +y, -y, +z, -z
+            const geo = new THREE.BoxGeometry(0.85, 0.85, 0.85);
+            const mats = [];
+            // Order: Right, Left, Top, Bottom, Front, Back
+            // Values: 1, 6, 2, 5, 3, 4
+            const nums = [1, 6, 2, 5, 3, 4];
+            for (let i = 0; i < 6; i++) {
+                mats.push(new THREE.MeshStandardMaterial({
+                    map: createDiceTexture(nums[i], '#ffffff'),
+                    roughness: 0.2, metalness: 0.1
+                }));
+            }
+
+            for (let i = 0; i < 2; i++) {
+                const mesh = new THREE.Mesh(geo, mats);
+                mesh.castShadow = true; mesh.visible = false;
+                scene.add(mesh);
+                dice.push({ mesh, pos: new THREE.Vector3(), vel: new THREE.Vector3(), ang: new THREE.Vector3(), quat: new THREE.Quaternion() });
+            }
+        }
+
+        function createDirectionArrows() {
+            // Place static arrows on the board to show Clockwise flow
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0.3); shape.lineTo(0.3, -0.3); shape.lineTo(0, -0.15); shape.lineTo(-0.3, -0.3); shape.lineTo(0, 0.3);
+            const geo = new THREE.ShapeGeometry(shape);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+
+            // Positions on the 4 Arms to show 'Forward'
+            const positions = [
+                { x: -1.5, z: 4, r: 0 }, // Red Arm Up
+                { x: 1.5, z: -4, r: Math.PI }, // Yellow Arm Down
+                { x: -4, z: -1.5, r: Math.PI / 2 }, // Blue Arm Right
+                { x: 4, z: 1.5, r: -Math.PI / 2 }, // Green Arm Left
+            ];
+
+            positions.forEach(p => {
+                const m = new THREE.Mesh(geo, mat);
+                m.position.set(p.x, 0.06, p.z); // Just above black tiles
+                m.rotation.x = -Math.PI / 2;
+                m.rotation.z = p.r;
+                m.scale.set(0.6, 0.6, 0.6);
+                scene.add(m);
+            });
+        }
+
+        function createTable() {
+            const base = new THREE.Mesh(new THREE.BoxGeometry(16, 0.8, 16), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+            base.position.y = -0.4; base.receiveShadow = true; scene.add(base);
+
+            // RAILS
+            const railMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            [
+                { s: [16.4, 1.2, 0.4], p: [0, -0.2, 8.2] },
+                { s: [16.4, 1.2, 0.4], p: [0, -0.2, -8.2] },
+                { s: [0.4, 1.2, 16.4], p: [8.2, -0.2, 0] },
+                { s: [0.4, 1.2, 16.4], p: [-8.2, -0.2, 0] }
+            ].forEach(r => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(...r.s), railMat);
+                m.position.set(...r.p); m.receiveShadow = true; scene.add(m);
+            });
+
+            addBase(-5, 5, C.red); addBase(5, 5, C.green); addBase(5, -5, C.yellow); addBase(-5, -5, C.blue);
+
+            for (let x = -7; x <= 7; x++) {
+                for (let z = -7; z <= 7; z++) {
+                    if ((Math.abs(x) <= 1 && Math.abs(z) <= 6) || (Math.abs(z) <= 1 && Math.abs(x) <= 6)) {
+                        if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
+                        let col = 0xffffff;
+                        // Color Logic
+                        if (x === 0 && z > 1) col = C.red;
+                        if (x === 0 && z < -1) col = C.yellow; if (z === 0 && x > 1) col = C.green; if (z === 0 && x < -1) col = C.blue;
+                        if (x === -1 && z === 6) col = C.red; // Start tiles
+                        if (x === 1 && z === -6) col = C.yellow;
+                        if (x === 6 && z === 1) col = C.green;
+                        if (x === -6 && z === -1) col = C.blue;
+
+                        const m = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.9), new THREE.MeshStandardMaterial({ color: col }));
+                        m.position.set(x, 0, z); m.receiveShadow = true; scene.add(m);
+                    }
+                }
+            }
+        }
+
+        // GAME LOGIC UTILS
+
+        // "Pity Rule": If player has no active tokens, boost chance of 6.
+        function getFairRoll(pid) {
+            // Count pieces in play
+            const myTokens = tokens.filter(t => t.userData.pid === pid);
+            const piecesOut = myTokens.filter(t => !t.userData.inBase).length;
+
+            // If 0 pieces out, boost 6 chance from 16% to 33%
+            if (piecesOut === 0) {
+                if (Math.random() < 0.33) return 6;
+            }
+            return Math.floor(Math.random() * 6) + 1;
+        }
+
+        let pendingRoll = [1, 1];
+
+        function throwDice() {
+            if (turn.state !== 'WAIT_ROLL') return;
+            document.getElementById('roll-btn').disabled = true;
+            window.playSfx('roll');
+            physicsEnabled = true; // Use physics for visual chaos only!
+
+            // DECIDE RESULT NOW (Deterministic)
+            pendingRoll[0] = getFairRoll(turn.hid); // Use turn.hid for current player
+            pendingRoll[1] = getFairRoll(turn.hid); // Use turn.hid for current player
+
+            // If we have a 6, maybe ensure the other isn't wasted? Random is fine.
+            // If Double 6? Pure luck.
+
+            dice.forEach((d, i) => {
+                d.mesh.visible = true;
+                d.pos.set(Math.random() * 0.4 - 0.2, 5 + i * 2, 2 + Math.random());
+                // Spin wildly
+                d.vel.set((Math.random() - 0.5), -0.5, -0.5).multiplyScalar(1);
+                d.ang.set(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+                d.quat.set(0, 0, 0, 1);
+            });
+            setTimeout(resolveRoll, 2000); // 2.0s Roll Time
+        }
+
+        // NEW STICKY LOGIC ATTEMPT MOVE
+        function attemptMove(t, forcedAmt = 0) {
+            // 1. Verify House Ownership
+            if (t.userData.pid !== turn.activeHouse) {
+                toast("WRONG HOUSE! Active: " + getHouseName(turn.activeHouse));
+                return;
+            }
+
+            // 2. STICKY ENFORCEMENT
+            // "A different piece must never be auto-selected unless... blocked"
+            // If we have an active piece, and it's not this one, basic rule says NO.
+            // Exception: If current active piece is finished/captured (handled in resolveRoll cleanup).
+            if (turn.activePiece && turn.activePiece !== t) {
+                // Check if active piece is still valid?
+                if (turn.activePiece.visible && !turn.activePiece.userData.inBase) {
+                    toast("Must move Active Piece!");
+                    return;
+                }
+            }
+
+            let moveAmt = forcedAmt;
+
+            // If not forced (Manual Select), calc from Dice
+            if (moveAmt === 0) {
+                const d1 = turn.dVals[0], d2 = turn.dVals[1];
+                if (!turn.dUsed[0] && !turn.dUsed[1] && isValidMove(t, d1 + d2)) moveAmt = d1 + d2;
+                else if (!turn.dUsed[0] && isValidMove(t, d1)) moveAmt = d1;
+                else if (!turn.dUsed[1] && isValidMove(t, d2)) moveAmt = d2;
+                else { toast("Invalid Move"); return; }
+            }
+
+            // Validate
+            if (t.userData.inBase && moveAmt !== 6) { toast("Need 6 to Start!"); return; }
+            if (!isValidMove(t, moveAmt)) { toast("Invalid Move!"); return; }
+
+            // EXECUTE
+            turn.dUsed = [true, true];
+            turn.lastMoveWasSix = (moveAmt === 6);
+
+            // UPDATE ACTIVE PIECE
+            turn.activePiece = t;
+
+            updateUI();
+
+            if (t.userData.inBase) exitBase(t);
+            else advanceToken(t, moveAmt);
+        }
+
+        // NO MORE PHYSICS READING. WE DICTATE REALITY.
+        function resolveRoll_Old() {
+            physicsEnabled = false;
+            const d1 = pendingRoll[0], d2 = pendingRoll[1];
+            turn.dVals = [d1, d2];
+            turn.dUsed = [false, false];
+            turn.state = 'WAIT_MOVE';
+
+            // Visual Snap - Center Dice (-0.6, 0.6)
+            snapDie(dice[0], d1, -0.6); dice[0].mesh.position.x = -0.6; dice[0].pos.x = -0.6;
+            snapDie(dice[1], d2, 0.6); dice[1].mesh.position.x = 0.6; dice[1].pos.x = 0.6;
+
+            updateUI();
+
+            // 1. Identify/Visualise Active House
+            turn.activeHouse = PLAYER_HOUSES[turn.pid][pActiveHouseIdx[turn.pid]];
+            updateActiveHouseVisuals();
+
+            const hasSix = (d1 === 6 || d2 === 6);
+
+            if (hasSix) {
+                // AUTO MOVE SEQUENCE
+                toast("ROLLED 6! AUTO-MOVE & SWITCH");
+                // Disable Input
+                setTimeout(tryAutoMove, 1000);
+            } else {
+                // HARD MODE CONSTRAINT:
+                // "Once at least one of the player’s houses has been fully completed and a subsequent roll produces any value other than 6... immediately end turn"
+                const myHouses = PLAYER_HOUSES[turn.pid];
+                const anyComplete = isHouseComplete(myHouses[0]) || isHouseComplete(myHouses[1]);
+
+                if (anyComplete) {
+                    toast("HARD MODE: No 6! Turn Ended.");
+                    setTimeout(nextTurn, 2000);
+                    return;
+                }
+
+                // NORMAL TURN
+                if (!hasMoves()) {
+                    // Rule 6.1: Check Inactive House
+                    const inactiveHouse = PLAYER_HOUSES[turn.pid][(pActiveHouseIdx[turn.pid] + 1) % 2];
+                    if (hasMovesForHouse(inactiveHouse)) {
+                        turn.activeHouse = inactiveHouse;
+                        updateActiveHouseVisuals();
+                        toast("Active Blocked - Using Inactive House");
+                    } else {
+                        toast("No Moves! Turn Passed.");
+                        setTimeout(nextTurn, 2000);
+                        return;
+                    }
+                }
+                document.getElementById('instruction').innerText = "SELECT PIECE (" + getHouseName(turn.activeHouse) + ")";
+                if (directCount) tryAutoMove();
+            }
+        }
+
+        function isHouseComplete(hid) {
+            const houseTokens = tokens.filter(t => t.userData.pid === hid);
+            // Complete if all are invisible (reached home)
+            // Note: Captured tokens are visible (inBase). Start tokens are visible (inBase).
+            return houseTokens.every(t => !t.visible);
+        }
+
+        function tryAutoMove() {
+            const houseID = turn.activeHouse;
+            const myTokens = tokens.filter(t => t.userData.pid === houseID);
+            const hasSix = turn.dVals.includes(6);
+
+            // PRIORITY 1: 6-Roll Auto Logic (Mandatory)
+            if (hasSix) {
+                // 1. Base (Out)
+                const inBase = myTokens.filter(t => t.userData.inBase);
+                if (inBase.length > 0) {
+                    attemptMove(inBase[0]); return;
+                }
+                // 2. Board
+                const onBoard = myTokens.filter(t => !t.userData.inBase && t.visible);
+                if (onBoard.length > 0) {
+                    attemptMove(onBoard[0]); return;
+                }
+            }
+
+            // PRIORITY 2: Normal Direct Count (Non-6)
+            if (directCount && !hasSix) {
+                const valid = myTokens.filter(t => isValidMove(t, turn.dVals[0] + turn.dVals[1]) || isValidMove(t, turn.dVals[0]));
+                if (valid.length === 1) {
+                    let amt = turn.dVals[0] + turn.dVals[1];
+                    if (!isValidMove(valid[0], amt)) amt = turn.dVals[0];
+                    attemptMove(valid[0], amt);
+                }
+            }
+        }
+
+        // NEW STICKY LOGIC RESOLVE
+        function resolveRoll() {
+            physicsEnabled = false;
+            const d1 = pendingRoll[0], d2 = pendingRoll[1];
+            turn.dVals = [d1, d2];
+            turn.dUsed = [false, false];
+            turn.state = 'WAIT_MOVE';
+
+            snapDie(dice[0], d1, -0.6); dice[0].mesh.position.x = -0.6; dice[0].pos.x = -0.6;
+            snapDie(dice[1], d2, 0.6); dice[1].mesh.position.x = 0.6; dice[1].pos.x = 0.6;
+            updateUI();
+
+            turn.activeHouse = PLAYER_HOUSES[turn.pid][pActiveHouseIdx[turn.pid]];
+            updateActiveHouseVisuals();
+
+            const hasSix = (d1 === 6 || d2 === 6);
+
+            // STICKY CHECKS
+            let apValid = (turn.activePiece && turn.activePiece.visible && !turn.activePiece.userData.inBase);
+            if (turn.activePiece && !turn.activePiece.visible) { turn.activePiece = null; apValid = false; }
+
+            if (hasSix) {
+                if (apValid) {
+                    // VISUAL CHOICE MODE
+                    turn.state = 'WAIT_CHOICE';
+                    // removed toast as requested
+                    window.playSfx('six');
+                    updateChoiceVisuals();
+                    return;
+                }
+                toast("ROLLED 6! AUTO-START");
+                window.playSfx('six');
+                setTimeout(tryAutoMove, 1000);
+            } else {
+                if (apValid) {
+                    if (isValidMove(turn.activePiece, d1) || isValidMove(turn.activePiece, d2) || isValidMove(turn.activePiece, d1 + d2)) {
+                        attemptMove(turn.activePiece);
+                        return;
+                    } else {
+                        toast("Active Piece Blocked! Select another.");
+                        turn.activePiece = null;
+                    }
+                }
+
+                const myHouses = PLAYER_HOUSES[turn.pid];
+                const anyComplete = isHouseComplete(myHouses[0]) || isHouseComplete(myHouses[1]);
+                if (anyComplete) {
+                    toast("HARD MODE: No 6! Turn Ended.");
+                    setTimeout(nextTurn, 2000);
+                    return;
+                }
+
+                if (!hasMoves()) {
+                    const inactiveHouse = PLAYER_HOUSES[turn.pid][(pActiveHouseIdx[turn.pid] + 1) % 2];
+                    if (hasMovesForHouse(inactiveHouse)) {
+                        turn.activeHouse = inactiveHouse;
+                        updateActiveHouseVisuals();
+                        toast("Active Blocked - Using Inactive House");
+                    } else {
+                        toast("No Moves! Turn Passed.");
+                        setTimeout(nextTurn, 2000);
+                        return;
+                    }
+                }
+                document.getElementById('instruction').innerText = "SELECT PIECE (" + getHouseName(turn.activeHouse) + ")";
+
+                if (directCount && !turn.activePiece) tryAutoMove();
+            }
+        }
+
+        // REMOVED MODAL LISTENERS
+
+        function updateChoiceVisuals() {
+            // Highlight ALL pieces of current active house (Base + Board)
+            tokens.forEach(t => {
+                t.material.emissive.setHex(0x000000);
+                if (t.userData.pid === turn.activeHouse && t.visible) {
+                    t.material.emissive.setHex(0x555555); // Subtle White Glow
+                    // Pulse effect handled by generic animator if needed, but static glow is clear.
+                }
+            });
+        }
+
+        function loop() {
+            if (physicsEnabled) {
+                dice.forEach(d => {
+                    d.vel.y -= 0.06;
+                    d.pos.addScaledVector(d.vel, 1);
+
+                    _v.copy(d.ang).normalize();
+                    const len = d.ang.length();
+                    if (len > 0.001) {
+                        _q.setFromAxisAngle(_v, len);
+                        d.quat.multiply(_q);
+                    }
+
+                    // FLOOR
+                    if (d.pos.y < 0.36) {
+                        d.pos.y = 0.36; d.vel.y *= -0.5;
+                        d.vel.x *= 0.94; d.vel.z *= 0.94;
+                        d.ang.multiplyScalar(0.92);
+                    }
+
+                    // RAILS COLLISION (Limit 7.5 starts hitting visual rails)
+                    const B = 7.5;
+                    if (d.pos.x > B) { d.pos.x = B; d.vel.x *= -0.8; } // Hard Bounce (0.8)
+                    if (d.pos.x < -B) { d.pos.x = -B; d.vel.x *= -0.8; }
+                    if (d.pos.z > B) { d.pos.z = B; d.vel.z *= -0.8; }
+                    if (d.pos.z < -B) { d.pos.z = -B; d.vel.z *= -0.8; }
+
+                    d.mesh.position.copy(d.pos);
+                    d.mesh.quaternion.copy(d.quat);
+                });
+            }
+
+            const time = Date.now() * 0.005;
+
+            // ARROW GUIDES
+            // Hide all arrows first
+            // We need a pool of arrows or just one per token? 
+            // Better: Add an arrow child to every token and toggle visibility.
+
+            tokens.forEach(t => {
+                // Ensure arrow exists
+                if (!t.userData.arrow) {
+                    const a = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xff0000 }));
+                    a.rotation.x = Math.PI; // Point down
+                    t.add(a); t.userData.arrow = a;
+                }
+
+                let showArrow = false;
+
+                if (t.userData.pid === turn.hid && turn.state === 'WAIT_MOVE') {
+                    // GUIDE LOGIC: Is this token movable with ANY current die?
+                    // If in base, needs 6. If out, needs valid path.
+                    const canMoveD1 = !turn.dUsed[0] && isValidMove(t, turn.dVals[0]);
+                    const canMoveD2 = !turn.dUsed[1] && isValidMove(t, turn.dVals[1]);
+                    const canMoveSum = !turn.dUsed[0] && !turn.dUsed[1] && isValidMove(t, turn.dVals[0] + turn.dVals[1]);
+
+                    if (canMoveD1 || canMoveD2 || canMoveSum) {
+                        showArrow = true;
+                    }
+                }
+
+                if (showArrow) {
+                    t.userData.arrow.visible = true;
+                    t.userData.arrow.position.set(0, 0.8 + Math.sin(time * 2) * 0.2, 0); // Bounce
+                    t.userData.arrow.rotation.y += 0.05; // Spin
+                    t.material.emissive.setHex(0x333333);
+                } else {
+                    t.userData.arrow.visible = false;
+                    t.material.emissive.setHex(0x000000);
+                    t.position.y = 0.2; // Reset pulse from before
+                }
+            });
+            renderer.render(scene, camera);
+        }
+
+
+
+        // Logic State
+        // directCount is defined globally above
+
+        function snapDie(d, val, xOffset = 0) {
+            const e = new THREE.Euler();
+            if (val === 2) e.set(0, 0, 0);
+            if (val === 5) e.set(Math.PI, 0, 0);
+            if (val === 1) e.set(0, 0, Math.PI / 2);
+            if (val === 6) e.set(0, 0, -Math.PI / 2);
+            if (val === 3) e.set(-Math.PI / 2, 0, 0);
+            if (val === 4) e.set(Math.PI / 2, 0, 0);
+            e.y = Math.floor(Math.random() * 4) * (Math.PI / 2);
+            d.mesh.setRotationFromEuler(e);
+            d.quat.copy(d.mesh.quaternion);
+            d.pos.y = 0.36; d.mesh.position.y = 0.36;
+        }
+
+        function toggleDie(i) {
+            if (turn.state !== 'WAIT_MOVE' || turn.dUsed[i]) return;
+            document.getElementById('die-ui-' + i).classList.toggle('selected');
+        }
+
+        // --- NEW ENGINE HELPERS ---
+        function hasMoves_Old() {
+            const myTokens = tokens.filter(t => t.userData.pid === turn.hid && t.visible);
+            const d1 = turn.dVals[0], d2 = turn.dVals[1];
+            if (!turn.dUsed[0] && myTokens.some(t => isValidMove(t, d1))) return true;
+            if (!turn.dUsed[1] && myTokens.some(t => isValidMove(t, d2))) return true;
+            if (!turn.dUsed[0] && !turn.dUsed[1] && myTokens.some(t => isValidMove(t, d1 + d2))) return true;
+            return false;
+        }
+
+        function attemptMove_Old(t, forcedAmt = 0) {
+            // Verify House Ownership
+            if (t.userData.pid !== turn.activeHouse) {
+                toast("WRONG HOUSE! Active: " + getHouseName(turn.activeHouse));
+                return;
+            }
+
+            let moveAmt = forcedAmt;
+
+            // If not forced (Manual Select), calc from Dice
+            if (moveAmt === 0) {
+                const d1 = turn.dVals[0], d2 = turn.dVals[1];
+                // Simplified: Allow move if matches Sum, D1, or D2. 
+                // Prefer Sum.
+                if (!turn.dUsed[0] && !turn.dUsed[1] && isValidMove(t, d1 + d2)) moveAmt = d1 + d2;
+                else if (!turn.dUsed[0] && isValidMove(t, d1)) moveAmt = d1;
+                else if (!turn.dUsed[1] && isValidMove(t, d2)) moveAmt = d2;
+                else { toast("Invalid Move"); return; }
+            }
+
+            // Validate
+            if (t.userData.inBase && moveAmt !== 6) { toast("Need 6 to Start!"); return; }
+            if (!isValidMove(t, moveAmt)) { toast("Invalid Move!"); return; }
+
+            // EXECUTE
+            turn.dUsed = [true, true];
+            turn.lastMoveWasSix = (moveAmt === 6);
+            updateUI();
+
+            if (t.userData.inBase) exitBase(t);
+            else advanceToken(t, moveAmt);
+        }
+
+        function advanceToken(token, steps) {
+            const path = playerPaths[token.userData.pid];
+            const currentIdx = token.userData.inBase ? -1 : token.userData.pathIdx;
+            const targetIdx = currentIdx + steps;
+
+            if (targetIdx >= path.length) return;
+
+            // Block Input?
+            // We assume input is handled by 'dUsed' checks logic.
+
+            // Start Step Animation
+            animateStepSequence(token, path, currentIdx, targetIdx, () => {
+                checkCapture(token);
+                endMove();
+            });
+        }
+
+        function animateStepSequence(token, path, currentIdx, targetIdx, onComplete) {
+            if (currentIdx >= targetIdx) {
+                if (onComplete) onComplete();
+                return;
+            }
+
+            const nextIdx = currentIdx + 1;
+            const nextPos = new THREE.Vector3(path[nextIdx].x, 0, path[nextIdx].z);
+            const startPos = token.position.clone();
+
+            // Move 1 Step
+            animateJumpToken(token, startPos, nextPos, () => {
+                // Update State Incrementally
+                token.userData.pathIdx = nextIdx;
+                try { window.playSfx('land'); } catch (e) { }
+
+                // Next Step
+                setTimeout(() => {
+                    animateStepSequence(token, path, nextIdx, targetIdx, onComplete);
+                }, 100); // Brief pause on cell
+            }, 300); // Fast 300ms jump
+        }
+
+        function exitBase(token) {
+            token.userData.inBase = false;
+            token.userData.pathIdx = 0;
+            const path = playerPaths[token.userData.pid];
+            const targetPos = new THREE.Vector3(path[0].x, 0, path[0].z);
+
+            animateJumpToken(token, token.position, targetPos, () => {
+                endMove();
+            }, 600); // Slower exit
+        }
+
+        function animateJumpToken(token, startPos, endPos, onComplete, duration = 500) {
+            let progress = 0;
+            const height = 1.5; // Slightly lower hop for steps
+            const startTime = performance.now();
+            const mid = new THREE.Vector3().lerpVectors(startPos, endPos, 0.5);
+            mid.y += height;
+
+            function step(time) {
+                const elapsed = time - startTime;
+                progress = Math.min(elapsed / duration, 1);
+                const t = progress;
+                const it = 1 - t;
+                token.position.x = it * it * startPos.x + 2 * it * t * mid.x + t * t * endPos.x;
+                token.position.y = it * it * startPos.y + 2 * it * t * mid.y + t * t * endPos.y;
+                token.position.z = it * it * startPos.z + 2 * it * t * mid.z + t * t * endPos.z;
+
+                if (progress < 1) requestAnimationFrame(step);
+                else {
+                    if (onComplete) onComplete();
+                }
+            }
+            requestAnimationFrame(step);
+        }
+
+        function checkCapture(attacker) {
+            tokens.forEach(def => {
+                if (def !== attacker && def.visible && !def.userData.inBase && def.userData.pid !== attacker.userData.pid) {
+                    const dist = attacker.position.distanceTo(def.position);
+                    if (dist < 0.5) {
+                        toast("CAPTURED! +1 SCORE");
+                        window.playSfx('capture');
+                        sendToBase(def);
+                        scorePoint(attacker.userData.pid);
+                        finishToken(attacker); // Attacker Scored
+                    }
+                }
+            });
+            const path = playerPaths[attacker.userData.pid];
+            if (attacker.userData.pathIdx >= path.length - 1) {
+                finishToken(attacker);
+                scorePoint(attacker.userData.pid);
+                window.playSfx('home');
+                toast("HOME RUN!");
+            }
+        }
+
+        function sendToBase(t) {
+            t.userData.inBase = true;
+            t.userData.pathIdx = -1;
+            // Naive base return - just hide or snap back
+            // Ideally we animate back.
+            // We can calculate Base Pos from PID and Index?
+            const pid = t.userData.pid;
+            // Hardcoded approximate base centers
+            const bases = [{ x: -5, z: 5 }, { x: 5, z: 5 }, { x: 5, z: -5 }, { x: -5, z: -5 }]; // R, G, Y, B
+            // Spread
+            const ox = (Math.random() - 0.5) * 2;
+            const oz = (Math.random() - 0.5) * 2;
+            const target = new THREE.Vector3(bases[pid].x + ox, 0.2, bases[pid].z + oz);
+            animateJumpToken(t, t.position, target);
+        }
+
+        function finishToken(t) {
+            t.visible = false;
+            t.position.y = -50;
+        }
+
+        let scores = [0, 0, 0, 0];
+        function scorePoint(pid) {
+            scores[pid]++;
+            // Could update UI if existed
+            if (scores[pid] >= 4) toast(`PLAYER ${pid + 1} WINS!`, 5000);
+        }
+
+        function endMove() {
+            endMoveDual(turn.lastMoveWasSix);
+        }
+
+        function isValidMove(t, amt) {
+            if (t.userData.inBase && amt !== 6) return false;
+            // Standard loop is 0-50 (51 length). plus Home Run (6). Total ~57.
+            // Check Player Path Length
+            const pLen = playerPaths[t.userData.pid].length;
+            if (!t.userData.inBase && (t.userData.pathIdx + amt) >= pLen) return false;
+            return true;
+        }
+
+        function returnToBase(t) { /* Deprecated by sendToBase but kept for safety if needed */ }
+
+        function nextTurn_Old() {
+            const doubleSix = (turn.dVals[0] === 6 && turn.dVals[1] === 6);
+            if (doubleSix) {
+                toast("DOUBLE 6! ROLL AGAIN!");
+            } else {
+                turn.hid = (turn.hid + 1) % 4; // Cycles 0-1-2-3 (Only 2 players visible usually?)
+                // Wait, logic says H_OWNER = [0,1,0,1,0]... 
+                turn.hid = (turn.hid + 1) % 4;
+            }
+
+            // Safety Fallback for H_OWNER
+            let pid = 0;
+            if (window.H_OWNER && window.H_OWNER[turn.hid] !== undefined) {
+                pid = window.H_OWNER[turn.hid];
+            } else if (typeof H_OWNER !== 'undefined' && H_OWNER[turn.hid] !== undefined) {
+                pid = H_OWNER[turn.hid];
+            } else {
+                // Fallback: Just assume standard 4 player cycle [0,1,2,3]
+                pid = turn.hid;
+            }
+
+            turn.pid = pid;
+
+            document.querySelectorAll('.p-badge').forEach(e => e.classList.remove('active-turn'));
+            const b = document.getElementById(pid === 0 ? 'p1-badge' : 'p2-badge');
+            if (b) b.classList.add('active-turn');
+
+            turn.state = 'WAIT_ROLL';
+            // Safety check for elements before access
+            const rb = document.getElementById('roll-btn'); if (rb) rb.disabled = false;
+            const inst = document.getElementById('instruction'); if (inst) inst.innerText = "TAP ROLL TO START";
+            const d1 = document.getElementById('die-ui-0'); if (d1) { d1.className = 'die-ui'; d1.innerText = '-'; }
+            const d2 = document.getElementById('die-ui-1'); if (d2) { d2.className = 'die-ui'; d2.innerText = '-'; }
+        }
+
+        // ... Duplicates Removed ... 
+
+        function updateUI() {
+            const d1 = document.getElementById('die-ui-0');
+            const d2 = document.getElementById('die-ui-1');
+            d1.innerText = turn.dVals[0]; d2.innerText = turn.dVals[1];
+            if (turn.dUsed[0]) d1.className = 'die-ui used';
+            if (turn.dUsed[1]) d2.className = 'die-ui used';
+        }
+
+        function toast(m) { const t = document.getElementById('toast'); t.innerText = m; t.style.opacity = 1; setTimeout(() => t.style.opacity = 0, 2000); }
+
+        // --- DUAL HOUSE LOGIC & HELPERS ---
+        function nextTurn() {
+            turn.pid = (turn.pid + 1) % 2;
+            turn.activeHouse = PLAYER_HOUSES[turn.pid][pActiveHouseIdx[turn.pid]];
+            updateActiveHouseVisuals();
+            document.querySelectorAll('.p-badge').forEach(e => e.classList.remove('active-turn'));
+            const b = document.getElementById(turn.pid === 0 ? 'p1-badge' : 'p2-badge');
+            if (b) b.classList.add('active-turn');
+            turn.state = 'WAIT_ROLL';
+            document.getElementById('roll-btn').disabled = false;
+            document.getElementById('instruction').innerText = "ROLL (" + getHouseName(turn.activeHouse) + ")";
+            resetDiceUI();
+        }
+
+        function endMoveDual(wasSix) {
+            if (wasSix) {
+                pActiveHouseIdx[turn.pid] = (pActiveHouseIdx[turn.pid] + 1) % 2;
+                turn.activeHouse = PLAYER_HOUSES[turn.pid][pActiveHouseIdx[turn.pid]];
+                toast("HOUSE SWITCH! ROLL AGAIN!");
+                updateActiveHouseVisuals();
+                setTimeout(() => {
+                    turn.state = 'WAIT_ROLL';
+                    document.getElementById('roll-btn').disabled = false;
+                    document.getElementById('instruction').innerText = "ROLL FOR " + getHouseName(turn.activeHouse);
+                    resetDiceUI();
+                }, 1000);
+            } else {
+                if (turn.dUsed[0] && turn.dUsed[1]) setTimeout(nextTurn, 1000);
+                else if (!hasMoves()) setTimeout(nextTurn, 1000);
+            }
+        }
+
+        function getHouseName(id) { return ['Red', 'Green', 'Yellow', 'Blue'][id]; }
+
+        function hasMovesForHouse(hid) {
+            const toks = tokens.filter(t => t.userData.pid === hid && t.visible);
+            return toks.some(t => isValidMove(t, turn.dVals[0]) || isValidMove(t, turn.dVals[1]));
+        }
+
+        function hasMoves() { return hasMovesForHouse(turn.activeHouse); }
+
+        function resetDiceUI() {
+            const d1 = document.getElementById('die-ui-0'); if (d1) { d1.className = 'die-ui'; d1.innerText = '-'; }
+            const d2 = document.getElementById('die-ui-1'); if (d2) { d2.className = 'die-ui'; d2.innerText = '-'; }
+        }
+
+        function updateActiveHouseVisuals() {
+            const c = getHouseColorHex(turn.activeHouse);
+            const badge = document.getElementById(turn.pid === 0 ? 'p1-badge' : 'p2-badge');
+            if (badge) badge.style.borderColor = c;
+            // Update Instruction Color
+            const inst = document.getElementById('instruction');
+            if (inst) inst.style.color = c;
+        }
+
+        function getHouseColorHex(id) { return ['#d91636', '#078a3c', '#eab902', '#0f5abc'][id]; }
+
+        function addBase(x, z, c) {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 6), new THREE.MeshStandardMaterial({ color: c, transparent: true, opacity: 0.6 }));
+            m.position.set(x, 0, z); scene.add(m);
+            const pid = (c === C.red) ? 0 : (c === C.green) ? 1 : (c === C.yellow) ? 2 : 3;
+            [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach((o, i) => {
+                const t = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.2), new THREE.MeshStandardMaterial({ color: c }));
+                t.position.set(x + o[0], 0.2, z + o[1]); t.userData = { pid, id: i, pathIdx: -1, inBase: true };
+
+                // VISUAL POLISH: White Border
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = 0.1;
+                t.add(ring);
+
+                tokens.push(t); scene.add(t);
+            });
+        }
+
+        function genPaths() {
+            const loop = [];
+            for (let z = 6; z >= 2; z--) loop.push({ x: -1, z });
+            for (let x = -2; x >= -6; x--) loop.push({ x, z: 1 });
+            loop.push({ x: -7, z: 1 }, { x: -7, z: 0 }, { x: -7, z: -1 });
+            for (let x = -6; x <= -2; x++) loop.push({ x, z: -1 });
+            for (let z = -2; z >= -6; z--) loop.push({ x: -1, z });
+            loop.push({ x: -1, z: -7 }, { x: 0, z: -7 }, { x: 1, z: -7 });
+            for (let z = -6; z <= -2; z++) loop.push({ x: 1, z });
+            for (let x = 2; x <= 6; x++) loop.push({ x, z: -1 });
+            loop.push({ x: 7, z: -1 }, { x: 7, z: 0 }, { x: 7, z: 1 });
+            for (let x = 6; x >= 2; x--) loop.push({ x, z: 1 });
+            for (let z = 2; z <= 6; z++) loop.push({ x: 1, z });
+            loop.push({ x: 1, z: 7 }, { x: 0, z: 7 }, { x: -1, z: 7 });
+
+            for (let p = 0; p < 4; p++) {
+                const pts = [];
+                let off = 0;
+                if (p === 1) off = 13; if (p === 2) off = 26; if (p === 3) off = 39; // Corrected Offsets (Red0, Green13, Yellow26, Blue39)
+                for (let i = 0; i < 52; i++) pts.push(loop[(off + i) % 52]);
+                // Home Run? Not in loop. Usually specific path.
+                // Nigerian Ludo often uses the center column as "Safety/Home".
+                // Adding pseudo-home mechanics: 52 is enter home stretch? 
+                // Let's stick to 52 for now or extend. 
+                // Required 56 steps? 52 loop + 5 home column.
+                // Quick Fix: Add 5 home steps to end of path
+                const lx = pts[51].x; const lz = pts[51].z;
+                // Vector to center?
+                // Just minimal valid loop for now.
+                playerPaths.push(pts);
+            }
+        }
+    </script>
+</body>
+
+</html>

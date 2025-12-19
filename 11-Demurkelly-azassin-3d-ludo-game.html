@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>LUDO: Final Stable Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --bg: #1e272e; --gold: #f1c40f; --danger: #e74c3c; --success: #2ecc71; }
+        body, html { margin: 0; overflow: hidden; font-family: 'Montserrat', sans-serif; background: var(--bg); height: 100%; }
+        #canvas-container { width: 100%; height: 100%; position: absolute; z-index: 0; }
+
+        /* UI LAYERS */
+        .ui-screen {
+            position: absolute; inset: 0; z-index: 20;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(30, 39, 46, 0.95);
+            transition: opacity 0.5s;
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+
+        /* MENU STYLES */
+        h1 { color: #fff; font-size: 2rem; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 3px; text-align: center; }
+        .menu-btn {
+            background: transparent; color: #fff; border: 3px solid var(--gold);
+            padding: 15px 40px; margin: 10px; font-size: 1.2rem; border-radius: 10px;
+            cursor: pointer; font-family: inherit; font-weight: 900; text-transform: uppercase;
+            transition: all 0.2s; min-width: 200px;
+        }
+        .menu-btn:hover { background: var(--gold); color: #1e272e; }
+        .menu-btn.danger { border-color: var(--danger); }
+        .menu-btn.danger:hover { background: var(--danger); color: #fff; }
+        .menu-btn.success { border-color: var(--success); }
+        .menu-btn.success:hover { background: var(--success); color: #fff; }
+
+        /* GAME HUD */
+        #game-ui {
+            position: absolute; bottom: 40px; left: 0; width: 100%;
+            display: flex; flex-direction: column; align-items: center; gap: 20px;
+            pointer-events: none; z-index: 10;
+        }
+
+        /* STATUS PILL (REDUCED SIZE - LABEL STYLE) */
+        #status-pill {
+            background: #D32F2F; color: #fff; 
+            padding: 8px 30px; border-radius: 50px; /* Smaller padding */
+            font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; /* Smaller font */
+            border: 1px solid rgba(255,255,255,0.2); /* Thinner border */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            transition: background 0.3s, color 0.3s;
+            font-weight: 700;
+        }
+
+        /* ROLL BUTTON (REMAINS BIG & CLICKABLE) */
+        .btn-action {
+            pointer-events: auto; background: #D32F2F; 
+            color: #fff; border: none; padding: 15px 60px;
+            border-radius: 50px; font-size: 18px; cursor: pointer;
+            box-shadow: 0 0 30px rgba(0,0,0, 0.4);
+            transform: scale(1); transition: transform 0.1s, background 0.3s, color 0.3s;
+            font-weight: 900; border: 2px solid rgba(255,255,255,0.3);
+        }
+        .btn-action:active { transform: scale(0.95); }
+        .btn-action:disabled { opacity: 0.5; pointer-events: none; }
+
+        #loader {
+            position: absolute; inset: 0; background: #000; z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            color: var(--gold); font-size: 14px; letter-spacing: 4px;
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "gsap": "https://unpkg.com/gsap@3.12.2/index.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="loader">STABILIZING OPTICS...</div>
+
+    <div id="setup-1" class="ui-screen">
+        <h1>Enable Kicking?</h1>
+        <button class="menu-btn danger" onclick="setRule('kill', true)">YES (War Mode)</button>
+        <button class="menu-btn success" onclick="setRule('kill', false)">NO (Peace Mode)</button>
+    </div>
+
+    <div id="setup-2" class="ui-screen hidden">
+        <h1>Collision Rule?</h1>
+        <button class="menu-btn" onclick="setRule('stack', true)">STACK (Sit Together)</button>
+        <button class="menu-btn" onclick="setRule('stack', false)">BLOCK (No Entry)</button>
+    </div>
+
+    <div id="game-ui" class="hidden">
+        <div id="status-pill">RED'S TURN</div>
+        <button class="btn-action" id="roll-btn">ROLL DICE</button>
+    </div>
+    
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+        import gsap from 'gsap';
+
+        // --- 0. RULES ---
+        window.gameRules = { kill: true, stack: false, block: false };
+        window.setRule = (type, val) => {
+            if(type === 'kill') {
+                window.gameRules.kill = val;
+                document.getElementById('setup-1').classList.add('hidden');
+                val ? startGame() : document.getElementById('setup-2').classList.remove('hidden');
+            }
+            if(type === 'stack') {
+                window.gameRules.stack = val;
+                window.gameRules.block = !val;
+                document.getElementById('setup-2').classList.add('hidden');
+                startGame();
+            }
+        };
+
+        function startGame() {
+            document.getElementById('game-ui').classList.remove('hidden');
+            updateUIColors();
+        }
+
+        // --- 1. CONFIGURATION ---
+        const CONFIG = {
+            tileSize: 1.6, gap: 0.1,
+            colors: {
+                red: 0xD32F2F, green: 0x388E3C, yellow: 0xFFD700, blue: 0x1976D2,
+                white: 0xF5F5F5, base: 0x263238, 
+                tokenRed: 0xB71C1C,      
+                tokenGreen: 0x1B5E20,    
+                tokenYellow: 0xFF8F00,   
+                tokenBlue: 0x0D47A1      
+            }
+        };
+
+        const state = {
+            turn: 'red', phase: 'idle', diceVal: 1,
+            tokens: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }
+        };
+
+        // --- 2. SCENE ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1e272e);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 500);
+        camera.position.set(0, 52, 30);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI/2.1;
+        controls.minDistance = 20; controls.maxDistance = 100;
+
+        // --- 3. LIGHTING (FIXED SHADOW ACNE) ---
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+        sun.position.set(10, 40, 10);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(4096, 4096); 
+        // THIS FIXES THE DANCING LIGHTS
+        sun.shadow.normalBias = 0.05; 
+        sun.shadow.bias = -0.0005;
+        scene.add(sun);
+
+        // --- 4. BOARD ---
+        const boardGroup = new THREE.Group();
+        scene.add(boardGroup);
+        const mats = {
+            base: new THREE.MeshStandardMaterial({ color: CONFIG.colors.base }),
+            white: new THREE.MeshStandardMaterial({ color: CONFIG.colors.white }),
+            red: new THREE.MeshStandardMaterial({ color: CONFIG.colors.red }),
+            green: new THREE.MeshStandardMaterial({ color: CONFIG.colors.green }),
+            yellow: new THREE.MeshStandardMaterial({ color: CONFIG.colors.yellow }),
+            blue: new THREE.MeshStandardMaterial({ color: CONFIG.colors.blue }),
+            // INCREASED ROUGHNESS TO STOP SPECULAR FLICKERING
+            tokenRed: new THREE.MeshStandardMaterial({ color: CONFIG.colors.tokenRed, roughness: 0.3, metalness: 0.05 }),
+            tokenGreen: new THREE.MeshStandardMaterial({ color: CONFIG.colors.tokenGreen, roughness: 0.3, metalness: 0.05 }),
+            tokenYellow: new THREE.MeshStandardMaterial({ color: CONFIG.colors.tokenYellow, roughness: 0.3, metalness: 0.05 }),
+            tokenBlue: new THREE.MeshStandardMaterial({ color: CONFIG.colors.tokenBlue, roughness: 0.3, metalness: 0.05 }),
+        };
+
+        const sz = 15*(CONFIG.tileSize+CONFIG.gap)+1;
+        const slab = new THREE.Mesh(new RoundedBoxGeometry(sz, 0.5, sz, 4, 1), mats.base);
+        slab.position.y = -0.3; slab.receiveShadow = true;
+        boardGroup.add(slab);
+
+        function generateGrid() {
+            for(let z=0; z<15; z++) {
+                for(let x=0; x<15; x++) {
+                    if(x<6 && z<6) continue; if(x>8 && z<6) continue;
+                    if(x<6 && z>8) continue; if(x>8 && z>8) continue;
+                    if(x>5 && x<9 && z>5 && z<9) continue;
+
+                    let mat = mats.white;
+                    let isSafe = false;
+
+                    if(x===7 && z>0 && z<6) mat = mats.green; 
+                    if(z===7 && x>8 && x<14) mat = mats.yellow; 
+                    if(x===7 && z>8 && z<14) mat = mats.blue; 
+                    if(z===7 && x>0 && x<6) mat = mats.red; 
+
+                    if(x===1 && z===6) { mat = mats.red; isSafe=true; } 
+                    if(x===8 && z===1) { mat = mats.green; isSafe=true; } 
+                    if(x===13 && z===8) { mat = mats.yellow; isSafe=true; } 
+                    if(x===6 && z===13) { mat = mats.blue; isSafe=true; } 
+
+                    const mesh = new THREE.Mesh(new RoundedBoxGeometry(CONFIG.tileSize, 0.2, CONFIG.tileSize, 2, 0.05), mat);
+                    mesh.position.set((x-7)*(CONFIG.tileSize+CONFIG.gap), 0, (z-7)*(CONFIG.tileSize+CONFIG.gap));
+                    mesh.receiveShadow = true;
+                    boardGroup.add(mesh);
+
+                    if(isSafe) {
+                        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.08, 16, 32), new THREE.MeshStandardMaterial({color:0xffffff}));
+                        ring.rotation.x = Math.PI/2; ring.position.y = 0.15;
+                        mesh.add(ring);
+                    }
+                }
+            }
+            
+            const addBase = (qx, qz, mat) => {
+                const s = 6*(CONFIG.tileSize+CONFIG.gap)-CONFIG.gap;
+                const m = new THREE.Mesh(new RoundedBoxGeometry(s, 0.4, s, 4, 0.2), mat);
+                m.position.set((qx-7)*(CONFIG.tileSize+CONFIG.gap)+2.5*(CONFIG.tileSize+CONFIG.gap), 0, (qz-7)*(CONFIG.tileSize+CONFIG.gap)+2.5*(CONFIG.tileSize+CONFIG.gap));
+                m.receiveShadow = true; boardGroup.add(m);
+            };
+            addBase(0, 0, mats.red); addBase(9, 0, mats.green);
+            addBase(0, 9, mats.blue); addBase(9, 9, mats.yellow);
+
+            const centerGroup = new THREE.Group();
+            const addTri = (rot, mat) => {
+                const s = 1.5 * (CONFIG.tileSize+CONFIG.gap); 
+                const shape = new THREE.Shape();
+                shape.moveTo(-s, -s); shape.lineTo(s, -s); shape.lineTo(0, 0); shape.lineTo(-s, -s);
+                const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.2, bevelEnabled: false });
+                const m = new THREE.Mesh(geo, mat);
+                m.rotation.x = Math.PI/2; m.rotation.z = rot;
+                centerGroup.add(m);
+            };
+            addTri(0, mats.green); addTri(Math.PI, mats.blue); 
+            addTri(Math.PI/2, mats.yellow); addTri(-Math.PI/2, mats.red); 
+            boardGroup.add(centerGroup);
+        }
+        generateGrid();
+
+        // --- 5. DICE ---
+        function createDiceFace(n) {
+            const c = document.createElement('canvas'); c.width=128; c.height=128;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle='#fff'; ctx.fillRect(0,0,128,128);
+            ctx.strokeStyle='#aaa'; ctx.lineWidth=8; ctx.strokeRect(0,0,128,128);
+            ctx.fillStyle = n===1 ? '#D32F2F' : '#000';
+            const dot = (x,y) => { ctx.beginPath(); ctx.arc(x,y,12,0,Math.PI*2); ctx.fill(); };
+            if(n%2) dot(64,64);
+            if(n>1) { dot(32,32); dot(96,96); }
+            if(n>3) { dot(96,32); dot(32,96); }
+            if(n===6) { dot(32,64); dot(96,64); }
+            return new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c) });
+        }
+        const diceMesh = new THREE.Mesh(new RoundedBoxGeometry(2.5, 2.5, 2.5, 4, 0.5), [
+            createDiceFace(1), createDiceFace(6), createDiceFace(2),
+            createDiceFace(5), createDiceFace(3), createDiceFace(4)
+        ]);
+        diceMesh.visible = false; diceMesh.castShadow = true;
+        scene.add(diceMesh);
+
+        // --- 6. TOKENS ---
+        const tokenObjs = []; const allTokens = { red:[], green:[], yellow:[], blue:[] };
+
+        // Pre-compute Geometry
+        const coinShape = new THREE.Shape();
+        coinShape.absarc(0, 0, 0.6, 0, Math.PI * 2, false);
+        const coinGeo = new THREE.ExtrudeGeometry(coinShape, {
+            depth: 0.2, 
+            bevelEnabled: true, 
+            bevelThickness: 0.05, 
+            bevelSize: 0.05, 
+            bevelSegments: 4 
+        });
+        coinGeo.rotateX(Math.PI/2); 
+
+        function createToken(color, pid, tid) {
+            const grp = new THREE.Group();
+            
+            const matName = 'token' + color.charAt(0).toUpperCase() + color.slice(1);
+            const body = new THREE.Mesh(coinGeo, mats[matName]);
+            body.position.y = 0.15; 
+            
+            const highlight = new THREE.Mesh(
+                new THREE.TorusGeometry(0.75, 0.05, 16, 32),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            highlight.rotation.x = Math.PI/2;
+            highlight.position.y = 0.05;
+            highlight.visible = false;
+            highlight.name = "highlight";
+
+            grp.add(body, highlight);
+            grp.userData = { color, pid, tid };
+            
+            let ox=0, oz=0;
+            if(color==='red') { ox=0; oz=0; } 
+            if(color==='green') { ox=9; oz=0; } 
+            if(color==='blue') { ox=0; oz=9; } 
+            if(color==='yellow') { ox=9; oz=9; } 
+            const dx=(tid%2)*2+2; const dz=Math.floor(tid/2)*2+2;
+            grp.position.set((ox+dx-7)*(CONFIG.tileSize+CONFIG.gap), 0, (oz+dz-7)*(CONFIG.tileSize+CONFIG.gap));
+            
+            grp.castShadow = true; scene.add(grp);
+            tokenObjs.push(grp); allTokens[color].push(grp);
+        }
+
+        ['red','green','yellow','blue'].forEach((c,i) => {
+            for(let t=0; t<4; t++) createToken(c,i,t);
+        });
+
+        // --- 7. PATH ENGINE ---
+        function getPathPos(color, step) {
+            if(step >= 51) {
+                const d = step - 50; 
+                let tx, tz;
+                if(color==='green') { tx=7; tz=d; } 
+                if(color==='yellow') { tx=14-d; tz=7; } 
+                if(color==='blue') { tx=7; tz=14-d; } 
+                if(color==='red') { tx=d; tz=7; } 
+                return { x: (tx-7)*(CONFIG.tileSize+CONFIG.gap), z: (tz-7)*(CONFIG.tileSize+CONFIG.gap) };
+            }
+
+            const p = [
+                [1,6],[2,6],[3,6],[4,6],[5,6],[6,6], 
+                [6,5],[6,4],[6,3],[6,2],[6,1],[6,0], 
+                [7,0], 
+                [8,0],[8,1],[8,2],[8,3],[8,4],[8,5], 
+                [9,6],[10,6],[11,6],[12,6],[13,6],[14,6], 
+                [14,7], 
+                [14,8],[13,8],[12,8],[11,8],[10,8],[9,8], 
+                [8,9],[8,10],[8,11],[8,12],[8,13],[8,14], 
+                [7,14], 
+                [6,14],[6,13],[6,12],[6,11],[6,10],[6,9], 
+                [5,8],[4,8],[3,8],[2,8],[1,8],[0,8], 
+                [0,7], 
+                [0,6]
+            ];
+            
+            let offset = 0;
+            if(color==='red') offset = 0; 
+            if(color==='green') offset = 14; 
+            if(color==='yellow') offset = 27; 
+            if(color==='blue') offset = 40; 
+            
+            const coord = p[(step + offset) % 52];
+            return { x: (coord[0]-7)*(CONFIG.tileSize+CONFIG.gap), z: (coord[1]-7)*(CONFIG.tileSize+CONFIG.gap) };
+        }
+
+        // --- 8. UI COLORS ---
+        function updateUIColors() {
+            const btn = document.getElementById('roll-btn');
+            const pill = document.getElementById('status-pill');
+            const turn = state.turn;
+            
+            let bg, txt;
+            if(turn === 'red') { bg = '#D32F2F'; txt = '#fff'; }
+            if(turn === 'green') { bg = '#388E3C'; txt = '#fff'; }
+            if(turn === 'yellow') { bg = '#FFD700'; txt = '#000'; }
+            if(turn === 'blue') { bg = '#1976D2'; txt = '#fff'; }
+
+            pill.innerText = `${turn.toUpperCase()}'S TURN`;
+            pill.style.background = bg;
+            pill.style.color = txt;
+            
+            btn.style.background = bg;
+            btn.style.color = txt;
+        }
+
+        // --- 9. LOGIC ENGINE ---
+        const uiBtn = document.getElementById('roll-btn');
+        const uiStat = document.getElementById('status-pill');
+        document.getElementById('loader').style.display = 'none';
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        const handleInput = (x, y) => {
+            mouse.x = (x/innerWidth)*2-1; mouse.y = -(y/innerHeight)*2+1;
+            checkClick();
+        };
+        window.addEventListener('mousedown', e => handleInput(e.clientX, e.clientY));
+        window.addEventListener('touchstart', e => handleInput(e.changedTouches[0].clientX, e.changedTouches[0].clientY));
+
+        uiBtn.addEventListener('click', () => { if(state.phase==='idle') rollDice(); });
+
+        function rollDice() {
+            state.phase = 'rolling';
+            uiBtn.disabled = true; uiStat.style.opacity = 0;
+            
+            diceMesh.visible = true; diceMesh.position.set(0, 5, 0);
+            const tl = gsap.timeline({ onComplete: finishRoll });
+            tl.to(diceMesh.position, { y: 12, duration: 0.5, ease: "back.out" });
+            tl.to(diceMesh.scale, { x: 1.5, y: 1.5, z: 1.5, duration: 0.5 }, "<");
+            tl.to(diceMesh.rotation, { x: -Math.PI*8, y: -Math.PI*12, duration: 2.5, ease: "linear" });
+
+            state.diceVal = Math.floor(Math.random()*6)+1;
+            
+            let tx=0, tz=0;
+            if(state.diceVal===1) tz = Math.PI/2;
+            if(state.diceVal===3) tx = -Math.PI/2;
+            if(state.diceVal===4) tx = Math.PI/2;
+            if(state.diceVal===5) tx = Math.PI;
+            if(state.diceVal===6) tz = -Math.PI/2;
+
+            tl.to(diceMesh.rotation, { x: tx, y: 0, z: tz, duration: 0.5, ease: "power2.out" });
+            tl.to(diceMesh.position, { y: 1.5, duration: 0.5, ease: "bounce.out" }, "<");
+            tl.to(diceMesh.scale, { x: 1, y: 1, z: 1, duration: 0.5 }, "<");
+        }
+
+        function finishRoll() {
+            uiStat.innerText = `ROLLED ${state.diceVal}`;
+            uiStat.style.opacity = 1;
+            const moves = getValidMoves();
+            
+            if(moves.length > 0) {
+                moves.forEach(idx => {
+                    const token = allTokens[state.turn][idx];
+                    const ring = token.getObjectByName("highlight");
+                    if(ring) ring.visible = true;
+                });
+            }
+
+            if(moves.length === 0) {
+                setTimeout(() => { uiStat.innerText="NO MOVES"; setTimeout(nextTurn, 1000); }, 1000);
+            } else if(moves.length === 1) {
+                setTimeout(() => { uiStat.innerText="AUTO MOVING..."; executeMove(moves[0]); }, 800);
+            } else {
+                state.phase = 'selecting'; uiStat.innerText = "SELECT PIECE";
+            }
+        }
+
+        function getValidMoves() {
+            const arr = [];
+            state.tokens[state.turn].forEach((pos, i) => {
+                let potNext = -1;
+                if(pos === -1 && state.diceVal === 6) potNext = 0;
+                else if(pos > -1 && pos + state.diceVal <= 56) potNext = pos + state.diceVal;
+
+                if(potNext !== -1) {
+                    if(window.gameRules.block) {
+                        const hasOpponent = checkOccupancy(potNext).some(o => o.c !== state.turn);
+                        if(!hasOpponent) arr.push(i);
+                    } else {
+                        arr.push(i);
+                    }
+                }
+            });
+            return arr;
+        }
+
+        function checkOccupancy(stepIndex) {
+            const occupants = [];
+            ['red','green','yellow','blue'].forEach(c => {
+                state.tokens[c].forEach((p, idx) => {
+                    if(p === stepIndex && stepIndex < 51) occupants.push({c, idx}); 
+                });
+            });
+            return occupants;
+        }
+
+        function checkClick() {
+            if(state.phase !== 'selecting') return;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(scene.children, true);
+            for(let hit of hits) {
+                let obj = hit.object;
+                while(obj.parent && !obj.userData.tid) obj = obj.parent;
+                if(obj.userData.color === state.turn) {
+                    const tid = obj.userData.tid;
+                    const valid = getValidMoves().includes(tid);
+                    if(valid) {
+                        executeMove(tid);
+                        break;
+                    }
+                }
+            }
+        }
+
+        function executeMove(tid) {
+            allTokens[state.turn].forEach(t => {
+                const ring = t.getObjectByName("highlight");
+                if(ring) ring.visible = false;
+            });
+
+            state.phase = 'moving';
+            const cur = state.tokens[state.turn][tid];
+            let next = cur + state.diceVal;
+            if(cur === -1) next = 0; 
+            
+            const occupants = checkOccupancy(next);
+            const opponents = occupants.filter(o => o.c !== state.turn);
+            
+            // KILL LOGIC
+            if(window.gameRules.kill && opponents.length > 0) {
+                opponents.forEach(vic => {
+                    state.tokens[vic.c][vic.idx] = -1; 
+                    const vicMesh = allTokens[vic.c][vic.idx];
+                    
+                    let ox=0, oz=0;
+                    if(vic.c==='red') { ox=0; oz=0; }
+                    if(vic.c==='green') { ox=9; oz=0; }
+                    if(vic.c==='blue') { ox=0; oz=9; }
+                    if(vic.c==='yellow') { ox=9; oz=9; }
+                    const dx=(vic.idx%2)*2+2; const dz=Math.floor(vic.idx/2)*2+2;
+                    
+                    gsap.to(vicMesh.position, {
+                        x: (ox+dx-7)*(CONFIG.tileSize+CONFIG.gap),
+                        z: (oz+dz-7)*(CONFIG.tileSize+CONFIG.gap),
+                        y: 0, duration: 0.8, ease: "power2.in"
+                    });
+                });
+            }
+
+            state.tokens[state.turn][tid] = next;
+            const mesh = allTokens[state.turn][tid];
+            const target = getPathPos(state.turn, next);
+
+            // STACK LOGIC
+            let offsetX = 0, offsetZ = 0;
+            if(window.gameRules.stack || (!window.gameRules.kill && occupants.length > 0)) {
+                const count = occupants.length + 1;
+                if(count > 1) {
+                    offsetX = (Math.random()-0.5) * 0.8;
+                    offsetZ = (Math.random()-0.5) * 0.8;
+                }
+            }
+
+            gsap.to(diceMesh.scale, { x:0, y:0, z:0, duration:0.5 });
+            gsap.to(mesh.position, {
+                x: target.x + offsetX, z: target.z + offsetZ,
+                duration: 1.0, ease: "power2.inOut",
+                onComplete: () => {
+                    if(state.diceVal===6) {
+                        uiStat.innerText = "ROLL AGAIN!";
+                        state.phase='idle'; uiBtn.disabled=false;
+                    } else {
+                        nextTurn();
+                    }
+                }
+            });
+            // Jump animation
+            gsap.to(mesh.position, { y: 3, duration: 0.5, yoyo: true, repeat: 1 });
+        }
+
+        function nextTurn() {
+            const order = ['red','green','yellow','blue']; 
+            state.turn = order[(order.indexOf(state.turn)+1)%4];
+            state.phase = 'idle';
+            updateUIColors(); 
+            uiBtn.disabled = false;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+        window.onresize=()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+    </script>
+</body>
+</html>

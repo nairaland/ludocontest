@@ -1,0 +1,4788 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>&#8358;land Ludo Game</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Fredoka+One&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 50%,
+          #0f3460 100%
+        );
+        min-height: 100vh;
+        overflow: hidden;
+        color: #fff;
+      }
+
+      #game-container {
+        display: flex;
+        height: 100vh;
+      }
+
+      #canvas-container {
+        flex: 1;
+        position: relative;
+      }
+
+      #sidebar {
+        width: 380px;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        overflow-y: auto;
+      }
+
+      h1 {
+        font-family: "Fredoka One", cursive;
+        font-size: 1.5rem;
+        text-align: center;
+        background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #1dd1a1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .panel {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .panel h3 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 6px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .player-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px;
+        border-radius: 8px;
+        margin-bottom: 3px;
+        transition: all 0.3s ease;
+        font-size: 0.85rem;
+      }
+
+      .player-info.active {
+        background: rgba(255, 255, 255, 0.15);
+        transform: scale(1.02);
+      }
+
+      .player-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        overflow: hidden;
+      }
+
+      .player-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .player-name {
+        flex: 1;
+        font-weight: 600;
+      }
+
+      .player-tokens {
+        font-size: 0.7rem;
+        opacity: 0.7;
+      }
+
+      #dice-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      #dice-display {
+        width: 55px;
+        height: 55px;
+        background: linear-gradient(145deg, #ffffff, #e6e6e6);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Fredoka One", cursive;
+        font-size: 1.6rem;
+        color: #1a1a2e;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      #dice-display.rolling {
+        animation: shake 0.5s ease-in-out;
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: rotate(0deg);
+        }
+        25% {
+          transform: rotate(-15deg) scale(1.1);
+        }
+        75% {
+          transform: rotate(10deg) scale(1.05);
+        }
+      }
+
+      #roll-btn {
+        background: linear-gradient(145deg, #ff6b6b, #ee5a5a);
+        border: none;
+        padding: 10px 20px;
+        border-radius: 20px;
+        color: white;
+        font-family: "Poppins", sans-serif;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      #roll-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+      }
+
+      #roll-btn:disabled {
+        background: #555;
+        cursor: not-allowed;
+      }
+
+      #message {
+        text-align: center;
+        padding: 8px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        line-height: 1.3;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+      }
+
+      #message.highlight {
+        border-color: #feca57;
+        background: rgba(254, 202, 87, 0.15);
+        animation: pulse-border 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse-border {
+        0%,
+        100% {
+          border-color: #feca57;
+        }
+        50% {
+          border-color: #ff6b6b;
+        }
+      }
+
+      /* Move History */
+      #history-panel {
+        max-height: 120px;
+        overflow-y: auto;
+      }
+
+      #move-history {
+        font-size: 0.7rem;
+        line-height: 1.3;
+      }
+
+      .history-entry {
+        padding: 3px 6px;
+        border-radius: 4px;
+        margin-bottom: 2px;
+        background: rgba(255, 255, 255, 0.05);
+        border-left: 3px solid;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .history-entry:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .history-entry.replaying {
+        background: rgba(254, 202, 87, 0.3);
+      }
+
+      .history-entry .turn-num {
+        font-weight: bold;
+        opacity: 0.6;
+        margin-right: 4px;
+      }
+
+      .btn-secondary {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 6px 12px;
+        border-radius: 15px;
+        color: white;
+        font-family: "Poppins", sans-serif;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .btn-secondary.active {
+        background: rgba(29, 209, 161, 0.3);
+        border-color: #1dd1a1;
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      /* Replay Controls */
+      #replay-controls {
+        display: none;
+        background: rgba(254, 202, 87, 0.2);
+        border: 1px solid #feca57;
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+      }
+
+      #replay-controls.show {
+        display: block;
+      }
+
+      #replay-controls h4 {
+        font-size: 0.8rem;
+        margin-bottom: 8px;
+        color: #feca57;
+      }
+
+      .replay-btns {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+      }
+
+      .replay-btn {
+        background: linear-gradient(145deg, #feca57, #f39c12);
+        border: none;
+        padding: 6px 12px;
+        border-radius: 15px;
+        color: #1a1a2e;
+        font-weight: 600;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+
+      .replay-btn:hover {
+        transform: scale(1.05);
+      }
+
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+      }
+
+      .modal.show {
+        display: flex;
+      }
+
+      .modal-content {
+        background: linear-gradient(145deg, #1a1a2e, #16213e);
+        border-radius: 20px;
+        padding: 20px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .modal-content h2 {
+        font-family: "Fredoka One", cursive;
+        font-size: 1.4rem;
+        margin-bottom: 12px;
+        text-align: center;
+        color: #feca57;
+      }
+
+      .modal-content ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .modal-content li {
+        padding: 5px 0;
+        padding-left: 22px;
+        position: relative;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.8rem;
+      }
+
+      .modal-content li::before {
+        content: "🎲";
+        position: absolute;
+        left: 0;
+        font-size: 0.7rem;
+      }
+
+      /* Rules Walkthrough Styles */
+      .rules-tabs {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .rules-tab {
+        padding: 8px 15px;
+        border: none;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        cursor: pointer;
+        font-family: "Poppins", sans-serif;
+        font-size: 0.75rem;
+        transition: all 0.3s ease;
+      }
+
+      .rules-tab:hover,
+      .rules-tab.active {
+        background: linear-gradient(145deg, #48dbfb, #0abde3);
+      }
+
+      .rules-section {
+        display: none;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        margin-bottom: 10px;
+      }
+
+      .rules-section.active {
+        display: block;
+      }
+
+      .rules-section h4 {
+        color: #feca57;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .rules-section p {
+        font-size: 0.8rem;
+        line-height: 1.6;
+        margin-bottom: 10px;
+        opacity: 0.9;
+      }
+
+      .rules-example {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border-left: 3px solid #1dd1a1;
+      }
+
+      .rules-example strong {
+        color: #1dd1a1;
+        font-size: 0.75rem;
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .rules-example span {
+        font-size: 0.8rem;
+        opacity: 0.85;
+      }
+
+      .rules-highlight {
+        background: rgba(254, 202, 87, 0.2);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #feca57;
+        font-weight: 600;
+      }
+
+      .rules-step {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+        align-items: flex-start;
+      }
+
+      .step-number {
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(145deg, #ff6b6b, #ee5a5a);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.7rem;
+        flex-shrink: 0;
+      }
+
+      .step-content {
+        flex: 1;
+        font-size: 0.8rem;
+        line-height: 1.5;
+      }
+
+      .rules-visual {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin: 15px 0;
+        flex-wrap: wrap;
+      }
+
+      .visual-item {
+        text-align: center;
+        padding: 10px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        min-width: 80px;
+      }
+
+      .visual-item .icon {
+        font-size: 1.5rem;
+        margin-bottom: 5px;
+      }
+
+      .visual-item .label {
+        font-size: 0.7rem;
+        opacity: 0.8;
+      }
+
+      /* Social Share Buttons */
+      .share-section {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .share-section h4 {
+        font-size: 0.8rem;
+        margin-bottom: 10px;
+        text-align: center;
+        opacity: 0.8;
+      }
+
+      .share-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .share-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: none;
+        border-radius: 20px;
+        font-family: "Poppins", sans-serif;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: white;
+      }
+
+      .share-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      .share-btn.twitter {
+        background: linear-gradient(145deg, #1da1f2, #0d8bd9);
+      }
+
+      .share-btn.facebook {
+        background: linear-gradient(145deg, #4267b2, #365899);
+      }
+
+      .share-btn.whatsapp {
+        background: linear-gradient(145deg, #25d366, #128c7e);
+      }
+
+      .share-btn.linkedin {
+        background: linear-gradient(145deg, #0077b5, #006097);
+      }
+
+      .share-btn.copy {
+        background: linear-gradient(145deg, #6c5ce7, #5b4cdb);
+      }
+
+      /* Resume Game Section */
+      .resume-section {
+        background: linear-gradient(
+          145deg,
+          rgba(29, 209, 161, 0.2),
+          rgba(16, 172, 132, 0.1)
+        );
+        border: 2px solid #1dd1a1;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .resume-section h4 {
+        color: #1dd1a1;
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+      }
+
+      .resume-info {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        margin-bottom: 12px;
+      }
+
+      .resume-info span {
+        display: block;
+        margin: 3px 0;
+      }
+
+      .resume-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .resume-btn {
+        padding: 8px 18px;
+        border: none;
+        border-radius: 20px;
+        font-family: "Poppins", sans-serif;
+        font-weight: 600;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .resume-btn.primary {
+        background: linear-gradient(145deg, #1dd1a1, #10ac84);
+        color: white;
+      }
+
+      .resume-btn.secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .resume-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      /* Save indicator */
+      #save-indicator {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(29, 209, 161, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s ease;
+        z-index: 1000;
+      }
+
+      #save-indicator.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Multiplayer Styles */
+      .multiplayer-section {
+        background: linear-gradient(
+          145deg,
+          rgba(72, 219, 251, 0.2),
+          rgba(11, 189, 227, 0.1)
+        );
+        border: 2px solid #48dbfb;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .multiplayer-section h4 {
+        color: #48dbfb;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+      }
+
+      .room-code {
+        font-family: "Fredoka One", cursive;
+        font-size: 1.8rem;
+        letter-spacing: 4px;
+        color: #feca57;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px 20px;
+        border-radius: 10px;
+        margin: 10px 0;
+        user-select: all;
+      }
+
+      .room-input {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-family: "Poppins", sans-serif;
+        font-size: 1rem;
+        text-align: center;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+
+      .room-input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
+        letter-spacing: normal;
+        text-transform: none;
+      }
+
+      .multiplayer-btns {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .mp-btn {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 20px;
+        font-family: "Poppins", sans-serif;
+        font-weight: 600;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: white;
+      }
+
+      .mp-btn.create {
+        background: linear-gradient(145deg, #1dd1a1, #10ac84);
+      }
+
+      .mp-btn.join {
+        background: linear-gradient(145deg, #48dbfb, #0abde3);
+      }
+
+      .mp-btn.local {
+        background: linear-gradient(145deg, #feca57, #f39c12);
+        color: #1a1a2e;
+      }
+
+      .mp-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      .mp-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .connection-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.75rem;
+        margin-top: 10px;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      .status-dot.connecting {
+        background: #feca57;
+      }
+
+      .status-dot.connected {
+        background: #1dd1a1;
+      }
+
+      .status-dot.disconnected {
+        background: #ff6b6b;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .player-slot {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        margin: 5px 0;
+      }
+
+      .player-slot.empty {
+        opacity: 0.5;
+        border: 2px dashed rgba(255, 255, 255, 0.2);
+      }
+
+      .player-slot.you {
+        border: 2px solid #1dd1a1;
+      }
+
+      .close-modal {
+        background: linear-gradient(145deg, #48dbfb, #0abde3);
+        border: none;
+        padding: 8px 20px;
+        border-radius: 20px;
+        color: white;
+        font-family: "Poppins", sans-serif;
+        font-weight: 600;
+        cursor: pointer;
+        display: block;
+        margin: 12px auto 0;
+      }
+
+      /* Setup Modal */
+      .setup-section {
+        margin: 12px 0;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+      }
+
+      .setup-section h4 {
+        font-size: 0.8rem;
+        margin-bottom: 8px;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .option-row {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .option-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-family: "Fredoka One", cursive;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .option-btn:hover,
+      .option-btn.selected {
+        background: linear-gradient(145deg, #1dd1a1, #10ac84);
+        border-color: #1dd1a1;
+        transform: scale(1.1);
+      }
+
+      .option-btn-wide {
+        width: auto;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-family: "Poppins", sans-serif;
+        font-size: 0.8rem;
+      }
+
+      .toggle-option {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.85rem;
+      }
+
+      .toggle-switch {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        cursor: pointer;
+      }
+
+      .toggle-switch.active {
+        background: #1dd1a1;
+      }
+
+      .toggle-switch::after {
+        content: "";
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.3s;
+      }
+
+      .toggle-switch.active::after {
+        transform: translateX(20px);
+      }
+
+      .player-setup-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .player-setup-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+        border: 2px solid transparent;
+      }
+
+      .player-setup-card.active {
+        border-color: currentColor;
+      }
+
+      .avatar-upload {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        margin: 0 auto 6px;
+        cursor: pointer;
+        border: 2px dashed rgba(255, 255, 255, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        overflow: hidden;
+      }
+
+      .avatar-upload img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .avatar-upload input {
+        display: none;
+      }
+
+      .player-name-input {
+        width: 100%;
+        padding: 5px;
+        border: none;
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        text-align: center;
+        font-family: "Poppins", sans-serif;
+        font-size: 0.75rem;
+      }
+
+      #start-game {
+        background: linear-gradient(145deg, #ff6b6b, #ee5a5a);
+        border: none;
+        padding: 10px 25px;
+        border-radius: 20px;
+        color: white;
+        font-family: "Poppins", sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+
+      /* Winner Modal */
+      .winner-animation {
+        font-size: 3rem;
+        margin: 10px 0;
+        animation: bounce 0.5s ease infinite alternate;
+      }
+
+      @keyframes bounce {
+        from {
+          transform: translateY(0);
+        }
+        to {
+          transform: translateY(-15px);
+        }
+      }
+
+      /* Roll Results */
+      .roll-results {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+
+      .roll-result-card {
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        min-width: 60px;
+      }
+
+      .roll-result-card.winner {
+        background: rgba(29, 209, 161, 0.3);
+        border: 2px solid #1dd1a1;
+      }
+
+      .roll-result-value {
+        font-family: "Fredoka One", cursive;
+        font-size: 1.5rem;
+      }
+
+      .roll-result-name {
+        font-size: 0.7rem;
+        opacity: 0.8;
+      }
+
+      /* Particles & Effects */
+      #particles {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 999;
+      }
+
+      .particle {
+        position: absolute;
+        pointer-events: none;
+        animation: particleFade 1s ease-out forwards;
+      }
+
+      @keyframes particleFade {
+        0% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0) translateY(-50px);
+        }
+      }
+
+      .celebration {
+        position: fixed;
+        font-size: 2rem;
+        animation: celebrationAnim 1.5s ease-out forwards;
+        pointer-events: none;
+        z-index: 1000;
+      }
+
+      @keyframes celebrationAnim {
+        0% {
+          opacity: 1;
+          transform: scale(0.5) translateY(0);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.2) translateY(-30px);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1) translateY(-60px);
+        }
+      }
+
+      /* Step counter display */
+      #step-counter {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: "Fredoka One", cursive;
+        font-size: 4rem;
+        color: #feca57;
+        text-shadow: 0 0 20px rgba(254, 202, 87, 0.8),
+          0 4px 10px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 100;
+      }
+
+      #step-counter.show {
+        opacity: 1;
+      }
+
+      /* Kill effect */
+      .kill-effect {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(255, 0, 0, 0.6) 0%,
+          transparent 70%
+        );
+        animation: killPulse 0.5s ease-out forwards;
+        pointer-events: none;
+      }
+
+      @keyframes killPulse {
+        0% {
+          transform: scale(0);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(3);
+          opacity: 0;
+        }
+      }
+
+      /* Controls hint */
+      #controls-hint {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 5px 8px;
+        border-radius: 5px;
+        font-size: 0.65rem;
+        opacity: 0.7;
+      }
+
+      /* Responsive */
+      @media (max-width: 900px) {
+        #game-container {
+          flex-direction: column;
+        }
+        #sidebar {
+          width: 100%;
+          max-height: 40vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="particles"></div>
+
+    <div id="game-container">
+      <div id="canvas-container">
+        <div id="controls-hint">🖱️ Drag: Rotate | Scroll: Zoom</div>
+        <div id="step-counter">1</div>
+      </div>
+      <div id="sidebar">
+        <h1>🎲 &#8358;land Ludo</h1>
+
+        <div class="panel" id="players-panel">
+          <h3>Players</h3>
+          <div id="players-list"></div>
+        </div>
+
+        <div class="panel" id="dice-container">
+          <div id="dice-display">?</div>
+          <button id="roll-btn">Roll Dice</button>
+        </div>
+
+        <div class="panel">
+          <h3>Status</h3>
+          <div id="message">Welcome! Set up your game to begin.</div>
+        </div>
+
+        <div id="replay-controls">
+          <h4>📽️ Replay Mode</h4>
+          <p style="font-size: 0.7rem; margin-bottom: 8px">
+            Watching move history
+          </p>
+          <div class="replay-btns">
+            <button class="replay-btn" id="replay-prev">⏮️ Prev</button>
+            <button class="replay-btn" id="replay-play">▶️ Play</button>
+            <button class="replay-btn" id="replay-next">Next ⏭️</button>
+            <button class="replay-btn" id="replay-exit">✖️ Exit</button>
+          </div>
+        </div>
+
+        <div class="panel" id="history-panel">
+          <h3>📋 History (Click to replay)</h3>
+          <div id="move-history"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn-secondary" id="rules-btn">📜 Rules</button>
+          <button class="btn-secondary" id="toggle-labels-btn">
+            🔢 Labels
+          </button>
+          <button class="btn-secondary" id="save-btn">💾 Save</button>
+          <button class="btn-secondary" id="share-btn">📤 Share</button>
+        </div>
+        <div class="btn-row" style="margin-top: 6px">
+          <button class="btn-secondary" id="clear-history-btn">🗑️ Clear</button>
+          <button class="btn-secondary" id="restart-btn">🔄 Restart</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Indicator -->
+    <div id="save-indicator">💾 Game Saved!</div>
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="modal show">
+      <div class="modal-content">
+        <h2>🎮 Welcome to &#8358;land Ludo!</h2>
+
+        <!-- Multiplayer Section -->
+        <div class="multiplayer-section" id="multiplayer-section">
+          <h4>🌐 Play Online or Local?</h4>
+          <h6>online play not stable yet, you can try it out it works with WEBRTC?</h6>
+          <div class="multiplayer-btns" id="mp-mode-btns">
+            <button class="mp-btn create" id="create-room-btn">
+              🏠 Create Room
+            </button>
+            <button class="mp-btn join" id="join-room-btn">🔗 Join Room</button>
+            <button class="mp-btn local" id="local-play-btn">
+              👥 Local Play
+            </button>
+          </div>
+
+          <!-- Create Room UI (hidden initially) -->
+          <div id="create-room-ui" style="display: none">
+            <p style="font-size: 0.75rem; margin: 10px 0">
+              Share this code with friends:
+            </p>
+            <div class="room-code" id="room-code">------</div>
+            <div class="connection-status">
+              <span class="status-dot connecting" id="host-status-dot"></span>
+              <span id="host-status-text">Waiting for players...</span>
+            </div>
+            <div id="connected-players"></div>
+            <button
+              class="mp-btn local"
+              id="start-online-game"
+              style="margin-top: 10px; display: none"
+            >
+              🚀 Start Game
+            </button>
+          </div>
+
+          <!-- Join Room UI (hidden initially) -->
+          <div id="join-room-ui" style="display: none">
+            <p style="font-size: 0.75rem; margin: 10px 0">Enter room code:</p>
+            <input
+              type="text"
+              class="room-input"
+              id="join-code-input"
+              placeholder="Enter 6-digit code"
+              maxlength="6"
+            />
+            <button class="mp-btn join" id="connect-room-btn">Connect</button>
+            <div
+              class="connection-status"
+              id="join-status"
+              style="display: none"
+            >
+              <span class="status-dot connecting" id="join-status-dot"></span>
+              <span id="join-status-text">Connecting...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resume Section (hidden by default, shown if saved game exists) -->
+        <div class="resume-section" id="resume-section" style="display: none">
+          <h4>📂 Saved Game Found!</h4>
+          <div class="resume-info" id="resume-info">
+            <span>Loading saved game info...</span>
+          </div>
+          <div class="resume-buttons">
+            <button class="resume-btn primary" id="resume-game-btn">
+              ▶️ Resume Game
+            </button>
+            <button class="resume-btn secondary" id="delete-save-btn">
+              🗑️ Delete Save
+            </button>
+          </div>
+        </div>
+
+        <!-- Local Game Settings (shown when local play is selected) -->
+        <div id="local-settings" style="display: none">
+          <div class="setup-section">
+            <h4>Number of Players</h4>
+            <div class="option-row" id="player-count-options">
+              <button class="option-btn" data-value="2">2</button>
+              <button class="option-btn" data-value="3">3</button>
+              <button class="option-btn selected" data-value="4">4</button>
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <h4>Pieces Per Player</h4>
+            <div class="option-row" id="piece-count-options">
+              <button class="option-btn" data-value="1">1</button>
+              <button class="option-btn" data-value="2">2</button>
+              <button class="option-btn" data-value="3">3</button>
+              <button class="option-btn selected" data-value="4">4</button>
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <h4>Movement Direction</h4>
+            <div class="option-row" id="direction-options">
+              <button
+                class="option-btn option-btn-wide selected"
+                data-value="clockwise"
+              >
+                🔃 Clockwise
+              </button>
+              <button
+                class="option-btn option-btn-wide"
+                data-value="anticlockwise"
+              >
+                🔄 Anti-clockwise
+              </button>
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <h4>Show Path Numbers</h4>
+            <div class="toggle-option">
+              <span>Off</span>
+              <div class="toggle-switch active" id="labels-toggle"></div>
+              <span>On</span>
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <h4>Kids Mode (Start with 1 or 6)</h4>
+            <div class="toggle-option">
+              <span>Off</span>
+              <div class="toggle-switch" id="kids-mode-toggle"></div>
+              <span>On</span>
+            </div>
+          </div>
+
+          <div class="setup-section">
+            <h4>Relaxed Home Entry (No exact roll needed)</h4>
+            <div class="toggle-option">
+              <span>Off</span>
+              <div class="toggle-switch" id="relaxed-home-toggle"></div>
+              <span>On</span>
+            </div>
+            <p
+              style="
+                font-size: 0.7rem;
+                opacity: 0.6;
+                margin-top: 5px;
+                text-align: center;
+              "
+            >
+              When ON: Any roll that reaches or exceeds home counts as victory
+            </p>
+          </div>
+
+          <div class="setup-section">
+            <h4>Players (Click to add photo)</h4>
+            <div class="player-setup-grid" id="player-setup-grid"></div>
+          </div>
+
+          <button id="start-game">Start Game</button>
+        </div>
+        <!-- End local-settings -->
+      </div>
+    </div>
+
+    <!-- Initial Roll Modal -->
+    <div id="initial-roll-modal" class="modal">
+      <div class="modal-content" style="text-align: center">
+        <h2>🎲 Roll to See Who Goes First!</h2>
+        <p style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 10px">
+          Highest roll starts
+        </p>
+        <div class="roll-results" id="initial-roll-results"></div>
+        <button class="close-modal" id="initial-roll-btn">
+          Roll All Dice!
+        </button>
+      </div>
+    </div>
+
+    <!-- Rules Modal - Detailed Walkthrough -->
+    <div id="rules-modal" class="modal">
+      <div class="modal-content" style="max-width: 700px">
+        <h2>📜 How to Play Ludo</h2>
+
+        <div class="rules-tabs">
+          <button
+            class="rules-tab active"
+            onclick="showRulesSection('overview')"
+          >
+            🎯 Overview
+          </button>
+          <button class="rules-tab" onclick="showRulesSection('starting')">
+            🚀 Starting
+          </button>
+          <button class="rules-tab" onclick="showRulesSection('movement')">
+            🎲 Movement
+          </button>
+          <button class="rules-tab" onclick="showRulesSection('capture')">
+            ⚔️ Capture
+          </button>
+          <button class="rules-tab" onclick="showRulesSection('winning')">
+            🏆 Winning
+          </button>
+          <button class="rules-tab" onclick="showRulesSection('tips')">
+            💡 Tips
+          </button>
+        </div>
+
+        <!-- Overview Section -->
+        <div class="rules-section active" id="rules-overview">
+          <h4>🎯 Game Objective</h4>
+          <p>
+            Be the <span class="rules-highlight">first player</span> to move all
+            your pieces from your home base, around the board, and into the
+            center home triangle!
+          </p>
+
+          <div class="rules-visual">
+            <div class="visual-item">
+              <div class="icon">🏠</div>
+              <div class="label">Start in Base</div>
+            </div>
+            <div class="visual-item">
+              <div class="icon">➡️</div>
+              <div class="label">Move Around</div>
+            </div>
+            <div class="visual-item">
+              <div class="icon">🎯</div>
+              <div class="label">Home Stretch</div>
+            </div>
+            <div class="visual-item">
+              <div class="icon">🏆</div>
+              <div class="label">Reach Center!</div>
+            </div>
+          </div>
+
+          <div class="rules-example">
+            <strong>📋 Quick Summary:</strong>
+            <span
+              >Roll the dice → Move a piece → Try to get all pieces home before
+              opponents!</span
+            >
+          </div>
+        </div>
+
+        <!-- Starting Section -->
+        <div class="rules-section" id="rules-starting">
+          <h4>🚀 How to Start Moving</h4>
+
+          <div class="rules-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              All your pieces begin in your
+              <span class="rules-highlight">colored home base</span> (corner of
+              the board)
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              To bring a piece onto the board, you must roll a
+              <span class="rules-highlight">6</span>
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              Your piece enters at your
+              <span class="rules-highlight">colored start square</span> (marked
+              on the board)
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              After rolling a 6, you get
+              <span class="rules-highlight">another turn</span>!
+            </div>
+          </div>
+
+          <div class="rules-example">
+            <strong>🧒 Kids Mode:</strong>
+            <span
+              >When enabled, you can also bring pieces out with a roll of
+              <span class="rules-highlight">1</span>, making the game faster for
+              younger players!</span
+            >
+          </div>
+        </div>
+
+        <!-- Movement Section -->
+        <div class="rules-section" id="rules-movement">
+          <h4>🎲 How Movement Works</h4>
+
+          <div class="rules-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              On your turn, click
+              <span class="rules-highlight">"Roll Dice"</span> to get a number
+              (1-6)
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              Move one of your pieces forward by that many spaces
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              The path numbers show you where you are on the track (0-51)
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              After going around the board, enter your
+              <span class="rules-highlight">home stretch</span> (colored column
+              H1-H6)
+            </div>
+          </div>
+
+          <div class="rules-example">
+            <strong>🔃 Direction:</strong>
+            <span
+              >You choose clockwise or anti-clockwise at game start. All players
+              move in the same direction!</span
+            >
+          </div>
+
+          <div class="rules-example">
+            <strong>🎲 Rolling a 6:</strong>
+            <span
+              >You ALWAYS get another turn when you roll a 6. Use it wisely -
+              bring out a new piece or advance an existing one!</span
+            >
+          </div>
+
+          <div class="rules-example">
+            <strong>🚫 Can't Move?</strong>
+            <span
+              >If none of your pieces can legally move, your turn automatically
+              passes to the next player.</span
+            >
+          </div>
+        </div>
+
+        <!-- Capture Section -->
+        <div class="rules-section" id="rules-capture">
+          <h4>⚔️ Capturing Opponents</h4>
+
+          <p>
+            Land on an opponent's piece to
+            <span class="rules-highlight">capture</span> it!
+          </p>
+
+          <div class="rules-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              If your piece lands on a space with
+              <span class="rules-highlight">one opponent piece</span>, they get
+              sent back to their base!
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              Capturing gives you a
+              <span class="rules-highlight">bonus turn</span>!
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <span class="rules-highlight">Safe Zones:</span> Start squares
+              (colored squares) are safe - no captures there!
+            </div>
+          </div>
+
+          <div class="rules-example">
+            <strong>🛡️ Blocks:</strong>
+            <span
+              >If you have
+              <span class="rules-highlight">2+ pieces on the same space</span>,
+              they form a BLOCK. Opponents
+              <strong>cannot pass or land on</strong> your block! Use this
+              strategically to protect your pieces.</span
+            >
+          </div>
+        </div>
+
+        <!-- Winning Section -->
+        <div class="rules-section" id="rules-winning">
+          <h4>🏆 How to Win</h4>
+
+          <div class="rules-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              After going around the board, your pieces enter the
+              <span class="rules-highlight">home stretch</span> (your colored
+              column)
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              The home stretch has
+              <span class="rules-highlight">6 positions (H1-H6)</span> leading
+              to the center
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              Move through H1 → H2 → H3 → H4 → H5 → H6 →
+              <span class="rules-highlight">CENTER (Victory!)</span>
+            </div>
+          </div>
+
+          <div class="rules-example">
+            <strong>🎯 Exact Roll Mode (Default):</strong>
+            <span
+              >You need the <span class="rules-highlight">exact number</span> to
+              reach the center. If at H4, you need exactly 3 to win. A higher
+              roll won't work!</span
+            >
+          </div>
+
+          <div class="rules-example">
+            <strong>😌 Relaxed Home Entry Mode:</strong>
+            <span
+              >When enabled, any roll that
+              <span class="rules-highlight">reaches or exceeds</span> the center
+              counts! If at H4, rolling 3, 4, 5, or 6 all work!</span
+            >
+          </div>
+
+          <div class="rules-example">
+            <strong>🎉 Victory:</strong>
+            <span
+              >First player to get
+              <span class="rules-highlight">ALL pieces</span> to the center wins
+              the game!</span
+            >
+          </div>
+        </div>
+
+        <!-- Tips Section -->
+        <div class="rules-section" id="rules-tips">
+          <h4>💡 Pro Tips</h4>
+
+          <div class="rules-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <strong>Spread your pieces:</strong> Don't bunch all pieces
+              together - spread them out for more movement options!
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <strong>Use blocks wisely:</strong> Form blocks to protect pieces
+              and block opponents' paths!
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <strong>Hunt captures:</strong> Capturing gives bonus turns - be
+              aggressive when safe!
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <strong>Safe zones:</strong> Park on colored start squares when
+              you need protection!
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">5</div>
+            <div class="step-content">
+              <strong>Path labels:</strong> Use the 🔢 Labels button to see
+              position numbers on the board!
+            </div>
+          </div>
+
+          <div class="rules-step">
+            <div class="step-number">6</div>
+            <div class="step-content">
+              <strong>Replay:</strong> Click any history entry to replay and
+              review moves!
+            </div>
+          </div>
+
+          <div class="rules-visual">
+            <div class="visual-item" style="border: 2px solid #feca57">
+              <div class="icon">🎲</div>
+              <div class="label">Roll 6 = Extra Turn</div>
+            </div>
+            <div class="visual-item" style="border: 2px solid #ff6b6b">
+              <div class="icon">⚔️</div>
+              <div class="label">Capture = Bonus Turn</div>
+            </div>
+            <div class="visual-item" style="border: 2px solid #1dd1a1">
+              <div class="icon">🛡️</div>
+              <div class="label">Block = Safety</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="close-modal" onclick="closeRulesModal()">
+          Got it! Let's Play! 🎮
+        </button>
+      </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winner-modal" class="modal">
+      <div class="modal-content" style="text-align: center">
+        <h2>🎉 Congratulations!</h2>
+        <div class="winner-animation">🏆</div>
+        <p id="winner-text" style="font-size: 1.1rem; margin: 10px 0"></p>
+        <p
+          id="winner-stats"
+          style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 15px"
+        ></p>
+
+        <div class="share-section">
+          <h4>🎊 Share Your Victory!</h4>
+          <div class="share-buttons">
+            <button class="share-btn twitter" onclick="shareToTwitter()">
+              𝕏 Twitter
+            </button>
+            <button class="share-btn facebook" onclick="shareToFacebook()">
+              📘 Facebook
+            </button>
+            <button class="share-btn whatsapp" onclick="shareToWhatsApp()">
+              💬 WhatsApp
+            </button>
+            <button class="share-btn copy" onclick="copyShareLink()">
+              📋 Copy
+            </button>
+          </div>
+        </div>
+
+        <button
+          class="close-modal"
+          onclick="startNewGame()"
+          style="margin-top: 15px"
+        >
+          🎮 Play Again
+        </button>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <script>
+      // Game Configuration
+      const PLAYER_COLORS = {
+        0: { name: "Red", hex: 0xff6b6b, css: "#ff6b6b", emoji: "🔴" },
+        1: { name: "Green", hex: 0x1dd1a1, css: "#1dd1a1", emoji: "🟢" },
+        2: { name: "Yellow", hex: 0xfeca57, css: "#feca57", emoji: "🟡" },
+        3: { name: "Blue", hex: 0x48dbfb, css: "#48dbfb", emoji: "🔵" },
+      };
+
+      // Game Settings
+      let numPlayers = 4;
+      let numPieces = 4;
+      let kidsMode = false;
+      let showLabels = true;
+      let relaxedHomeEntry = false; // If true, any roll reaching home counts (no exact roll needed)
+      let moveDirection = "clockwise"; // or "anticlockwise"
+      let playerNames = ["Red", "Green", "Yellow", "Blue"];
+      let playerAvatars = [null, null, null, null];
+
+      // Multiplayer State
+      let isOnlineGame = false;
+      let isHost = false;
+      let myPlayerId = 0;
+      let peer = null;
+      let connections = [];
+      let roomCode = "";
+
+      // ==================== WEBRTC MULTIPLAYER ====================
+      function generateRoomCode() {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let code = "";
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      }
+
+      function initPeer(id = null) {
+        return new Promise((resolve, reject) => {
+          const peerId = id || "ludo3d-" + generateRoomCode();
+          peer = new Peer(peerId, {
+            debug: 1,
+          });
+
+          peer.on("open", (id) => {
+            console.log("Peer connected with ID:", id);
+            resolve(id);
+          });
+
+          peer.on("error", (err) => {
+            console.error("Peer error:", err);
+            if (err.type === "unavailable-id") {
+              // ID taken, try another
+              initPeer().then(resolve).catch(reject);
+            } else {
+              reject(err);
+            }
+          });
+        });
+      }
+
+      function createRoom() {
+        document.getElementById("mp-mode-btns").style.display = "none";
+        document.getElementById("create-room-ui").style.display = "block";
+
+        roomCode = generateRoomCode();
+        document.getElementById("room-code").textContent = roomCode;
+
+        const peerId = "ludo3d-" + roomCode;
+
+        initPeer(peerId)
+          .then((id) => {
+            isHost = true;
+            isOnlineGame = true;
+            myPlayerId = 0;
+
+            document.getElementById("host-status-dot").className =
+              "status-dot connected";
+            document.getElementById("host-status-text").textContent =
+              "Room ready! Waiting for players...";
+
+            updateConnectedPlayersList();
+
+            peer.on("connection", (conn) => {
+              handleNewConnection(conn);
+            });
+          })
+          .catch((err) => {
+            document.getElementById("host-status-dot").className =
+              "status-dot disconnected";
+            document.getElementById("host-status-text").textContent =
+              "Failed to create room: " + err.message;
+          });
+      }
+
+      function handleNewConnection(conn) {
+        conn.on("open", () => {
+          console.log("Player connected:", conn.peer);
+          connections.push(conn);
+
+          const playerIndex = connections.length;
+
+          // Send player assignment
+          conn.send({
+            type: "player-assignment",
+            playerId: playerIndex,
+            roomCode: roomCode,
+            hostName: playerNames[0],
+          });
+
+          updateConnectedPlayersList();
+
+          // Show start button when at least 1 other player joins
+          if (connections.length >= 1) {
+            document.getElementById("start-online-game").style.display =
+              "inline-block";
+          }
+
+          conn.on("data", (data) => handlePeerData(data, conn));
+          conn.on("close", () => handleDisconnection(conn));
+        });
+      }
+
+      function joinRoom() {
+        document.getElementById("mp-mode-btns").style.display = "none";
+        document.getElementById("join-room-ui").style.display = "block";
+      }
+
+      function connectToRoom() {
+        const code = document
+          .getElementById("join-code-input")
+          .value.toUpperCase()
+          .trim();
+        if (code.length !== 6) {
+          alert("Please enter a valid 6-character room code");
+          return;
+        }
+
+        document.getElementById("join-status").style.display = "flex";
+        document.getElementById("join-status-text").textContent =
+          "Connecting...";
+        document.getElementById("connect-room-btn").disabled = true;
+
+        initPeer()
+          .then(() => {
+            const hostPeerId = "ludo3d-" + code;
+            const conn = peer.connect(hostPeerId);
+
+            conn.on("open", () => {
+              console.log("Connected to host");
+              connections.push(conn);
+              isOnlineGame = true;
+              isHost = false;
+              roomCode = code;
+
+              document.getElementById("join-status-dot").className =
+                "status-dot connected";
+              document.getElementById("join-status-text").textContent =
+                "Connected! Waiting for host to start...";
+
+              conn.on("data", (data) => handlePeerData(data, conn));
+              conn.on("close", () => handleDisconnection(conn));
+            });
+
+            conn.on("error", (err) => {
+              document.getElementById("join-status-dot").className =
+                "status-dot disconnected";
+              document.getElementById("join-status-text").textContent =
+                "Failed to connect: Room not found";
+              document.getElementById("connect-room-btn").disabled = false;
+            });
+
+            // Timeout for connection
+            setTimeout(() => {
+              if (!conn.open) {
+                document.getElementById("join-status-dot").className =
+                  "status-dot disconnected";
+                document.getElementById("join-status-text").textContent =
+                  "Connection timeout. Check the code.";
+                document.getElementById("connect-room-btn").disabled = false;
+              }
+            }, 10000);
+          })
+          .catch((err) => {
+            document.getElementById("join-status-dot").className =
+              "status-dot disconnected";
+            document.getElementById("join-status-text").textContent =
+              "Network error: " + err.message;
+            document.getElementById("connect-room-btn").disabled = false;
+          });
+      }
+
+      function handlePeerData(data, conn) {
+        console.log(
+          "Received data:",
+          data.type,
+          "| Full data:",
+          JSON.stringify(data)
+        );
+        console.log(
+          "Current state - myPlayerId:",
+          myPlayerId,
+          "currentPlayer:",
+          currentPlayer,
+          "isHost:",
+          isHost
+        );
+
+        // Host relays messages to other players (except the sender)
+        if (isHost && data.type !== "player-assignment") {
+          connections.forEach((c) => {
+            if (c !== conn && c.open) {
+              console.log("Host relaying", data.type, "to another player");
+              c.send(data);
+            }
+          });
+        }
+
+        switch (data.type) {
+          case "player-assignment":
+            myPlayerId = data.playerId;
+            console.log(
+              "Assigned as player:",
+              myPlayerId,
+              PLAYER_COLORS[myPlayerId].name
+            );
+            document.getElementById(
+              "join-status-text"
+            ).textContent = `Connected as ${PLAYER_COLORS[myPlayerId].name}! Waiting for host...`;
+            break;
+
+          case "game-start":
+            // Host is starting the game
+            console.log("Game start received. My player ID:", myPlayerId);
+            numPlayers = data.settings.numPlayers;
+            numPieces = data.settings.numPieces;
+            kidsMode = data.settings.kidsMode;
+            showLabels = data.settings.showLabels;
+            relaxedHomeEntry = data.settings.relaxedHomeEntry;
+            moveDirection = data.settings.moveDirection;
+            playerNames = data.settings.playerNames;
+            currentPlayer = data.settings.currentPlayer;
+
+            document.getElementById("setup-modal").classList.remove("show");
+            initThree();
+            initializeTrackPositions();
+            createBoard();
+            initPlayers();
+            createTokens();
+            if (showLabels) createPathLabels();
+
+            gamePhase = "roll";
+            updatePlayersUI();
+            animate();
+
+            // Set initial turn state
+            document.getElementById("roll-btn").disabled =
+              currentPlayer !== myPlayerId;
+            if (currentPlayer === myPlayerId) {
+              setMessage(`🎯 Your turn! Roll the dice.`, true);
+            } else {
+              setMessage(
+                `⏳ Waiting for ${playerNames[currentPlayer]} to roll...`,
+                false
+              );
+            }
+            break;
+
+          case "dice-roll":
+            // Someone rolled the dice - only process if it's not our roll
+            console.log(
+              "Dice roll check:",
+              data.playerId,
+              "!==",
+              myPlayerId,
+              "&&",
+              data.playerId,
+              "===",
+              currentPlayer
+            );
+            if (
+              data.playerId !== myPlayerId &&
+              data.playerId === currentPlayer
+            ) {
+              console.log("Processing remote dice roll:", data.value);
+              gamePhase = "animate";
+              const diceDisplay = document.getElementById("dice-display");
+              diceDisplay.classList.add("rolling");
+              document.getElementById("roll-btn").disabled = true;
+
+              // Animate the dice
+              let rollCount = 0;
+              const rollInterval = setInterval(() => {
+                diceDisplay.textContent = Math.floor(Math.random() * 6) + 1;
+                rollCount++;
+                if (rollCount >= 10) {
+                  clearInterval(rollInterval);
+                  diceDisplay.classList.remove("rolling");
+                  diceValue = data.value;
+                  diceDisplay.textContent = diceValue;
+                  addToHistory(
+                    `${playerNames[currentPlayer]} rolled ${diceValue}`,
+                    PLAYER_COLORS[currentPlayer].css
+                  );
+                  // NON-HOST: Don't call processRoll - just wait for move-token or turn-change
+                  // The host will send us what happens next
+                  setMessage(
+                    `⏳ ${playerNames[currentPlayer]} rolled ${diceValue}...`,
+                    false
+                  );
+                }
+              }, 100);
+            } else {
+              console.log(
+                "Ignoring dice roll - not for current player or is my roll"
+              );
+            }
+            break;
+
+          case "move-token":
+            // Someone moved a token - only process if it's not our move
+            console.log(
+              "Move token check:",
+              data.playerId,
+              "!==",
+              myPlayerId,
+              "&&",
+              data.playerId,
+              "===",
+              currentPlayer
+            );
+            if (
+              data.playerId !== myPlayerId &&
+              data.playerId === currentPlayer
+            ) {
+              console.log(
+                "Processing remote move:",
+                data.tokenIndex,
+                "with roll:",
+                data.roll
+              );
+              diceValue = data.roll;
+              moveToken(players[currentPlayer], data.tokenIndex, data.roll);
+            } else {
+              console.log(
+                "Ignoring move - not for current player or is my move"
+              );
+            }
+            break;
+
+          case "turn-change":
+            // Turn has changed - this is the authoritative turn message
+            console.log(
+              "Turn change received:",
+              data.currentPlayer,
+              "My ID:",
+              myPlayerId,
+              "Roll btn will be:",
+              data.currentPlayer === myPlayerId ? "ENABLED" : "DISABLED"
+            );
+            
+            // Sync player positions if included
+            if (data.players && players.length > 0) {
+              data.players.forEach((pData, idx) => {
+                if (players[idx]) {
+                  if (pData.tokens) players[idx].tokens = [...pData.tokens];
+                  if (pData.finishedTokens !== undefined)
+                    players[idx].finishedTokens = pData.finishedTokens;
+                }
+              });
+              updateTokenStackPositions();
+            }
+            
+            currentPlayer = data.currentPlayer;
+            gamePhase = "roll";
+            diceValue = 0;
+            document.getElementById("dice-display").textContent = "?";
+            
+            // Critical: Enable/disable roll button based on whose turn it is
+            const isMyTurn = currentPlayer === myPlayerId;
+            document.getElementById("roll-btn").disabled = !isMyTurn;
+            console.log("Roll button disabled:", !isMyTurn);
+            
+            updatePlayersUI();
+
+            // Explicitly update UI based on whose turn it is
+            if (isMyTurn) {
+              setMessage(`🎯 Your turn! Roll the dice.`, true);
+            } else {
+              setMessage(
+                `⏳ Waiting for ${playerNames[currentPlayer]}...`,
+                false
+              );
+            }
+            break;
+
+          case "extra-turn":
+            // Player gets another turn
+            console.log(
+              "Extra turn received for player:",
+              data.playerId,
+              "My ID:",
+              myPlayerId
+            );
+            currentPlayer = data.playerId; // Make sure currentPlayer is set correctly
+            gamePhase = "roll";
+            diceValue = 0;
+            document.getElementById("dice-display").textContent = "?";
+            
+            const isMyExtraTurn = currentPlayer === myPlayerId;
+            document.getElementById("roll-btn").disabled = !isMyExtraTurn;
+            
+            if (isMyExtraTurn) {
+              setMessage(`🎲 You get another turn! Roll again.`, true);
+            } else {
+              setMessage(
+                `🎲 ${playerNames[currentPlayer]} gets another turn!`,
+                false
+              );
+            }
+            break;
+
+          case "no-move":
+            // Player had no valid moves
+            console.log("No move received for player:", data.playerId);
+            setMessage(
+              `❌ ${playerNames[data.playerId]} has no valid moves with ${data.roll}.`,
+              false
+            );
+            addToHistory(
+              `${playerNames[data.playerId]} - no valid moves`,
+              PLAYER_COLORS[data.playerId].css
+            );
+            break;
+
+          case "game-winner":
+            // Someone won the game
+            const winner = players[data.playerId];
+            if (winner) {
+              showWinner(winner);
+            }
+            break;
+
+          case "game-state":
+            // Sync game state
+            syncGameState(data.state);
+            break;
+
+          case "chat":
+            // Could add chat feature
+            break;
+        }
+      }
+
+      function handleDisconnection(conn) {
+        console.log("Player disconnected:", conn.peer);
+        connections = connections.filter((c) => c !== conn);
+        updateConnectedPlayersList();
+
+        if (!isHost && connections.length === 0) {
+          setMessage("⚠️ Disconnected from host!", true);
+        }
+      }
+
+      function updateConnectedPlayersList() {
+        const container = document.getElementById("connected-players");
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        // Add host (player 0)
+        const hostSlot = document.createElement("div");
+        hostSlot.className = "player-slot you";
+        hostSlot.innerHTML = `
+          <span style="color: ${PLAYER_COLORS[0].css}">${PLAYER_COLORS[0].emoji}</span>
+          <span>${playerNames[0]} (Host - You)</span>
+        `;
+        container.appendChild(hostSlot);
+
+        // Add connected players
+        connections.forEach((conn, idx) => {
+          const slot = document.createElement("div");
+          slot.className = "player-slot";
+          const playerIdx = idx + 1;
+          slot.innerHTML = `
+            <span style="color: ${PLAYER_COLORS[playerIdx].css}">${
+            PLAYER_COLORS[playerIdx].emoji
+          }</span>
+            <span>${
+              playerNames[playerIdx] || PLAYER_COLORS[playerIdx].name
+            }</span>
+          `;
+          container.appendChild(slot);
+        });
+
+        // Add empty slots
+        for (let i = connections.length + 1; i < 4; i++) {
+          const slot = document.createElement("div");
+          slot.className = "player-slot empty";
+          slot.innerHTML = `
+            <span style="opacity: 0.3">${PLAYER_COLORS[i].emoji}</span>
+            <span style="opacity: 0.5">Waiting for player...</span>
+          `;
+          container.appendChild(slot);
+        }
+      }
+
+      function startOnlineGame() {
+        if (!isHost) return;
+
+        numPlayers = connections.length + 1; // Host + connected players
+
+        // Broadcast game start
+        const gameSettings = {
+          numPlayers,
+          numPieces,
+          kidsMode,
+          showLabels,
+          relaxedHomeEntry,
+          moveDirection,
+          playerNames,
+          currentPlayer: 0,
+        };
+
+        broadcastToPeers({
+          type: "game-start",
+          settings: gameSettings,
+        });
+
+        // Start game locally
+        document.getElementById("setup-modal").classList.remove("show");
+        initThree();
+        initializeTrackPositions();
+        createBoard();
+        initPlayers();
+        createTokens();
+        if (showLabels) createPathLabels();
+
+        gamePhase = "roll";
+        updatePlayersUI();
+        animate();
+        updateOnlineUI();
+
+        setMessage(
+          `🎯 ${playerNames[currentPlayer]}'s turn! Roll the dice.`,
+          true
+        );
+      }
+
+      function broadcastToPeers(data) {
+        console.log("Broadcasting to", connections.length, "peers:", data.type);
+        connections.forEach((conn, idx) => {
+          if (conn.open) {
+            console.log("Sending to peer", idx);
+            conn.send(data);
+          } else {
+            console.log("Peer", idx, "not open");
+          }
+        });
+      }
+
+      function sendToHost(data) {
+        console.log("Sending to host:", data.type);
+        if (connections.length > 0 && connections[0].open) {
+          connections[0].send(data);
+          console.log("Sent to host successfully");
+        }
+      }
+
+      function updateOnlineUI() {
+        if (!isOnlineGame) return;
+
+        const isMyTurn = currentPlayer === myPlayerId;
+        document.getElementById("roll-btn").disabled =
+          !isMyTurn || gamePhase !== "roll";
+
+        if (isMyTurn) {
+          setMessage(`🎯 Your turn! Roll the dice.`, true);
+        } else {
+          setMessage(`⏳ Waiting for ${playerNames[currentPlayer]}...`, false);
+        }
+      }
+
+      function onlineRollDice() {
+        if (!isOnlineGame || currentPlayer !== myPlayerId) return;
+
+        // Generate roll
+        const roll = Math.floor(Math.random() * 6) + 1;
+
+        // Broadcast to all players
+        broadcastToPeers({
+          type: "dice-roll",
+          playerId: myPlayerId,
+          value: roll,
+        });
+
+        // Also send to host if we're not the host
+        if (!isHost) {
+          sendToHost({
+            type: "dice-roll",
+            playerId: myPlayerId,
+            value: roll,
+          });
+        }
+
+        // Process locally
+        diceValue = roll;
+        document.getElementById("dice-display").textContent = diceValue;
+        addToHistory(
+          `${playerNames[currentPlayer]} rolled ${diceValue}`,
+          PLAYER_COLORS[currentPlayer].css
+        );
+        processRoll();
+      }
+
+      function onlineMoveToken(tokenIndex) {
+        if (!isOnlineGame || currentPlayer !== myPlayerId) return;
+
+        broadcastToPeers({
+          type: "move-token",
+          playerId: myPlayerId,
+          tokenIndex: tokenIndex,
+          roll: diceValue,
+        });
+
+        if (!isHost) {
+          sendToHost({
+            type: "move-token",
+            playerId: myPlayerId,
+            tokenIndex: tokenIndex,
+            roll: diceValue,
+          });
+        }
+      }
+
+      function syncGameState(state) {
+        if (!state) return;
+        console.log("Syncing game state (positions only):", state);
+
+        // Sync player positions ONLY - don't touch currentPlayer or gamePhase
+        // Those are controlled exclusively by turn-change messages
+        if (state.players && players.length > 0) {
+          state.players.forEach((pData, idx) => {
+            if (players[idx]) {
+              if (pData.tokens) players[idx].tokens = [...pData.tokens];
+              if (pData.finishedTokens !== undefined)
+                players[idx].finishedTokens = pData.finishedTokens;
+            }
+          });
+
+          // Update token positions visually
+          players.forEach((player, pIdx) => {
+            player.tokens.forEach((pos, tIdx) => {
+              const tokenIndex = pIdx * numPieces + tIdx;
+              const tokenMesh = tokens[tokenIndex];
+              if (tokenMesh) {
+                const worldPos = getTokenWorldPosition(pIdx, pos, tIdx);
+                if (worldPos) {
+                  tokenMesh.position.set(worldPos.x, 0.5, worldPos.z);
+                }
+              }
+            });
+          });
+
+          updateTokenStackPositions();
+        }
+
+        // DON'T update currentPlayer or gamePhase from game-state
+        // These are controlled by turn-change messages to avoid race conditions
+
+        updatePlayersUI();
+      }
+
+      function selectLocalPlay() {
+        isOnlineGame = false;
+        document.getElementById("multiplayer-section").style.display = "none";
+        document.getElementById("local-settings").style.display = "block";
+      }
+
+      function backToModeSelect() {
+        document.getElementById("mp-mode-btns").style.display = "flex";
+        document.getElementById("create-room-ui").style.display = "none";
+        document.getElementById("join-room-ui").style.display = "none";
+
+        if (peer) {
+          peer.destroy();
+          peer = null;
+        }
+        connections = [];
+      }
+
+      // Three.js & Game State
+      let scene, camera, renderer, controls;
+      let board,
+        tokens = [];
+      let labelSprites = [];
+      let currentPlayer = 0;
+      let diceValue = 0;
+      let gamePhase = "setup";
+      let raycaster, mouse;
+      let players = [];
+      let turnNumber = 0;
+      let moveHistory = [];
+      let gameStateHistory = []; // For replay
+      let isReplaying = false;
+      let replayIndex = 0;
+
+      // Track positions
+      const TRACK_POSITIONS = [];
+      const TRACK_POSITIONS_ANTICLOCKWISE = [];
+      const HOME_STRETCHES = {};
+      const START_POSITIONS = {};
+      const BASE_POSITIONS = {};
+
+      class Player {
+        constructor(id, color, name, avatar) {
+          this.id = id;
+          this.color = color;
+          this.name = name || color.name;
+          this.avatar = avatar;
+          this.tokens = Array(numPieces).fill(-1);
+          this.finishedTokens = 0;
+        }
+
+        clone() {
+          const p = new Player(this.id, this.color, this.name, this.avatar);
+          p.tokens = [...this.tokens];
+          p.finishedTokens = this.finishedTokens;
+          return p;
+        }
+      }
+
+      // ==================== SAVE/LOAD GAME ====================
+      const SAVE_KEY = "ludo3d_saved_game";
+
+      function saveGameToStorage() {
+        if (gamePhase === "setup" || gamePhase === "initial-roll") return false;
+        if (!players || players.length === 0) return false;
+
+        try {
+          const saveData = {
+            // Settings
+            numPlayers: numPlayers || 4,
+            numPieces: numPieces || 4,
+            kidsMode: kidsMode || false,
+            showLabels: showLabels !== undefined ? showLabels : true,
+            relaxedHomeEntry: relaxedHomeEntry || false,
+            moveDirection: moveDirection || "clockwise",
+            playerNames: playerNames
+              ? [...playerNames]
+              : ["Red", "Green", "Yellow", "Blue"],
+            playerAvatars: playerAvatars
+              ? [...playerAvatars]
+              : [null, null, null, null],
+
+            // Game state
+            currentPlayer: currentPlayer || 0,
+            diceValue: diceValue || 0,
+            gamePhase: gamePhase || "roll",
+            turnNumber: turnNumber || 0,
+
+            // Player data - ensure we save valid data
+            players: players.map((p) => ({
+              id: p.id,
+              name: p.name || PLAYER_COLORS[p.id].name,
+              tokens: p.tokens ? [...p.tokens] : Array(numPieces).fill(-1),
+              finishedTokens: p.finishedTokens || 0,
+            })),
+
+            // History - keep last 50 entries, ensure they're valid
+            moveHistory: (moveHistory || []).slice(-50).map((entry) => ({
+              turn: entry.turn,
+              message: entry.message,
+              color: entry.color,
+            })),
+
+            // Metadata
+            savedAt: new Date().toISOString(),
+            version: "1.0",
+          };
+
+          localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+          showSaveIndicator();
+          return true;
+        } catch (e) {
+          console.error("Failed to save game:", e);
+          return false;
+        }
+      }
+
+      function loadGameFromStorage() {
+        try {
+          const saved = localStorage.getItem(SAVE_KEY);
+          if (!saved) return null;
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error("Failed to load game:", e);
+          return null;
+        }
+      }
+
+      function deleteSavedGame() {
+        localStorage.removeItem(SAVE_KEY);
+        document.getElementById("resume-section").style.display = "none";
+      }
+
+      function showSaveIndicator() {
+        const indicator = document.getElementById("save-indicator");
+        indicator.classList.add("show");
+        setTimeout(() => indicator.classList.remove("show"), 2000);
+      }
+
+      function checkForSavedGame() {
+        try {
+          const savedGame = loadGameFromStorage();
+          if (savedGame && savedGame.players && savedGame.players.length > 0) {
+            const resumeSection = document.getElementById("resume-section");
+            const resumeInfo = document.getElementById("resume-info");
+
+            const savedDate = new Date(savedGame.savedAt);
+            const timeAgo = getTimeAgo(savedDate);
+
+            const numP = savedGame.numPlayers || 4;
+            const names = savedGame.playerNames || [
+              "Red",
+              "Green",
+              "Yellow",
+              "Blue",
+            ];
+            const playersInfo = names.slice(0, numP).join(", ");
+            const currentP = savedGame.currentPlayer || 0;
+            const currentPlayerName = names[currentP] || "Player";
+            const turns = savedGame.turnNumber || 0;
+
+            // Calculate progress
+            let totalFinished = 0;
+            let totalPieces = (savedGame.numPieces || 4) * numP;
+            savedGame.players.forEach((p) => {
+              totalFinished += p.finishedTokens || 0;
+            });
+            const progressPercent = Math.round(
+              (totalFinished / totalPieces) * 100
+            );
+
+            resumeInfo.innerHTML = `
+              <span>👥 Players: ${playersInfo}</span>
+              <span>🎯 Current Turn: ${currentPlayerName}</span>
+              <span>📊 Turn #${turns} • ${progressPercent}% complete</span>
+              <span>🕐 Saved: ${timeAgo}</span>
+            `;
+
+            resumeSection.style.display = "block";
+          }
+        } catch (e) {
+          console.error("Error checking saved game:", e);
+          // If there's an error, just don't show the resume section
+        }
+      }
+
+      function getTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        if (seconds < 60) return "Just now";
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
+      }
+
+      function resumeGame() {
+        const savedGame = loadGameFromStorage();
+        if (!savedGame) {
+          alert("No saved game found!");
+          return;
+        }
+
+        try {
+          // Restore settings
+          numPlayers = savedGame.numPlayers || 4;
+          numPieces = savedGame.numPieces || 4;
+          kidsMode = savedGame.kidsMode || false;
+          showLabels =
+            savedGame.showLabels !== undefined ? savedGame.showLabels : true;
+          relaxedHomeEntry = savedGame.relaxedHomeEntry || false;
+          moveDirection = savedGame.moveDirection || "clockwise";
+          playerNames = savedGame.playerNames || [
+            "Red",
+            "Green",
+            "Yellow",
+            "Blue",
+          ];
+          playerAvatars = savedGame.playerAvatars || [null, null, null, null];
+
+          // Hide setup modal
+          document.getElementById("setup-modal").classList.remove("show");
+
+          // Initialize Three.js and board FIRST
+          initThree();
+          initializeTrackPositions();
+          createBoard();
+
+          // Initialize players array
+          players = [];
+          for (let i = 0; i < numPlayers; i++) {
+            const savedPlayer = savedGame.players[i];
+            if (savedPlayer) {
+              const player = new Player(
+                i,
+                PLAYER_COLORS[i],
+                savedPlayer.name || playerNames[i],
+                playerAvatars[i]
+              );
+              player.tokens = [
+                ...(savedPlayer.tokens || Array(numPieces).fill(-1)),
+              ];
+              player.finishedTokens = savedPlayer.finishedTokens || 0;
+              players.push(player);
+            } else {
+              // Fallback if player data is missing
+              players.push(
+                new Player(
+                  i,
+                  PLAYER_COLORS[i],
+                  playerNames[i],
+                  playerAvatars[i]
+                )
+              );
+            }
+          }
+
+          // Create tokens AFTER players are set up
+          createTokens();
+
+          // Now update token positions AFTER tokens are created
+          // Small delay to ensure Three.js objects are ready
+          setTimeout(() => {
+            players.forEach((player, pIdx) => {
+              player.tokens.forEach((pos, tIdx) => {
+                const tokenIndex = pIdx * numPieces + tIdx;
+                if (tokens[tokenIndex]) {
+                  const worldPos = getTokenWorldPosition(pIdx, pos, tIdx);
+                  if (worldPos) {
+                    tokens[tokenIndex].position.set(
+                      worldPos.x,
+                      0.5,
+                      worldPos.z
+                    );
+                  }
+                }
+              });
+            });
+
+            // Update stack positions for tokens on same space
+            updateTokenStackPositions();
+          }, 100);
+
+          if (showLabels) createPathLabels();
+
+          // Restore game state
+          currentPlayer = savedGame.currentPlayer || 0;
+          diceValue = savedGame.diceValue || 0;
+          turnNumber = savedGame.turnNumber || 0;
+
+          // Always set to roll phase when resuming (safest state)
+          gamePhase = "roll";
+
+          // Clear and restore history display
+          moveHistory = [];
+          gameStateHistory = [];
+          const historyEl = document.getElementById("move-history");
+          historyEl.innerHTML = "";
+
+          if (savedGame.moveHistory && savedGame.moveHistory.length > 0) {
+            savedGame.moveHistory.forEach((entry, idx) => {
+              if (entry && entry.turn && entry.message) {
+                moveHistory.push(entry);
+                const div = document.createElement("div");
+                div.className = "history-entry";
+                div.style.borderColor = entry.color || "#fff";
+                div.innerHTML = `<span class="turn-num">#${entry.turn}</span>${entry.message}`;
+                div.dataset.index = idx;
+                historyEl.insertBefore(div, historyEl.firstChild);
+              }
+            });
+          }
+
+          // Start the animation loop
+          animate();
+
+          // Update UI
+          updatePlayersUI();
+          document.getElementById("dice-display").textContent =
+            diceValue || "?";
+          document.getElementById("roll-btn").disabled = false;
+
+          setMessage(
+            `🎮 Game Resumed! ${playerNames[currentPlayer]}'s turn. Roll the dice!`,
+            true
+          );
+
+          // Add resume entry to history
+          addToHistory(
+            "Game resumed from save",
+            PLAYER_COLORS[currentPlayer].css
+          );
+        } catch (error) {
+          console.error("Error resuming game:", error);
+          alert("Failed to resume game. Starting fresh.");
+          deleteSavedGame();
+          location.reload();
+        }
+      }
+
+      // ==================== SOCIAL SHARING ====================
+      function getShareText(isWinner = false) {
+        if (isWinner && players.length > 0) {
+          const winner = players.find((p) => p.finishedTokens === numPieces);
+          if (winner) {
+            return (
+              `🎉 ${winner.name} won a game of &#8358;land Ludo! 🏆\n\n` +
+              `🎲 ${numPlayers} players • ${numPieces} pieces each\n` +
+              `📊 Completed in ${turnNumber} turns\n\n` +
+              `Play &#8358;land Ludo now! 🎮`
+            );
+          }
+        }
+
+        return (
+          `🎲 I'm playing &#8358;land Ludo!\n\n` +
+          `👥 ${numPlayers} players battling it out\n` +
+          `🎯 Currently on turn #${turnNumber}\n\n` +
+          `Come join the fun! 🎮`
+        );
+      }
+
+      function getShareUrl() {
+        // In a real deployment, this would be your actual game URL
+        return window.location.href.split("?")[0];
+      }
+
+      function shareToTwitter() {
+        const text = encodeURIComponent(getShareText(true));
+        const url = encodeURIComponent(getShareUrl());
+        window.open(
+          `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+          "_blank",
+          "width=550,height=420"
+        );
+      }
+
+      function shareToFacebook() {
+        const url = encodeURIComponent(getShareUrl());
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+          "_blank",
+          "width=550,height=420"
+        );
+      }
+
+      function shareToWhatsApp() {
+        const text = encodeURIComponent(
+          getShareText(true) + "\n" + getShareUrl()
+        );
+        window.open(`https://wa.me/?text=${text}`, "_blank");
+      }
+
+      function shareToLinkedIn() {
+        const url = encodeURIComponent(getShareUrl());
+        const text = encodeURIComponent(getShareText(true));
+        window.open(
+          `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+          "_blank",
+          "width=550,height=420"
+        );
+      }
+
+      function copyShareLink() {
+        const text = getShareText(true) + "\n\n" + getShareUrl();
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "✅ Copied!";
+            setTimeout(() => (btn.innerHTML = originalText), 2000);
+          })
+          .catch((err) => {
+            // Fallback for older browsers
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "✅ Copied!";
+            setTimeout(() => (btn.innerHTML = originalText), 2000);
+          });
+      }
+
+      function showShareModal() {
+        // Create a share modal on the fly
+        const existing = document.getElementById("share-modal");
+        if (existing) existing.remove();
+
+        const modal = document.createElement("div");
+        modal.id = "share-modal";
+        modal.className = "modal show";
+        modal.innerHTML = `
+          <div class="modal-content" style="text-align: center; max-width: 400px;">
+            <h2>📤 Share Game</h2>
+            <p style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 15px;">
+              Share your game progress with friends!
+            </p>
+            <div class="share-buttons" style="flex-direction: column; gap: 8px;">
+              <button class="share-btn twitter" onclick="shareToTwitter()" style="width: 100%; justify-content: center;">
+                𝕏 Share on Twitter
+              </button>
+              <button class="share-btn facebook" onclick="shareToFacebook()" style="width: 100%; justify-content: center;">
+                📘 Share on Facebook
+              </button>
+              <button class="share-btn whatsapp" onclick="shareToWhatsApp()" style="width: 100%; justify-content: center;">
+                💬 Share on WhatsApp
+              </button>
+              <button class="share-btn linkedin" onclick="shareToLinkedIn()" style="width: 100%; justify-content: center;">
+                💼 Share on LinkedIn
+              </button>
+              <button class="share-btn copy" onclick="copyShareLink()" style="width: 100%; justify-content: center;">
+                📋 Copy to Clipboard
+              </button>
+            </div>
+            <button class="close-modal" onclick="document.getElementById('share-modal').classList.remove('show')" style="margin-top: 15px;">
+              Close
+            </button>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Close on backdrop click
+        modal.addEventListener("click", (e) => {
+          if (e.target === modal) modal.classList.remove("show");
+        });
+      }
+
+      function startNewGame() {
+        deleteSavedGame();
+        location.reload();
+      }
+
+      // Auto-save after each move
+      function autoSave() {
+        if (gamePhase !== "setup" && gamePhase !== "initial-roll") {
+          saveGameToStorage();
+        }
+      }
+
+      // ==================== EFFECTS ====================
+      function createParticles(x, y, color, count = 10) {
+        const container = document.getElementById("particles");
+        for (let i = 0; i < count; i++) {
+          const particle = document.createElement("div");
+          particle.className = "particle";
+          particle.innerHTML = ["✨", "⭐", "🌟", "💫"][
+            Math.floor(Math.random() * 4)
+          ];
+          particle.style.left = x + (Math.random() - 0.5) * 100 + "px";
+          particle.style.top = y + (Math.random() - 0.5) * 100 + "px";
+          particle.style.fontSize = Math.random() * 20 + 10 + "px";
+          container.appendChild(particle);
+          setTimeout(() => particle.remove(), 1000);
+        }
+      }
+
+      function showCelebration(text, x, y) {
+        const el = document.createElement("div");
+        el.className = "celebration";
+        el.textContent = text;
+        el.style.left = x + "px";
+        el.style.top = y + "px";
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1500);
+      }
+
+      function showStepCounter(num) {
+        const counter = document.getElementById("step-counter");
+        counter.textContent = num;
+        counter.classList.add("show");
+      }
+
+      function hideStepCounter() {
+        document.getElementById("step-counter").classList.remove("show");
+      }
+
+      function showKillEffect(worldPos) {
+        const screenPos = worldToScreen(worldPos);
+        const effect = document.createElement("div");
+        effect.className = "kill-effect";
+        effect.style.left = screenPos.x - 50 + "px";
+        effect.style.top = screenPos.y - 50 + "px";
+        document.getElementById("particles").appendChild(effect);
+        setTimeout(() => effect.remove(), 500);
+      }
+
+      function worldToScreen(worldPos) {
+        const vector = new THREE.Vector3(worldPos.x, 0.5, worldPos.z);
+        vector.project(camera);
+        const container = document.getElementById("canvas-container");
+        const rect = container.getBoundingClientRect();
+        return {
+          x: rect.left + ((vector.x + 1) / 2) * rect.width,
+          y: rect.top + ((-vector.y + 1) / 2) * rect.height,
+        };
+      }
+
+      // ==================== HISTORY & REPLAY ====================
+      function saveGameState() {
+        return {
+          players: players.map((p) => p.clone()),
+          currentPlayer,
+          turnNumber,
+        };
+      }
+
+      function addToHistory(message, playerColor, stateSnapshot = null) {
+        turnNumber++;
+        const entry = {
+          turn: turnNumber,
+          message,
+          color: playerColor,
+          state: stateSnapshot || saveGameState(),
+        };
+        moveHistory.push(entry);
+        gameStateHistory.push(entry.state);
+
+        const historyEl = document.getElementById("move-history");
+        const div = document.createElement("div");
+        div.className = "history-entry";
+        div.style.borderColor = playerColor;
+        div.innerHTML = `<span class="turn-num">#${turnNumber}</span>${message}`;
+        div.dataset.index = moveHistory.length - 1;
+        div.onclick = () => startReplayAt(parseInt(div.dataset.index));
+        historyEl.insertBefore(div, historyEl.firstChild);
+
+        while (historyEl.children.length > 100) {
+          historyEl.removeChild(historyEl.lastChild);
+        }
+      }
+
+      function clearHistory() {
+        moveHistory = [];
+        gameStateHistory = [];
+        turnNumber = 0;
+        document.getElementById("move-history").innerHTML = "";
+      }
+
+      function startReplayAt(index) {
+        if (index < 0 || index >= gameStateHistory.length) return;
+
+        isReplaying = true;
+        replayIndex = index;
+        document.getElementById("replay-controls").classList.add("show");
+        document.getElementById("roll-btn").disabled = true;
+
+        // Highlight current entry
+        document.querySelectorAll(".history-entry").forEach((el, i) => {
+          el.classList.toggle(
+            "replaying",
+            parseInt(el.dataset.index) === index
+          );
+        });
+
+        restoreGameState(gameStateHistory[index]);
+        setMessage(
+          `📽️ Replaying move #${index + 1}: ${moveHistory[index].message}`
+        );
+      }
+
+      function restoreGameState(state) {
+        if (!state || !state.players) return;
+
+        // Handle both Player objects with clone() and plain objects
+        players = state.players.map((p, idx) => {
+          if (typeof p.clone === "function") {
+            return p.clone();
+          } else {
+            // Reconstruct Player from plain object
+            const player = new Player(
+              p.id !== undefined ? p.id : idx,
+              PLAYER_COLORS[p.id !== undefined ? p.id : idx],
+              p.name || playerNames[idx],
+              p.avatar || playerAvatars[idx]
+            );
+            player.tokens = p.tokens
+              ? [...p.tokens]
+              : Array(numPieces).fill(-1);
+            player.finishedTokens = p.finishedTokens || 0;
+            return player;
+          }
+        });
+        currentPlayer = state.currentPlayer || 0;
+
+        // Update token positions visually
+        players.forEach((player, pIdx) => {
+          player.tokens.forEach((pos, tIdx) => {
+            const tokenIndex = pIdx * numPieces + tIdx;
+            if (!tokens[tokenIndex]) return;
+            const tokenMesh = tokens[tokenIndex];
+            const worldPos = getTokenWorldPosition(pIdx, pos, tIdx);
+            if (!worldPos) return;
+            tokenMesh.position.set(worldPos.x, 0.5, worldPos.z);
+          });
+        });
+
+        updatePlayersUI();
+      }
+
+      function replayNext() {
+        if (replayIndex < gameStateHistory.length - 1) {
+          startReplayAt(replayIndex + 1);
+        }
+      }
+
+      function replayPrev() {
+        if (replayIndex > 0) {
+          startReplayAt(replayIndex - 1);
+        }
+      }
+
+      function replayPlay() {
+        if (replayIndex < gameStateHistory.length - 1) {
+          replayNext();
+          setTimeout(replayPlay, 1000);
+        }
+      }
+
+      function exitReplay() {
+        isReplaying = false;
+        document.getElementById("replay-controls").classList.remove("show");
+        document
+          .querySelectorAll(".history-entry")
+          .forEach((el) => el.classList.remove("replaying"));
+
+        // Restore to latest state
+        if (gameStateHistory.length > 0) {
+          restoreGameState(gameStateHistory[gameStateHistory.length - 1]);
+        }
+
+        if (gamePhase === "roll") {
+          document.getElementById("roll-btn").disabled = false;
+        }
+        setMessage(
+          `🎯 ${playerNames[currentPlayer]}'s turn! Roll the dice.`,
+          true
+        );
+      }
+
+      // ==================== SETUP ====================
+      function initSetupUI() {
+        // Check for saved game
+        checkForSavedGame();
+
+        // Multiplayer buttons
+        document
+          .getElementById("create-room-btn")
+          .addEventListener("click", createRoom);
+        document
+          .getElementById("join-room-btn")
+          .addEventListener("click", joinRoom);
+        document
+          .getElementById("local-play-btn")
+          .addEventListener("click", selectLocalPlay);
+        document
+          .getElementById("connect-room-btn")
+          .addEventListener("click", connectToRoom);
+        document
+          .getElementById("start-online-game")
+          .addEventListener("click", startOnlineGame);
+
+        // Enter key for room code
+        document
+          .getElementById("join-code-input")
+          .addEventListener("keypress", (e) => {
+            if (e.key === "Enter") connectToRoom();
+          });
+
+        // Resume and delete buttons
+        document
+          .getElementById("resume-game-btn")
+          .addEventListener("click", resumeGame);
+        document
+          .getElementById("delete-save-btn")
+          .addEventListener("click", deleteSavedGame);
+
+        document
+          .querySelectorAll("#player-count-options .option-btn")
+          .forEach((btn) => {
+            btn.addEventListener("click", () => {
+              document
+                .querySelectorAll("#player-count-options .option-btn")
+                .forEach((b) => b.classList.remove("selected"));
+              btn.classList.add("selected");
+              numPlayers = parseInt(btn.dataset.value);
+              updatePlayerSetupGrid();
+            });
+          });
+
+        document
+          .querySelectorAll("#piece-count-options .option-btn")
+          .forEach((btn) => {
+            btn.addEventListener("click", () => {
+              document
+                .querySelectorAll("#piece-count-options .option-btn")
+                .forEach((b) => b.classList.remove("selected"));
+              btn.classList.add("selected");
+              numPieces = parseInt(btn.dataset.value);
+            });
+          });
+
+        document
+          .querySelectorAll("#direction-options .option-btn")
+          .forEach((btn) => {
+            btn.addEventListener("click", () => {
+              document
+                .querySelectorAll("#direction-options .option-btn")
+                .forEach((b) => b.classList.remove("selected"));
+              btn.classList.add("selected");
+              moveDirection = btn.dataset.value;
+            });
+          });
+
+        document
+          .getElementById("kids-mode-toggle")
+          .addEventListener("click", function () {
+            this.classList.toggle("active");
+            kidsMode = this.classList.contains("active");
+          });
+
+        document
+          .getElementById("labels-toggle")
+          .addEventListener("click", function () {
+            this.classList.toggle("active");
+            showLabels = this.classList.contains("active");
+          });
+
+        document
+          .getElementById("relaxed-home-toggle")
+          .addEventListener("click", function () {
+            this.classList.toggle("active");
+            relaxedHomeEntry = this.classList.contains("active");
+          });
+
+        document
+          .getElementById("start-game")
+          .addEventListener("click", startGame);
+        updatePlayerSetupGrid();
+      }
+
+      function updatePlayerSetupGrid() {
+        const grid = document.getElementById("player-setup-grid");
+        grid.innerHTML = "";
+
+        for (let i = 0; i < numPlayers; i++) {
+          const color = PLAYER_COLORS[i];
+          const card = document.createElement("div");
+          card.className = "player-setup-card active";
+          card.style.borderColor = color.css;
+          card.innerHTML = `
+            <div class="avatar-upload" style="border-color: ${
+              color.css
+            };" data-player="${i}">
+              <span>${color.emoji}</span>
+              <input type="file" accept="image/*" data-player="${i}">
+            </div>
+            <input type="text" class="player-name-input" placeholder="${
+              color.name
+            }" data-player="${i}" value="${playerNames[i] || color.name}">
+          `;
+          grid.appendChild(card);
+        }
+
+        document.querySelectorAll(".avatar-upload").forEach((upload) => {
+          const input = upload.querySelector("input");
+          upload.addEventListener("click", () => input.click());
+
+          input.addEventListener("change", function () {
+            const playerId = parseInt(this.dataset.player);
+            const file = this.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = function (e) {
+                playerAvatars[playerId] = e.target.result;
+                upload.innerHTML = `<img src="${e.target.result}" alt="Avatar"><input type="file" accept="image/*" data-player="${playerId}">`;
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+        });
+
+        document.querySelectorAll(".player-name-input").forEach((input) => {
+          input.addEventListener("change", function () {
+            const playerId = parseInt(this.dataset.player);
+            playerNames[playerId] = this.value || PLAYER_COLORS[playerId].name;
+          });
+        });
+      }
+
+      function startGame() {
+        document.querySelectorAll(".player-name-input").forEach((input) => {
+          const playerId = parseInt(input.dataset.player);
+          playerNames[playerId] = input.value || PLAYER_COLORS[playerId].name;
+        });
+
+        document.getElementById("setup-modal").classList.remove("show");
+
+        initThree();
+        initializeTrackPositions();
+        createBoard();
+        initPlayers();
+        createTokens();
+        if (showLabels) createPathLabels();
+
+        showInitialRollModal();
+      }
+
+      function showInitialRollModal() {
+        gamePhase = "initial-roll";
+        const modal = document.getElementById("initial-roll-modal");
+        const results = document.getElementById("initial-roll-results");
+
+        results.innerHTML = "";
+        for (let i = 0; i < numPlayers; i++) {
+          const card = document.createElement("div");
+          card.className = "roll-result-card";
+          card.id = `roll-result-${i}`;
+          card.innerHTML = `
+            <div class="roll-result-value" style="color: ${PLAYER_COLORS[i].css}">?</div>
+            <div class="roll-result-name">${playerNames[i]}</div>
+          `;
+          results.appendChild(card);
+        }
+
+        modal.classList.add("show");
+        document.getElementById("initial-roll-btn").onclick =
+          performInitialRolls;
+      }
+
+      function performInitialRolls() {
+        const btn = document.getElementById("initial-roll-btn");
+        btn.disabled = true;
+        btn.textContent = "Rolling...";
+
+        const rolls = [];
+        let rollCount = 0;
+
+        const rollInterval = setInterval(() => {
+          for (let i = 0; i < numPlayers; i++) {
+            const val = Math.floor(Math.random() * 6) + 1;
+            document.querySelector(
+              `#roll-result-${i} .roll-result-value`
+            ).textContent = val;
+            if (rollCount >= 15) rolls[i] = val;
+          }
+          rollCount++;
+
+          if (rollCount >= 20) {
+            clearInterval(rollInterval);
+
+            const maxRoll = Math.max(...rolls);
+            const winners = rolls
+              .map((r, i) => (r === maxRoll ? i : -1))
+              .filter((i) => i !== -1);
+            currentPlayer = winners[0];
+
+            document
+              .querySelectorAll(".roll-result-card")
+              .forEach((card) => card.classList.remove("winner"));
+            document
+              .getElementById(`roll-result-${currentPlayer}`)
+              .classList.add("winner");
+
+            btn.textContent = `${playerNames[currentPlayer]} goes first!`;
+
+            const homeMode = relaxedHomeEntry
+              ? "Relaxed (any roll)"
+              : "Exact roll needed";
+            addToHistory(
+              `Game started! ${playerNames[currentPlayer]} rolled highest (${maxRoll}). Direction: ${moveDirection}. Home entry: ${homeMode}`,
+              PLAYER_COLORS[currentPlayer].css
+            );
+
+            setTimeout(() => {
+              document
+                .getElementById("initial-roll-modal")
+                .classList.remove("show");
+              gamePhase = "roll";
+              updatePlayersUI();
+              animate();
+              setMessage(
+                `🎯 ${playerNames[currentPlayer]}'s turn! Roll the dice.`,
+                true
+              );
+              document.getElementById("roll-btn").disabled = false;
+            }, 2000);
+          }
+        }, 80);
+      }
+
+      // ==================== THREE.JS ====================
+      function initThree() {
+        const container = document.getElementById("canvas-container");
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+
+        camera = new THREE.PerspectiveCamera(
+          45,
+          container.clientWidth / container.clientHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(7, 22, 22);
+        camera.lookAt(7, 0, 7);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 10;
+        controls.maxDistance = 40;
+        controls.maxPolarAngle = Math.PI / 2.2;
+        controls.target.set(7, 0, 7);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 25, 10);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        renderer.domElement.addEventListener("click", onCanvasClick);
+        window.addEventListener("resize", onWindowResize);
+      }
+
+      function createBoard() {
+        const boardGroup = new THREE.Group();
+
+        // Base board
+        const boardGeo = new THREE.BoxGeometry(15, 0.5, 15);
+        const boardMat = new THREE.MeshStandardMaterial({
+          color: 0xf5f5dc,
+          roughness: 0.8,
+        });
+        const boardMesh = new THREE.Mesh(boardGeo, boardMat);
+        boardMesh.position.set(7, -0.25, 7);
+        boardMesh.receiveShadow = true;
+        boardGroup.add(boardMesh);
+
+        const cellGeo = new THREE.BoxGeometry(0.9, 0.1, 0.9);
+        const pathMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.5,
+        });
+
+        for (let i = 0; i < 15; i++) {
+          for (let j = 0; j < 15; j++) {
+            const isV = i >= 6 && i <= 8;
+            const isH = j >= 6 && j <= 8;
+            const isCorner =
+              (i < 6 && j < 6) ||
+              (i < 6 && j > 8) ||
+              (i > 8 && j < 6) ||
+              (i > 8 && j > 8);
+            const isCenter = i >= 6 && i <= 8 && j >= 6 && j <= 8;
+
+            if ((isV || isH) && !isCorner && !isCenter) {
+              let mat = pathMat;
+
+              if (i === 7 && j >= 1 && j <= 5)
+                mat = new THREE.MeshStandardMaterial({
+                  color: PLAYER_COLORS[1].hex,
+                  roughness: 0.5,
+                  transparent: true,
+                  opacity: 0.7,
+                });
+              else if (i === 7 && j >= 9 && j <= 13)
+                mat = new THREE.MeshStandardMaterial({
+                  color: PLAYER_COLORS[0].hex,
+                  roughness: 0.5,
+                  transparent: true,
+                  opacity: 0.7,
+                });
+              else if (j === 7 && i >= 1 && i <= 5)
+                mat = new THREE.MeshStandardMaterial({
+                  color: PLAYER_COLORS[3].hex,
+                  roughness: 0.5,
+                  transparent: true,
+                  opacity: 0.7,
+                });
+              else if (j === 7 && i >= 9 && i <= 13)
+                mat = new THREE.MeshStandardMaterial({
+                  color: PLAYER_COLORS[2].hex,
+                  roughness: 0.5,
+                  transparent: true,
+                  opacity: 0.7,
+                });
+
+              if (i === 6 && j === 13)
+                mat = new THREE.MeshStandardMaterial({
+                  color: PLAYER_COLORS[0].hex,
+                  roughness: 0.5,
+                });
+              if (i === 1 && j === 6)
+                mat = new THREE.MeshStandardMaterial({
+                  color: PLAYER_COLORS[1].hex,
+                  roughness: 0.5,
+                });
+              if (i === 8 && j === 1)
+                mat = new THREE.MeshStandardMaterial({
+                  color: PLAYER_COLORS[2].hex,
+                  roughness: 0.5,
+                });
+              if (i === 13 && j === 8)
+                mat = new THREE.MeshStandardMaterial({
+                  color: PLAYER_COLORS[3].hex,
+                  roughness: 0.5,
+                });
+
+              const cell = new THREE.Mesh(cellGeo, mat);
+              cell.position.set(i, 0.05, j);
+              cell.receiveShadow = true;
+              boardGroup.add(cell);
+            }
+          }
+        }
+
+        // Center home
+        const centerGeo = new THREE.BoxGeometry(2.8, 0.25, 2.8);
+        const centerMat = new THREE.MeshStandardMaterial({
+          color: 0x2d3436,
+          roughness: 0.3,
+        });
+        const centerMesh = new THREE.Mesh(centerGeo, centerMat);
+        centerMesh.position.set(7, 0.12, 7);
+        boardGroup.add(centerMesh);
+
+        // Corner bases
+        const basePos = [
+          { x: 2.5, z: 11.5, color: PLAYER_COLORS[0].hex },
+          { x: 2.5, z: 2.5, color: PLAYER_COLORS[1].hex },
+          { x: 11.5, z: 2.5, color: PLAYER_COLORS[2].hex },
+          { x: 11.5, z: 11.5, color: PLAYER_COLORS[3].hex },
+        ];
+
+        basePos.forEach((base, idx) => {
+          if (idx < numPlayers) {
+            const baseG = new THREE.BoxGeometry(5.5, 0.2, 5.5);
+            const baseM = new THREE.MeshStandardMaterial({
+              color: base.color,
+              roughness: 0.6,
+            });
+            const bMesh = new THREE.Mesh(baseG, baseM);
+            bMesh.position.set(base.x, 0.1, base.z);
+            boardGroup.add(bMesh);
+
+            const innerG = new THREE.BoxGeometry(3.8, 0.15, 3.8);
+            const innerM = new THREE.MeshStandardMaterial({
+              color: 0xf5f5dc,
+              roughness: 0.7,
+            });
+            const iMesh = new THREE.Mesh(innerG, innerM);
+            iMesh.position.set(base.x, 0.15, base.z);
+            boardGroup.add(iMesh);
+
+            const spawns = [
+              { x: -0.8, z: -0.8 },
+              { x: 0.8, z: -0.8 },
+              { x: -0.8, z: 0.8 },
+              { x: 0.8, z: 0.8 },
+            ];
+            spawns.forEach((sp, si) => {
+              if (si < numPieces) {
+                const circleG = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
+                const circleM = new THREE.MeshStandardMaterial({
+                  color: base.color,
+                  roughness: 0.5,
+                });
+                const circle = new THREE.Mesh(circleG, circleM);
+                circle.position.set(base.x + sp.x, 0.2, base.z + sp.z);
+                boardGroup.add(circle);
+              }
+            });
+
+            // Player name in base
+            if (playerAvatars[idx]) {
+              const loader = new THREE.TextureLoader();
+              loader.load(playerAvatars[idx], (tex) => {
+                const avG = new THREE.PlaneGeometry(1.5, 1.5);
+                const avM = new THREE.MeshBasicMaterial({
+                  map: tex,
+                  transparent: true,
+                  side: THREE.DoubleSide,
+                });
+                const avMesh = new THREE.Mesh(avG, avM);
+                avMesh.rotation.x = -Math.PI / 2;
+                avMesh.position.set(base.x, 0.25, base.z);
+                scene.add(avMesh);
+              });
+            }
+          }
+        });
+
+        scene.add(boardGroup);
+        board = boardGroup;
+      }
+
+      function createPathLabels() {
+        const positions =
+          moveDirection === "clockwise"
+            ? TRACK_POSITIONS
+            : TRACK_POSITIONS_ANTICLOCKWISE;
+
+        // Main track labels (0-51)
+        positions.forEach((pos, idx) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 64;
+          canvas.height = 64;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "rgba(0,0,0,0.7)";
+          ctx.beginPath();
+          ctx.arc(32, 32, 28, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 28px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(idx.toString(), 32, 32);
+
+          const texture = new THREE.CanvasTexture(canvas);
+          const spriteMat = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0.8,
+          });
+          const sprite = new THREE.Sprite(spriteMat);
+          sprite.position.set(pos.x, 0.8, pos.z);
+          sprite.scale.set(0.5, 0.5, 1);
+          scene.add(sprite);
+          labelSprites.push(sprite);
+        });
+
+        // Home stretch labels (H1-H6 for each player)
+        for (let playerId = 0; playerId < numPlayers; playerId++) {
+          const homeStretch = HOME_STRETCHES[playerId];
+          const playerColor = PLAYER_COLORS[playerId];
+
+          homeStretch.forEach((pos, idx) => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext("2d");
+
+            // Use player's color for background
+            ctx.fillStyle = playerColor.css;
+            ctx.beginPath();
+            ctx.arc(32, 32, 28, 0, Math.PI * 2);
+            ctx.fill();
+
+            // White text
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 22px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`H${idx + 1}`, 32, 32);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({
+              map: texture,
+              transparent: true,
+              opacity: 0.9,
+            });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.position.set(pos.x, 0.8, pos.z);
+            sprite.scale.set(0.45, 0.45, 1);
+            scene.add(sprite);
+            labelSprites.push(sprite);
+          });
+        }
+
+        // Victory center label (only informational - pieces end here)
+        const centerCanvas = document.createElement("canvas");
+        centerCanvas.width = 96;
+        centerCanvas.height = 96;
+        const centerCtx = centerCanvas.getContext("2d");
+        centerCtx.fillStyle = "rgba(254, 202, 87, 0.9)";
+        centerCtx.beginPath();
+        centerCtx.arc(48, 48, 42, 0, Math.PI * 2);
+        centerCtx.fill();
+        centerCtx.fillStyle = "#1a1a2e";
+        centerCtx.font = "bold 20px Arial";
+        centerCtx.textAlign = "center";
+        centerCtx.textBaseline = "middle";
+        centerCtx.fillText("🏆", 48, 35);
+        centerCtx.font = "bold 14px Arial";
+        centerCtx.fillText("HOME", 48, 60);
+
+        const centerTexture = new THREE.CanvasTexture(centerCanvas);
+        const centerSpriteMat = new THREE.SpriteMaterial({
+          map: centerTexture,
+          transparent: true,
+          opacity: 0.9,
+        });
+        const centerSprite = new THREE.Sprite(centerSpriteMat);
+        centerSprite.position.set(7, 0.6, 7);
+        centerSprite.scale.set(0.8, 0.8, 1);
+        scene.add(centerSprite);
+        labelSprites.push(centerSprite);
+      }
+
+      function toggleLabels() {
+        showLabels = !showLabels;
+        labelSprites.forEach((s) => (s.visible = showLabels));
+        document
+          .getElementById("toggle-labels-btn")
+          .classList.toggle("active", showLabels);
+      }
+
+      function initializeTrackPositions() {
+        TRACK_POSITIONS.length = 0;
+        TRACK_POSITIONS_ANTICLOCKWISE.length = 0;
+
+        // Clockwise track (52 positions)
+        const clockwise = [
+          { x: 1, z: 8 },
+          { x: 2, z: 8 },
+          { x: 3, z: 8 },
+          { x: 4, z: 8 },
+          { x: 5, z: 8 },
+          { x: 6, z: 8 },
+          { x: 6, z: 9 },
+          { x: 6, z: 10 },
+          { x: 6, z: 11 },
+          { x: 6, z: 12 },
+          { x: 6, z: 13 },
+          { x: 7, z: 14 },
+          { x: 8, z: 14 },
+          { x: 8, z: 13 },
+          { x: 8, z: 12 },
+          { x: 8, z: 11 },
+          { x: 8, z: 10 },
+          { x: 8, z: 9 },
+          { x: 8, z: 8 },
+          { x: 9, z: 8 },
+          { x: 10, z: 8 },
+          { x: 11, z: 8 },
+          { x: 12, z: 8 },
+          { x: 13, z: 8 },
+          { x: 14, z: 7 },
+          { x: 14, z: 6 },
+          { x: 13, z: 6 },
+          { x: 12, z: 6 },
+          { x: 11, z: 6 },
+          { x: 10, z: 6 },
+          { x: 9, z: 6 },
+          { x: 8, z: 6 },
+          { x: 8, z: 5 },
+          { x: 8, z: 4 },
+          { x: 8, z: 3 },
+          { x: 8, z: 2 },
+          { x: 8, z: 1 },
+          { x: 7, z: 0 },
+          { x: 6, z: 0 },
+          { x: 6, z: 1 },
+          { x: 6, z: 2 },
+          { x: 6, z: 3 },
+          { x: 6, z: 4 },
+          { x: 6, z: 5 },
+          { x: 6, z: 6 },
+          { x: 5, z: 6 },
+          { x: 4, z: 6 },
+          { x: 3, z: 6 },
+          { x: 2, z: 6 },
+          { x: 1, z: 6 },
+          { x: 0, z: 7 },
+          { x: 0, z: 8 },
+        ];
+
+        clockwise.forEach((p) => TRACK_POSITIONS.push(p));
+
+        // Anticlockwise is reversed
+        for (let i = clockwise.length - 1; i >= 0; i--) {
+          TRACK_POSITIONS_ANTICLOCKWISE.push(clockwise[i]);
+        }
+
+        // Start positions depend on direction
+        if (moveDirection === "clockwise") {
+          START_POSITIONS[0] = 10;
+          START_POSITIONS[1] = 49;
+          START_POSITIONS[2] = 36;
+          START_POSITIONS[3] = 23;
+        } else {
+          START_POSITIONS[0] = 41;
+          START_POSITIONS[1] = 2;
+          START_POSITIONS[2] = 15;
+          START_POSITIONS[3] = 28;
+        }
+
+        // Home stretches
+        HOME_STRETCHES[0] = [
+          { x: 7, z: 13 },
+          { x: 7, z: 12 },
+          { x: 7, z: 11 },
+          { x: 7, z: 10 },
+          { x: 7, z: 9 },
+          { x: 7, z: 8 },
+        ];
+        HOME_STRETCHES[1] = [
+          { x: 1, z: 7 },
+          { x: 2, z: 7 },
+          { x: 3, z: 7 },
+          { x: 4, z: 7 },
+          { x: 5, z: 7 },
+          { x: 6, z: 7 },
+        ];
+        HOME_STRETCHES[2] = [
+          { x: 7, z: 1 },
+          { x: 7, z: 2 },
+          { x: 7, z: 3 },
+          { x: 7, z: 4 },
+          { x: 7, z: 5 },
+          { x: 7, z: 6 },
+        ];
+        HOME_STRETCHES[3] = [
+          { x: 13, z: 7 },
+          { x: 12, z: 7 },
+          { x: 11, z: 7 },
+          { x: 10, z: 7 },
+          { x: 9, z: 7 },
+          { x: 8, z: 7 },
+        ];
+
+        const baseCenters = [
+          { x: 2.5, z: 11.5 },
+          { x: 2.5, z: 2.5 },
+          { x: 11.5, z: 2.5 },
+          { x: 11.5, z: 11.5 },
+        ];
+        const baseOffsets = [
+          { x: -0.8, z: -0.8 },
+          { x: 0.8, z: -0.8 },
+          { x: -0.8, z: 0.8 },
+          { x: 0.8, z: 0.8 },
+        ];
+
+        for (let p = 0; p < 4; p++) {
+          BASE_POSITIONS[p] = baseOffsets.slice(0, numPieces).map((o) => ({
+            x: baseCenters[p].x + o.x,
+            z: baseCenters[p].z + o.z,
+          }));
+        }
+      }
+
+      function getTrackPositions() {
+        return moveDirection === "clockwise"
+          ? TRACK_POSITIONS
+          : TRACK_POSITIONS_ANTICLOCKWISE;
+      }
+
+      function initPlayers() {
+        players = [];
+        for (let i = 0; i < numPlayers; i++) {
+          players.push(
+            new Player(i, PLAYER_COLORS[i], playerNames[i], playerAvatars[i])
+          );
+        }
+      }
+
+      function createTokens() {
+        const tokenGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.6, 32);
+        const topGeo = new THREE.SphereGeometry(0.25, 32, 16);
+
+        players.forEach((player, pIdx) => {
+          for (let i = 0; i < numPieces; i++) {
+            const tokenMat = new THREE.MeshStandardMaterial({
+              color: player.color.hex,
+              roughness: 0.3,
+              metalness: 0.5,
+            });
+
+            const tokenGroup = new THREE.Group();
+
+            const body = new THREE.Mesh(tokenGeo, tokenMat.clone());
+            body.castShadow = true;
+            tokenGroup.add(body);
+
+            const top = new THREE.Mesh(topGeo, tokenMat.clone());
+            top.position.y = 0.35;
+            top.castShadow = true;
+            tokenGroup.add(top);
+
+            const basePos = BASE_POSITIONS[pIdx][i];
+            tokenGroup.position.set(basePos.x, 0.5, basePos.z);
+
+            tokenGroup.userData = {
+              playerId: pIdx,
+              tokenId: i,
+              selectable: false,
+            };
+
+            scene.add(tokenGroup);
+            tokens.push(tokenGroup);
+          }
+        });
+      }
+
+      // ==================== GAME LOGIC ====================
+      function rollDice() {
+        console.log(
+          "rollDice called - gamePhase:",
+          gamePhase,
+          "currentPlayer:",
+          currentPlayer,
+          "myPlayerId:",
+          myPlayerId
+        );
+        if (gamePhase !== "roll" || isReplaying) {
+          console.log(
+            "Blocked - gamePhase:",
+            gamePhase,
+            "isReplaying:",
+            isReplaying
+          );
+          return;
+        }
+
+        // In online games, only allow roll if it's your turn
+        if (isOnlineGame && currentPlayer !== myPlayerId) {
+          console.log("Blocked - not my turn");
+          setMessage(`⏳ It's ${playerNames[currentPlayer]}'s turn!`, false);
+          return;
+        }
+
+        console.log("Rolling dice...");
+        gamePhase = "animate";
+        const diceDisplay = document.getElementById("dice-display");
+        diceDisplay.classList.add("rolling");
+        document.getElementById("roll-btn").disabled = true;
+
+        let rollCount = 0;
+        const rollInterval = setInterval(() => {
+          diceDisplay.textContent = Math.floor(Math.random() * 6) + 1;
+          rollCount++;
+          if (rollCount >= 10) {
+            clearInterval(rollInterval);
+            diceDisplay.classList.remove("rolling");
+
+            diceValue = Math.floor(Math.random() * 6) + 1;
+            diceDisplay.textContent = diceValue;
+
+            // Broadcast roll to other players in online game
+            if (isOnlineGame) {
+              const rollData = {
+                type: "dice-roll",
+                playerId: myPlayerId,
+                value: diceValue,
+              };
+              broadcastToPeers(rollData);
+              if (!isHost) sendToHost(rollData);
+            }
+
+            addToHistory(
+              `${playerNames[currentPlayer]} rolled ${diceValue}`,
+              PLAYER_COLORS[currentPlayer].css
+            );
+            processRoll();
+          }
+        }, 100);
+      }
+
+      function processRoll() {
+        const player = players[currentPlayer];
+        const movableTokens = getMovableTokens(player, diceValue);
+
+        if (movableTokens.length === 0) {
+          setMessage(`❌ No valid moves with ${diceValue}.`);
+          addToHistory(
+            `${playerNames[currentPlayer]} - no valid moves`,
+            PLAYER_COLORS[currentPlayer].css
+          );
+          
+          // In online games, broadcast no-move to other players
+          if (isOnlineGame && isHost) {
+            broadcastToPeers({
+              type: "no-move",
+              playerId: currentPlayer,
+              roll: diceValue
+            });
+          }
+          
+          setTimeout(() => nextTurn(), 1500);
+        } else if (movableTokens.length === 1) {
+          // Auto-move the only available token
+          moveToken(player, movableTokens[0], diceValue);
+        } else {
+          gamePhase = "move";
+
+          // In online games, only highlight if it's your turn
+          if (isOnlineGame && currentPlayer !== myPlayerId) {
+            setMessage(
+              `⏳ ${playerNames[currentPlayer]} is choosing a piece...`,
+              false
+            );
+          } else {
+            highlightMovableTokens(player, movableTokens);
+            setMessage(`🎯 Rolled ${diceValue}! Click a piece to move.`, true);
+          }
+        }
+      }
+
+      function getMovableTokens(player, roll) {
+        const movable = [];
+        const canExit = kidsMode ? roll === 6 || roll === 1 : roll === 6;
+
+        for (let i = 0; i < numPieces; i++) {
+          const pos = player.tokens[i];
+          if (pos === 200) continue;
+
+          if (pos === -1) {
+            if (
+              canExit &&
+              !isBlockedByOpponent(player.id, START_POSITIONS[player.id])
+            ) {
+              movable.push(i);
+            }
+          } else if (pos >= 100) {
+            const homePos = pos - 100;
+            // With relaxedHomeEntry, any roll that reaches or exceeds home counts
+            if (relaxedHomeEntry) {
+              if (homePos + roll >= 1) movable.push(i); // Can always move forward in home stretch
+            } else {
+              if (homePos + roll <= 6) movable.push(i); // Need exact roll
+            }
+          } else {
+            const targetPos = calculateTargetPosition(player.id, pos, roll);
+            if (targetPos !== null && !isPathBlocked(player.id, pos, roll)) {
+              movable.push(i);
+            }
+          }
+        }
+        return movable;
+      }
+
+      function calculateTargetPosition(playerId, currentPos, roll) {
+        // If already in home stretch
+        if (currentPos >= 100 && currentPos < 200) {
+          const homePos = currentPos - 100;
+          const newHomePos = homePos + roll;
+          if (relaxedHomeEntry) {
+            // Any roll that reaches or exceeds 6 wins
+            return newHomePos >= 6 ? 200 : 100 + newHomePos;
+          } else {
+            // Need exact roll
+            if (newHomePos > 6) return null;
+            return newHomePos === 6 ? 200 : 100 + newHomePos;
+          }
+        }
+
+        // On main track
+        const dist = getDistanceToHomeEntry(playerId, currentPos);
+        if (dist !== -1 && roll > dist) {
+          const stepsIntoHome = roll - dist - 1;
+          if (relaxedHomeEntry) {
+            // Any roll that reaches or exceeds home wins
+            return stepsIntoHome >= 6 ? 200 : 100 + stepsIntoHome;
+          } else {
+            // Need exact roll
+            if (stepsIntoHome > 6) return null;
+            return stepsIntoHome === 6 ? 200 : 100 + stepsIntoHome;
+          }
+        }
+        return (currentPos + roll) % 52;
+      }
+
+      function getDistanceToHomeEntry(playerId, currentPos) {
+        const homeEntryBefore =
+          moveDirection === "clockwise"
+            ? { 0: 9, 1: 48, 2: 35, 3: 22 }
+            : { 0: 40, 1: 1, 2: 14, 3: 27 };
+        const entry = homeEntryBefore[playerId];
+        if (currentPos <= entry) return entry - currentPos;
+        return 52 - currentPos + entry;
+      }
+
+      function isBlockedByOpponent(playerId, position) {
+        for (let p = 0; p < players.length; p++) {
+          if (p === playerId) continue;
+          if (players[p].tokens.filter((t) => t === position).length >= 2)
+            return true;
+        }
+        return false;
+      }
+
+      function isPathBlocked(playerId, startPos, roll) {
+        for (let step = 1; step <= roll; step++) {
+          const checkPos = (startPos + step) % 52;
+          const dist = getDistanceToHomeEntry(playerId, startPos);
+          if (dist !== -1 && step > dist) continue;
+          if (isBlockedByOpponent(playerId, checkPos)) return true;
+        }
+        return false;
+      }
+
+      function highlightMovableTokens(player, movableTokens) {
+        tokens.forEach((token, index) => {
+          const pIdx = Math.floor(index / numPieces);
+          const tIdx = index % numPieces;
+          if (pIdx === player.id && movableTokens.includes(tIdx)) {
+            token.userData.selectable = true;
+            token.children.forEach((child) => {
+              child.material = child.material.clone();
+              child.material.emissive = new THREE.Color(0xffffff);
+              child.material.emissiveIntensity = 0.5;
+            });
+          }
+        });
+      }
+
+      function clearHighlights() {
+        tokens.forEach((token) => {
+          token.userData.selectable = false;
+          token.scale.set(1, 1, 1);
+          token.children.forEach((child) => {
+            child.material.emissive = new THREE.Color(0x000000);
+            child.material.emissiveIntensity = 0;
+          });
+        });
+      }
+
+      function moveToken(player, tokenIndex, roll) {
+        gamePhase = "animate";
+        clearHighlights();
+
+        // Broadcast move in online games (only if it's our move)
+        if (isOnlineGame && player.id === myPlayerId) {
+          const moveData = {
+            type: "move-token",
+            playerId: myPlayerId,
+            tokenIndex: tokenIndex,
+            roll: roll,
+          };
+          broadcastToPeers(moveData);
+          if (!isHost) sendToHost(moveData);
+        }
+
+        const currentPos = player.tokens[tokenIndex];
+        let extraTurn = roll === 6;
+        let historyMsg = "";
+
+        if (currentPos === -1) {
+          // Coming out - move to start position
+          const newPos = START_POSITIONS[player.id];
+          player.tokens[tokenIndex] = newPos;
+          historyMsg = `Piece #${tokenIndex + 1} entered at position ${newPos}`;
+
+          const tokenMesh = tokens[player.id * numPieces + tokenIndex];
+          animateTokenEntry(tokenMesh, player.id, newPos, tokenIndex, () => {
+            const captured = checkCapture(player.id, newPos);
+            if (captured) {
+              historyMsg += ` - captured ${playerNames[captured.playerId]}!`;
+              extraTurn = true;
+            }
+            addToHistory(historyMsg, PLAYER_COLORS[player.id].css);
+            finishMove(player, extraTurn);
+          });
+        } else {
+          // Moving on track
+          const targetPos = calculateTargetPosition(
+            player.id,
+            currentPos,
+            roll
+          );
+          player.tokens[tokenIndex] = targetPos;
+
+          if (targetPos === 200) {
+            player.finishedTokens++;
+            historyMsg = `Piece #${tokenIndex + 1} reached HOME! (${
+              player.finishedTokens
+            }/${numPieces})`;
+          } else if (targetPos >= 100) {
+            historyMsg = `Piece #${
+              tokenIndex + 1
+            } moved to home stretch position ${targetPos - 100 + 1}`;
+          } else {
+            historyMsg = `Piece #${
+              tokenIndex + 1
+            } moved from ${currentPos} to ${targetPos}`;
+          }
+
+          const tokenMesh = tokens[player.id * numPieces + tokenIndex];
+          animateTokenMoveStepByStep(
+            tokenMesh,
+            player.id,
+            currentPos,
+            targetPos,
+            tokenIndex,
+            roll,
+            () => {
+              if (targetPos >= 0 && targetPos < 100) {
+                const captured = checkCapture(player.id, targetPos);
+                if (captured) {
+                  historyMsg += ` - captured ${
+                    playerNames[captured.playerId]
+                  }!`;
+                  extraTurn = true;
+                }
+                const ownAtPos = player.tokens.filter(
+                  (t, i) => i !== tokenIndex && t === targetPos
+                );
+                if (ownAtPos.length > 0) historyMsg += " (BLOCK formed)";
+              }
+
+              if (targetPos === 200) {
+                const rect = document
+                  .getElementById("canvas-container")
+                  .getBoundingClientRect();
+                createParticles(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                  player.color.css,
+                  20
+                );
+                showCelebration(
+                  "🏠",
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2
+                );
+              }
+
+              addToHistory(historyMsg, PLAYER_COLORS[player.id].css);
+              finishMove(player, extraTurn);
+            }
+          );
+        }
+      }
+
+      function finishMove(player, extraTurn) {
+        console.log(
+          "finishMove called - player:",
+          player.id,
+          "extraTurn:",
+          extraTurn,
+          "isHost:",
+          isHost,
+          "isOnlineGame:",
+          isOnlineGame
+        );
+        updateTokenStackPositions();
+        updatePlayersUI();
+
+        // Only auto-save in local games
+        if (!isOnlineGame) {
+          autoSave();
+        }
+
+        // Broadcast player positions in online games (host broadcasts to all)
+        // Only send token positions, NOT currentPlayer or gamePhase
+        if (isOnlineGame && isHost) {
+          console.log("Host broadcasting player positions");
+          broadcastToPeers({
+            type: "game-state",
+            state: {
+              players: players.map((p) => ({
+                id: p.id,
+                tokens: [...p.tokens],
+                finishedTokens: p.finishedTokens,
+              })),
+            },
+          });
+        }
+
+        if (player.finishedTokens === numPieces) {
+          if (!isOnlineGame) deleteSavedGame();
+
+          // Broadcast winner in online games
+          if (isOnlineGame) {
+            broadcastToPeers({
+              type: "game-winner",
+              playerId: player.id,
+            });
+          }
+
+          showWinner(player);
+          return;
+        }
+
+        if (extraTurn && player.finishedTokens < numPieces) {
+          setTimeout(() => {
+            setMessage(`🎲 ${player.name} gets another turn!`, true);
+            addToHistory(
+              `${playerNames[currentPlayer]} gets another turn!`,
+              PLAYER_COLORS[currentPlayer].css
+            );
+            gamePhase = "roll";
+
+            // In online games, handle turn control
+            if (isOnlineGame) {
+              document.getElementById("roll-btn").disabled =
+                currentPlayer !== myPlayerId;
+
+              // Only host broadcasts extra turn
+              if (isHost) {
+                broadcastToPeers({
+                  type: "extra-turn",
+                  playerId: currentPlayer,
+                });
+              }
+            } else {
+              document.getElementById("roll-btn").disabled = false;
+            }
+          }, 800);
+        } else {
+          // In online games, only host controls turn changes
+          if (isOnlineGame) {
+            if (isHost) {
+              setTimeout(() => nextTurn(), 800);
+            } else {
+              // Non-hosts wait for turn-change message from host
+              setTimeout(() => {
+                gamePhase = "waiting";
+                setMessage(`⏳ Waiting for next turn...`, false);
+              }, 800);
+            }
+          } else {
+            setTimeout(() => nextTurn(), 800);
+          }
+        }
+      }
+
+      function checkCapture(playerId, position) {
+        const safePos = Object.values(START_POSITIONS);
+        if (safePos.includes(position)) return null;
+
+        for (let p = 0; p < players.length; p++) {
+          if (p === playerId) continue;
+          const atPos = players[p].tokens
+            .map((t, i) => (t === position ? i : -1))
+            .filter((i) => i !== -1);
+          if (atPos.length === 1) {
+            const capturedIdx = atPos[0];
+            players[p].tokens[capturedIdx] = -1;
+            const capturedToken = tokens[p * numPieces + capturedIdx];
+
+            // Show kill effect
+            const pos = getTrackPositions()[position];
+            showKillEffect(pos);
+
+            const rect = document
+              .getElementById("canvas-container")
+              .getBoundingClientRect();
+            createParticles(
+              rect.left + rect.width / 2,
+              rect.top + rect.height / 2,
+              "#ff0000",
+              15
+            );
+            showCelebration(
+              "💥",
+              rect.left + rect.width / 2,
+              rect.top + rect.height / 2
+            );
+
+            animateTokenEntry(capturedToken, p, -1, capturedIdx, null);
+            addToHistory(
+              `${playerNames[p]}'s piece #${capturedIdx + 1} was captured!`,
+              PLAYER_COLORS[p].css
+            );
+            return { playerId: p, tokenId: capturedIdx };
+          }
+        }
+        return null;
+      }
+
+      function getTokenWorldPosition(playerId, tokenPos, tokenId) {
+        if (tokenPos === -1) return BASE_POSITIONS[playerId][tokenId];
+        if (tokenPos >= 100 && tokenPos < 200)
+          return HOME_STRETCHES[playerId][tokenPos - 100];
+        if (tokenPos === 200) {
+          const angle = (playerId * Math.PI) / 2 + Math.PI / 4;
+          return { x: 7 + Math.cos(angle) * 0.5, z: 7 + Math.sin(angle) * 0.5 };
+        }
+        return getTrackPositions()[tokenPos];
+      }
+
+      function updateTokenStackPositions() {
+        const counts = {};
+        players.forEach((p, pIdx) => {
+          p.tokens.forEach((pos, tIdx) => {
+            if (pos >= 0 && pos < 100) {
+              if (!counts[pos]) counts[pos] = [];
+              counts[pos].push({ pIdx, tIdx });
+            }
+          });
+        });
+
+        Object.entries(counts).forEach(([pos, toks]) => {
+          if (toks.length > 1) {
+            toks.forEach((t, idx) => {
+              const mesh = tokens[t.pIdx * numPieces + t.tIdx];
+              const baseP = getTrackPositions()[parseInt(pos)];
+              mesh.position.x = baseP.x + (idx - (toks.length - 1) / 2) * 0.25;
+              mesh.position.y = 0.5 + idx * 0.2;
+            });
+          }
+        });
+      }
+
+      // Step-by-step animation
+      function animateTokenMoveStepByStep(
+        tokenMesh,
+        playerId,
+        fromPos,
+        toPos,
+        tokenId,
+        steps,
+        callback
+      ) {
+        const track = getTrackPositions();
+        const positions = [];
+
+        // Build path
+        if (fromPos >= 100 || toPos >= 100 || toPos === 200) {
+          // Moving in home stretch - direct animation
+          positions.push(getTokenWorldPosition(playerId, toPos, tokenId));
+        } else {
+          // On main track - step through each position
+          for (let i = 1; i <= steps; i++) {
+            const pos = (fromPos + i) % 52;
+            const dist = getDistanceToHomeEntry(playerId, fromPos);
+            if (dist !== -1 && i > dist) {
+              // Entering home stretch
+              const homePos = i - dist - 1;
+              if (homePos < 6) {
+                positions.push(HOME_STRETCHES[playerId][homePos]);
+              } else {
+                positions.push({ x: 7, z: 7 }); // Center
+              }
+            } else {
+              positions.push(track[pos]);
+            }
+          }
+        }
+
+        let stepIdx = 0;
+
+        function animateStep() {
+          if (stepIdx >= positions.length) {
+            hideStepCounter();
+            tokenMesh.rotation.y = 0;
+            if (callback) callback();
+            return;
+          }
+
+          showStepCounter(stepIdx + 1);
+
+          const targetPos = positions[stepIdx];
+          const startPos = { x: tokenMesh.position.x, z: tokenMesh.position.z };
+          const duration = 200;
+          const startTime = Date.now();
+
+          function animate() {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 2);
+
+            tokenMesh.position.x =
+              startPos.x + (targetPos.x - startPos.x) * eased;
+            tokenMesh.position.z =
+              startPos.z + (targetPos.z - startPos.z) * eased;
+            tokenMesh.position.y = 0.5 + Math.sin(progress * Math.PI) * 1;
+            tokenMesh.rotation.y = progress * Math.PI;
+
+            if (progress < 1) {
+              requestAnimationFrame(animate);
+            } else {
+              stepIdx++;
+              setTimeout(animateStep, 100);
+            }
+          }
+
+          animate();
+        }
+
+        animateStep();
+      }
+
+      function animateTokenEntry(
+        tokenMesh,
+        playerId,
+        toPos,
+        tokenId,
+        callback
+      ) {
+        const targetPos = getTokenWorldPosition(playerId, toPos, tokenId);
+        const startPos = {
+          x: tokenMesh.position.x,
+          y: tokenMesh.position.y,
+          z: tokenMesh.position.z,
+        };
+        const duration = 500;
+        const startTime = Date.now();
+
+        // Entry celebration
+        if (toPos !== -1) {
+          const rect = document
+            .getElementById("canvas-container")
+            .getBoundingClientRect();
+          createParticles(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2,
+            PLAYER_COLORS[playerId].css,
+            12
+          );
+          showCelebration(
+            "🎉",
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2
+          );
+        }
+
+        function animate() {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+
+          tokenMesh.position.x =
+            startPos.x + (targetPos.x - startPos.x) * eased;
+          tokenMesh.position.z =
+            startPos.z + (targetPos.z - startPos.z) * eased;
+          tokenMesh.position.y = 0.5 + Math.sin(progress * Math.PI) * 2.5;
+          tokenMesh.rotation.y = progress * Math.PI * 2;
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            tokenMesh.position.y = 0.5;
+            tokenMesh.rotation.y = 0;
+            if (callback) callback();
+          }
+        }
+
+        animate();
+      }
+
+      function nextTurn() {
+        const previousPlayer = currentPlayer;
+        currentPlayer = (currentPlayer + 1) % numPlayers;
+        gamePhase = "roll";
+        diceValue = 0;
+        document.getElementById("dice-display").textContent = "?";
+
+        console.log(
+          "Next turn:",
+          previousPlayer,
+          "->",
+          currentPlayer,
+          "| isHost:",
+          isHost,
+          "| myPlayerId:",
+          myPlayerId
+        );
+
+        // In online games, only enable roll button if it's your turn
+        if (isOnlineGame) {
+          document.getElementById("roll-btn").disabled =
+            currentPlayer !== myPlayerId;
+
+          if (currentPlayer === myPlayerId) {
+            setMessage(`🎯 Your turn! Roll the dice.`, true);
+          } else {
+            setMessage(
+              `⏳ Waiting for ${playerNames[currentPlayer]}...`,
+              false
+            );
+          }
+
+          // Broadcast turn change if host - include player positions for full sync
+          if (isHost) {
+            console.log("Broadcasting turn change to player:", currentPlayer);
+            broadcastToPeers({
+              type: "turn-change",
+              currentPlayer: currentPlayer,
+              gamePhase: "roll",
+              players: players.map((p) => ({
+                id: p.id,
+                tokens: [...p.tokens],
+                finishedTokens: p.finishedTokens,
+              })),
+            });
+          }
+        } else {
+          document.getElementById("roll-btn").disabled = false;
+          setMessage(`🎯 ${playerNames[currentPlayer]}'s turn!`, true);
+        }
+
+        updatePlayersUI();
+      }
+
+      function showWinner(player) {
+        addToHistory(`🏆 ${player.name} WINS!`, player.color.css);
+
+        const rect = document
+          .getElementById("canvas-container")
+          .getBoundingClientRect();
+        for (let i = 0; i < 5; i++) {
+          setTimeout(() => {
+            createParticles(
+              rect.left + Math.random() * rect.width,
+              rect.top + Math.random() * rect.height,
+              player.color.css,
+              20
+            );
+          }, i * 200);
+        }
+
+        setTimeout(() => {
+          document.getElementById(
+            "winner-text"
+          ).innerHTML = `<span style="color: ${player.color.css}">${player.name}</span> wins!`;
+
+          // Add game stats
+          const statsText = `🎲 ${numPlayers} players • ${numPieces} pieces each • ${turnNumber} turns`;
+          document.getElementById("winner-stats").textContent = statsText;
+
+          document.getElementById("winner-modal").classList.add("show");
+        }, 1000);
+      }
+
+      // ==================== UI ====================
+      function updatePlayersUI() {
+        const container = document.getElementById("players-list");
+        container.innerHTML = "";
+
+        players.forEach((player, index) => {
+          const div = document.createElement("div");
+          div.className = `player-info ${
+            index === currentPlayer ? "active" : ""
+          }`;
+          div.innerHTML = `
+            <div class="player-avatar" style="border-color: ${
+              player.color.css
+            };">
+              ${
+                player.avatar
+                  ? `<img src="${player.avatar}">`
+                  : player.color.emoji
+              }
+            </div>
+            <span class="player-name" style="color: ${player.color.css}">${
+            player.name
+          }</span>
+            <span class="player-tokens">🏠 ${
+              player.finishedTokens
+            }/${numPieces}</span>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      function setMessage(text, highlight = false) {
+        const msg = document.getElementById("message");
+        msg.textContent = text;
+        msg.className = highlight ? "highlight" : "";
+      }
+
+      function onCanvasClick(event) {
+        if (gamePhase !== "move" || isReplaying) return;
+
+        // In online games, only allow clicking if it's your turn
+        if (isOnlineGame && currentPlayer !== myPlayerId) {
+          setMessage(`⏳ It's ${playerNames[currentPlayer]}'s turn!`, false);
+          return;
+        }
+
+        const container = document.getElementById("canvas-container");
+        const rect = container.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(tokens, true);
+
+        if (intersects.length > 0) {
+          let tokenGroup = intersects[0].object;
+          while (
+            tokenGroup.parent &&
+            tokenGroup.userData.selectable === undefined
+          ) {
+            tokenGroup = tokenGroup.parent;
+          }
+
+          if (tokenGroup.userData && tokenGroup.userData.selectable) {
+            if (tokenGroup.userData.playerId === currentPlayer) {
+              moveToken(
+                players[currentPlayer],
+                tokenGroup.userData.tokenId,
+                diceValue
+              );
+            }
+          }
+        }
+      }
+
+      function onWindowResize() {
+        const container = document.getElementById("canvas-container");
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      function closeRulesModal() {
+        document.getElementById("rules-modal").classList.remove("show");
+      }
+
+      function showRulesSection(sectionId) {
+        // Update tabs
+        document.querySelectorAll(".rules-tab").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+        event.target.classList.add("active");
+
+        // Update sections
+        document.querySelectorAll(".rules-section").forEach((section) => {
+          section.classList.remove("active");
+        });
+        document.getElementById(`rules-${sectionId}`).classList.add("active");
+      }
+
+      // ==================== INIT ====================
+      document.getElementById("roll-btn").addEventListener("click", rollDice);
+      document
+        .getElementById("rules-btn")
+        .addEventListener("click", () =>
+          document.getElementById("rules-modal").classList.add("show")
+        );
+      document
+        .getElementById("restart-btn")
+        .addEventListener("click", () => location.reload());
+      document
+        .getElementById("clear-history-btn")
+        .addEventListener("click", clearHistory);
+      document
+        .getElementById("toggle-labels-btn")
+        .addEventListener("click", toggleLabels);
+      document.getElementById("save-btn").addEventListener("click", () => {
+        if (saveGameToStorage()) {
+          setMessage("💾 Game saved successfully!", true);
+        }
+      });
+      document
+        .getElementById("share-btn")
+        .addEventListener("click", showShareModal);
+
+      // Replay controls
+      document
+        .getElementById("replay-prev")
+        .addEventListener("click", replayPrev);
+      document
+        .getElementById("replay-next")
+        .addEventListener("click", replayNext);
+      document
+        .getElementById("replay-play")
+        .addEventListener("click", replayPlay);
+      document
+        .getElementById("replay-exit")
+        .addEventListener("click", exitReplay);
+
+      document.querySelectorAll(".modal").forEach((modal) => {
+        modal.addEventListener("click", (e) => {
+          if (
+            e.target === modal &&
+            !["setup-modal", "winner-modal", "initial-roll-modal"].includes(
+              modal.id
+            )
+          ) {
+            modal.classList.remove("show");
+          }
+        });
+      });
+
+      initSetupUI();
+    </script>
+  </body>
+</html>

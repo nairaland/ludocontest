@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nairaland 3D Ludo - Responsive</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        /* --- CORE CSS & VARIABLES --- */
+        :root {
+            --bg-color: #111;
+            --panel-bg: rgba(20, 20, 20, 0.85);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-roll: #4CAF50;
+            --accent-restart: #f44336;
+        }
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: var(--bg-color); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas { display: block; }
+        
+        /* --- LAYOUT GRID (Responsive) --- */
+        #game-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: grid;
+            padding: 15px;
+            box-sizing: border-box;
+            
+            /* DESKTOP LAYOUT (Default) */
+            grid-template-areas: 
+                "info-panel help-button"
+                "content content"
+                "controls controls";
+            grid-template-columns: 1fr auto;
+            grid-template-rows: auto 1fr auto;
+            gap: 15px;
+        }
+
+        /* --- MOBILE LAYOUT ADJUSTMENTS --- */
+        @media (max-width: 768px) {
+            #game-ui {
+                grid-template-areas: 
+                    "info-panel help-button"
+                    "content content"
+                    "controls controls";
+                grid-template-columns: 1fr auto;
+                grid-template-rows: auto 1fr auto;
+                gap: 10px;
+            }
+            .game-controls {
+                position: relative; 
+                bottom: auto; 
+                right: auto;
+                padding: 0;
+                width: 100%;
+                flex-direction: column-reverse; /* Roll button at the bottom */
+                gap: 10px;
+            }
+            .dice-control-group {
+                width: 100%;
+                justify-content: space-between !important;
+                padding: 15px;
+                border-radius: 8px;
+                background: var(--panel-bg);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            #roll-button, #restart-button {
+                width: 100%;
+                padding: 18px 30px;
+                font-size: 1.1em;
+            }
+            
+            #game-info {
+                width: auto;
+                padding: 15px;
+            }
+        }
+
+
+        /* --- UI ELEMENTS --- */
+        #game-info {
+            grid-area: info-panel;
+            padding: 15px 20px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            margin-bottom: 0;
+            pointer-events: auto;
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 400px;
+        }
+        #game-info h3 { margin-top: 0; margin-bottom: 8px; font-size: 1.3em; color: #f90; }
+        #game-info p { margin: 5px 0; font-size: 0.9em; }
+
+        .game-controls {
+            grid-area: controls;
+            position: absolute; /* Revert for desktop */
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+        
+        .dice-control-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            justify-content: flex-end; /* Align right on desktop */
+        }
+        
+        #roll-button, #restart-button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        #roll-button {
+            background-color: var(--accent-roll);
+            color: white;
+            font-weight: bold;
+        }
+        #roll-button:hover:not(:disabled) {
+            background-color: #45a049;
+            transform: translateY(-1px);
+        }
+        #roll-button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #restart-button {
+            background-color: var(--accent-restart); 
+            color: white;
+        }
+        #restart-button:hover {
+            background-color: #da190b;
+        }
+        
+        /* --- HELP BUTTON --- */
+        #help-button {
+            grid-area: help-button;
+            justify-self: end;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #2196F3;
+            color: white;
+            font-size: 1.5em;
+            text-align: center;
+            line-height: 40px;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            transition: background 0.2s;
+        }
+        #help-button:hover { background-color: #0b7dda; }
+
+        /* --- DICE VISUAL & ANIMATION (New) --- */
+        .dice-container {
+            width: 60px;
+            height: 60px;
+            perspective: 800px;
+            display: inline-block;
+            pointer-events: none;
+        }
+        .dice-cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateZ(-30px);
+        }
+        .dice-face {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: #fff;
+            border: 1px solid #333;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+        
+        /* Face Positioning */
+        .face-1 { transform: rotateY(0deg) translateZ(30px); }
+        .face-6 { transform: rotateY(180deg) translateZ(30px); }
+        .face-3 { transform: rotateY(90deg) translateZ(30px); }
+        .face-4 { transform: rotateY(-90deg) translateZ(30px); }
+        .face-5 { transform: rotateX(90deg) translateZ(30px); }
+        .face-2 { transform: rotateX(-90deg) translateZ(30px); }
+        
+        .dice-dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #333;
+            border-radius: 50%;
+        }
+
+        /* Dot Layout */
+        .face-1 .d-c { display: block; }
+        
+        .face-2 .d-ul, .face-2 .d-lr { display: block; }
+
+        .face-3 .d-ul, .face-3 .d-lr, .face-3 .d-c { display: block; }
+        
+        .face-4 .d-ul, .face-4 .d-ur, .face-4 .d-ll, .face-4 .d-lr { display: block; }
+        
+        .face-5 .d-ul, .face-5 .d-ur, .face-5 .d-ll, .face-5 .d-lr, .face-5 .d-c { display: block; }
+        
+        .face-6 .d-ul, .face-6 .d-ur, .face-6 .d-ll, .face-6 .d-lr, .face-6 .d-ml, .face-6 .d-mr { display: block; }
+        
+        /* Dot Positions */
+        .d-c { top: 50%; left: 50%; margin-left: -5px; margin-top: -5px; display: none; }
+        .d-ul { top: 10px; left: 10px; display: none; }
+        .d-ur { top: 10px; right: 10px; display: none; }
+        .d-ll { bottom: 10px; left: 10px; display: none; }
+        .d-lr { bottom: 10px; right: 10px; display: none; }
+        .d-ml { left: 10px; top: 50%; margin-top: -5px; display: none; }
+        .d-mr { right: 10px; top: 50%; margin-top: -5px; display: none; }
+
+        /* Animation Keyframes */
+        @keyframes roll-tumble {
+            0% { transform: translateZ(-30px) rotateX(0deg) rotateY(0deg); }
+            25% { transform: translateZ(-30px) rotateX(90deg) rotateY(-45deg); }
+            50% { transform: translateZ(-30px) rotateX(180deg) rotateY(90deg); }
+            75% { transform: translateZ(-30px) rotateX(-90deg) rotateY(135deg); }
+            100% { transform: translateZ(-30px) rotateX(360deg) rotateY(360deg); }
+        }
+
+        .rolling .dice-cube {
+            animation: roll-tumble 0.5s linear infinite;
+        }
+
+        /* --- MODAL --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 20; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.85); 
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #2c2c2c;
+            margin: 10% auto; 
+            padding: 25px;
+            border: 1px solid #444;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .modal-content h2 { color: #2196F3; margin-top: 0; }
+        .modal-content ul { padding-left: 20px; }
+        .modal-content li { margin-bottom: 10px; font-size: 0.95em; color: var(--text-secondary); }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-ui">
+        <div id="game-info">
+            <h3>Ludo Status</h3>
+            <p>Current Player: <span id="current-player" style="font-weight: bold; color: red;">Red</span></p>
+            <p>Last Roll: <span id="last-roll" style="font-weight: bold;">?</span></p>
+            <p id="game-message" style="color: yellow; margin-top: 10px;"></p>
+        </div>
+        
+        <div id="help-button" onclick="document.getElementById('rulesModal').style.display='block';">?</div>
+        
+        <div class="game-controls">
+            <button id="restart-button" onclick="restartGame()">Restart</button>
+            <div class="dice-control-group">
+                <div class="dice-container">
+                    <div id="diceCube" class="dice-cube">
+                        <div class="dice-face face-1">
+                            <span class="dice-dot d-c"></span>
+                        </div>
+                        <div class="dice-face face-2">
+                            <span class="dice-dot d-ul"></span>
+                            <span class="dice-dot d-lr"></span>
+                        </div>
+                        <div class="dice-face face-3">
+                            <span class="dice-dot d-ul"></span>
+                            <span class="dice-dot d-c"></span>
+                            <span class="dice-dot d-lr"></span>
+                        </div>
+                        <div class="dice-face face-4">
+                            <span class="dice-dot d-ul"></span>
+                            <span class="dice-dot d-ur"></span>
+                            <span class="dice-dot d-ll"></span>
+                            <span class="dice-dot d-lr"></span>
+                        </div>
+                        <div class="dice-face face-5">
+                            <span class="dice-dot d-ul"></span>
+                            <span class="dice-dot d-ur"></span>
+                            <span class="dice-dot d-ll"></span>
+                            <span class="dice-dot d-lr"></span>
+                            <span class="dice-dot d-c"></span>
+                        </div>
+                        <div class="dice-face face-6">
+                            <span class="dice-dot d-ul"></span>
+                            <span class="dice-dot d-ur"></span>
+                            <span class="dice-dot d-ll"></span>
+                            <span class="dice-dot d-lr"></span>
+                            <span class="dice-dot d-ml"></span>
+                            <span class="dice-dot d-mr"></span>
+                        </div>
+                    </div>
+                </div>
+                <button id="roll-button" onclick="rollDice()">Roll Dice</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="rulesModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('rulesModal').style.display='none';">&times;</span>
+            <h2>🎲 3D Ludo Challenge Rules</h2>
+            <p>This is a simplified 4-player Ludo game (Red, Blue, Yellow, Green).</p>
+            <ul>
+                <li><strong>Start:</strong> A roll of <strong>6</strong> is required to move a pawn from the Home Base onto the starting square (index 0 for Red).</li>
+                <li><strong>Movement:</strong> Click on a highlighted pawn after rolling to move it by the dice count.</li>
+                <li><strong>Safe Zones:</strong> All starting squares and the squares in the Home Bases are safe. Pawns cannot be captured there.</li>
+                <li>**Stacking:** Pawns automatically stack (offset) on the same square for easy visibility and selection. (New Feature!)</li>
+                <li><strong>Capturing:</strong> Landing on an opponent's pawn on the main track sends the captured pawn back to its Home Base (position index -1).</li>
+                <li><strong>Bonus Turn:</strong> Rolling a <strong>6</strong> grants the player an extra turn.</li>
+                <li><strong>Winning:</strong> Pawns must enter their respective colored safety lane and land on the center square (index 72) by **exact count**. The first player to get all four pawns to the center wins.</li>
+            </ul>
+        </div>
+    </div>
+    
+    <audio id="diceSound" preload="auto">
+        <source src="https://cdn.jsdelivr.net/gh/google/flatbuffers@9f55c5/tests/data/dice.wav" type="audio/wav">
+        </audio>
+
+    <script>
+        // --- CORE THREE.JS SETUP AND CONSTANTS ---
+        let scene, camera, renderer, controls, raycaster, mouse;
+        let ludoBoard; 
+        const gameContainer = document.body;
+        const rollButton = document.getElementById('roll-button');
+        const gameMessage = document.getElementById('game-message');
+        const diceSound = document.getElementById('diceSound'); 
+        const diceCube = document.getElementById('diceCube');
+
+        const SQUARE_SIZE = 2; 
+        const Y_HEIGHT = 0.75; 
+        const STACK_OFFSET = 0.5; 
+
+        const LUDO_COLORS = {
+            RED: 0xFF0000,
+            BLUE: 0x0000FF,
+            YELLOW: 0xFFFF00,
+            GREEN: 0x00AA00,
+            BOARD_PATH: 0xCCCCCC,
+            BOARD_HOME: 0xAAAAAA,
+            HIGHLIGHT: 0xFFFFFF 
+        };
+        const PLAYER_NAMES = ['Red', 'Blue', 'Yellow', 'Green'];
+
+        let gameState = {
+            currentPlayer: 0, 
+            pawns: [], 
+            diceValue: null,
+            isRolling: false,
+            boardMap: [],
+            possibleMoves: [],
+            playersFinished: [0, 0, 0, 0] 
+        };
+        
+        function getPlayerColor(playerIndex) {
+            return LUDO_COLORS[PLAYER_NAMES[playerIndex].toUpperCase()];
+        }
+        
+        // --- DICE VISUAL UPDATE FUNCTION (New) ---
+        /**
+         * Sets the visible face of the CSS dice cube without animation.
+         * @param {number} face - The number to show (1-6).
+         */
+        function updateDiceVisual(face) {
+            let rotationX = 0;
+            let rotationY = 0;
+
+            // Mapping face number to a specific 3D rotation
+            switch (face) {
+                case 1: rotationX = 0; rotationY = 0; break; // Show face-1
+                case 6: rotationX = 0; rotationY = 180; break; // Show face-6
+                case 3: rotationX = 0; rotationY = -90; break; // Show face-4 (Opposite of face-3 in CSS)
+                case 4: rotationX = 0; rotationY = 90; break; // Show face-3
+                case 5: rotationX = -90; rotationY = 0; break; // Show face-5
+                case 2: rotationX = 90; rotationY = 0; break; // Show face-2
+                default: break;
+            }
+            diceCube.style.transform = `translateZ(-30px) rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+        }
+
+        // --- LUDO BOARD COORDINATE MAP (Unchanged) ---
+        function createLudoMap() {
+            const LUDO_MAP = [];
+            const S = SQUARE_SIZE;
+            const H = Y_HEIGHT;
+            const MID = 0; 
+
+            // --- 52 MAIN PATH SQUARES ---
+            LUDO_MAP.push(new THREE.Vector3(-5 * S, H, -4 * S)); // 0
+            LUDO_MAP.push(
+                new THREE.Vector3(-5 * S, H, -6 * S), new THREE.Vector3(-5 * S, H, -8 * S), new THREE.Vector3(-5 * S, H, -10 * S), 
+                new THREE.Vector3(-4 * S, H, -10 * S), new THREE.Vector3(-2 * S, H, -10 * S), new THREE.Vector3(0, H, -10 * S), new THREE.Vector3(2 * S, H, -10 * S), 
+                new THREE.Vector3(4 * S, H, -10 * S), new THREE.Vector3(6 * S, H, -10 * S), new THREE.Vector3(8 * S, H, -10 * S), 
+                new THREE.Vector3(10 * S, H, -10 * S), new THREE.Vector3(10 * S, H, -8 * S) // 12
+            ); 
+            LUDO_MAP.push(new THREE.Vector3(10 * S, H, -6 * S)); // 13
+            LUDO_MAP.push(
+                new THREE.Vector3(10 * S, H, -4 * S), new THREE.Vector3(10 * S, H, -2 * S), new THREE.Vector3(10 * S, H, 0), new THREE.Vector3(10 * S, H, 2 * S),
+                new THREE.Vector3(10 * S, H, 4 * S), new THREE.Vector3(10 * S, H, 6 * S), new THREE.Vector3(10 * S, H, 8 * S), 
+                new THREE.Vector3(10 * S, H, 10 * S), new THREE.Vector3(8 * S, H, 10 * S), new THREE.Vector3(6 * S, H, 10 * S), new THREE.Vector3(4 * S, H, 10 * S) // 25
+            );
+            LUDO_MAP.push(new THREE.Vector3(2 * S, H, 10 * S)); // 26
+            LUDO_MAP.push(
+                new THREE.Vector3(0, H, 10 * S), new THREE.Vector3(-2 * S, H, 10 * S), new THREE.Vector3(-4 * S, H, 10 * S), new THREE.Vector3(-6 * S, H, 10 * S), 
+                new THREE.Vector3(-8 * S, H, 10 * S), new THREE.Vector3(-10 * S, H, 10 * S), new THREE.Vector3(-10 * S, H, 8 * S), 
+                new THREE.Vector3(-10 * S, H, 6 * S), new THREE.Vector3(-10 * S, H, 4 * S), new THREE.Vector3(-10 * S, H, 2 * S), new THREE.Vector3(-10 * S, H, 0) // 38
+            );
+            LUDO_MAP.push(new THREE.Vector3(-10 * S, H, -2 * S)); // 39
+            LUDO_MAP.push(
+                new THREE.Vector3(-8 * S, H, -2 * S), new THREE.Vector3(-6 * S, H, -2 * S), new THREE.Vector3(-4 * S, H, -2 * S), new THREE.Vector3(-2 * S, H, -2 * S),
+                new THREE.Vector3(0, H, -2 * S), new THREE.Vector3(2 * S, H, -2 * S), new THREE.Vector3(4 * S, H, -2 * S), new THREE.Vector3(6 * S, H, -2 * S), 
+                new THREE.Vector3(8 * S, H, -2 * S), new THREE.Vector3(10 * S, H, -2 * S), new THREE.Vector3(10 * S, H, -4 * S) // 51
+            );
+
+            // --- SAFE LANES (5 Squares Each) ---
+            LUDO_MAP.push(new THREE.Vector3(MID, H, -6 * S)); // 52
+            LUDO_MAP.push(new THREE.Vector3(MID, H, -4 * S)); // 53
+            LUDO_MAP.push(new THREE.Vector3(MID, H, -2 * S)); // 54
+            LUDO_MAP.push(new THREE.Vector3(MID, H, 0)); // 55
+            LUDO_MAP.push(new THREE.Vector3(MID, H, 2 * S)); // 56
+            
+            LUDO_MAP.push(new THREE.Vector3(8 * S, H, MID)); // 57
+            LUDO_MAP.push(new THREE.Vector3(6 * S, H, MID)); // 58
+            LUDO_MAP.push(new THREE.Vector3(4 * S, H, MID)); // 59
+            LUDO_MAP.push(new THREE.Vector3(2 * S, H, MID)); // 60
+            LUDO_MAP.push(new THREE.Vector3(0, H, MID)); // 61
+            
+            LUDO_MAP.push(new THREE.Vector3(MID, H, 8 * S)); // 62
+            LUDO_MAP.push(new THREE.Vector3(MID, H, 6 * S)); // 63
+            LUDO_MAP.push(new THREE.Vector3(MID, H, 4 * S)); // 64
+            LUDO_MAP.push(new THREE.Vector3(MID, H, 2 * S)); // 65
+            LUDO_MAP.push(new THREE.Vector3(MID, H, 0)); // 66
+            
+            LUDO_MAP.push(new THREE.Vector3(-8 * S, H, MID)); // 67
+            LUDO_MAP.push(new THREE.Vector3(-6 * S, H, MID)); // 68
+            LUDO_MAP.push(new THREE.Vector3(-4 * S, H, MID)); // 69
+            LUDO_MAP.push(new THREE.Vector3(-2 * S, H, MID)); // 70
+            LUDO_MAP.push(new THREE.Vector3(0, H, MID)); // 71
+
+            // --- CENTER/FINISH SQUARE ---
+            LUDO_MAP.push(new THREE.Vector3(MID, H, MID)); // 72 (Finish)
+
+            gameState.boardMap = LUDO_MAP;
+        }
+
+        // --- GAME ASSET CREATION & THREE.JS SETUP (Minimal changes) ---
+        function createLudoBoard() {
+            const boardGroup = new THREE.Group();
+            const boxGeometry = new THREE.BoxGeometry(SQUARE_SIZE * 0.9, 0.5, SQUARE_SIZE * 0.9);
+            const baseGeometry = new THREE.BoxGeometry(SQUARE_SIZE * 13, 0.2, SQUARE_SIZE * 13);
+            const baseMaterial = new THREE.MeshPhongMaterial({ color: LUDO_COLORS.BOARD_HOME });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.receiveShadow = true;
+            base.position.y = 0; 
+            boardGroup.add(base);
+
+            gameState.boardMap.forEach((coord, index) => {
+                let color = LUDO_COLORS.BOARD_PATH;
+                if (index === 0) color = LUDO_COLORS.RED; 
+                else if (index >= 52 && index <= 56) color = LUDO_COLORS.RED; 
+                else if (index === 13) color = LUDO_COLORS.BLUE; 
+                else if (index >= 57 && index <= 61) color = LUDO_COLORS.BLUE; 
+                else if (index === 26) color = LUDO_COLORS.YELLOW; 
+                else if (index >= 62 && index <= 66) color = LUDO_COLORS.YELLOW; 
+                else if (index === 39) color = LUDO_COLORS.GREEN; 
+                else if (index >= 67 && index <= 71) color = LUDO_COLORS.GREEN; 
+                else if (index === 72) color = 0x666666; 
+
+                const material = new THREE.MeshPhongMaterial({ color: color });
+                const square = new THREE.Mesh(boxGeometry, material);
+                square.position.copy(coord);
+                square.position.y = 0.5;
+                square.receiveShadow = true;
+                square.userData = { isSquare: true, index: index };
+                boardGroup.add(square);
+            });
+            return boardGroup;
+        }
+        
+        function createPawn(color, id) {
+            const geometry = new THREE.ConeGeometry(0.8, 2, 32); 
+            const material = new THREE.MeshPhongMaterial({ color: color, shininess: 100 });
+            const pawn = new THREE.Mesh(geometry, material);
+            pawn.castShadow = true;
+            
+            const homeX = (id % 2 === 0 ? -15 : 15);
+            const homeZ = (id < 2 ? -15 : 15);
+            const initialPos = new THREE.Vector3(homeX + (id < 2 ? 0 : 4), 1.5, homeZ + (id % 2 === 0 ? 4 : 0));
+            pawn.position.copy(initialPos); 
+
+            pawn.userData = { 
+                isPawn: true, 
+                playerId: id, 
+                positionIndex: -1, 
+                homePosition: initialPos.clone()
+            };
+            return pawn;
+        }
+        
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333); 
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            // Default position, will be updated by onWindowResize
+            camera.position.set(0, 35, 30); 
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true; 
+            gameContainer.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 0, 0); 
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.update();
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 5); 
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 3); 
+            directionalLight.position.set(20, 40, 20);
+            directionalLight.castShadow = true; 
+            directionalLight.shadow.mapSize.width = 2048; 
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            window.addEventListener('resize', onWindowResize, false);
+            onWindowResize(); // Initial call
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Responsive camera adjustment
+            if (window.innerWidth < 768) {
+                camera.position.set(0, 60, 50); 
+            } else {
+                camera.position.set(0, 35, 30);
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // --- PAWN STACKING UTILITY (Unchanged) ---
+        function calculateStackedPosition(targetIndex, baseCoord) {
+            const pawnsAtTarget = gameState.pawns.filter(p => p.userData.positionIndex === targetIndex && p.userData.isPawn);
+            const count = pawnsAtTarget.length;
+            
+            let xOffset = 0;
+            let zOffset = 0;
+
+            switch (count) {
+                case 1: xOffset = 0; zOffset = 0; break;
+                case 2: xOffset = -STACK_OFFSET + (pawnsAtTarget.indexOf(this) * 2 * STACK_OFFSET); zOffset = 0; break;
+                case 3:
+                    if (pawnsAtTarget.indexOf(this) === 0) { xOffset = 0; zOffset = STACK_OFFSET; }
+                    else if (pawnsAtTarget.indexOf(this) === 1) { xOffset = -STACK_OFFSET; zOffset = -STACK_OFFSET; }
+                    else { xOffset = STACK_OFFSET; zOffset = -STACK_OFFSET; }
+                    break;
+                case 4:
+                    if (pawnsAtTarget.indexOf(this) === 0) { xOffset = -STACK_OFFSET; zOffset = STACK_OFFSET; }
+                    else if (pawnsAtTarget.indexOf(this) === 1) { xOffset = STACK_OFFSET; zOffset = STACK_OFFSET; }
+                    else if (pawnsAtTarget.indexOf(this) === 2) { xOffset = -STACK_OFFSET; zOffset = -STACK_OFFSET; }
+                    else { xOffset = STACK_OFFSET; zOffset = -STACK_OFFSET; }
+                    break;
+                default: xOffset = 0; zOffset = 0; break;
+            }
+
+            const newPos = baseCoord.clone();
+            newPos.x += xOffset * 0.5;
+            newPos.z += zOffset * 0.5;
+            
+            if (targetIndex === 72) {
+                 newPos.y += count * 0.5; 
+            }
+            
+            return newPos;
+        }
+
+        function repositionPawnsOnSquare(index) {
+             if (index === null || index === undefined || index < -1 || index > 72) return;
+
+             const pawnsToReposition = gameState.pawns.filter(p => p.userData.positionIndex === index && p.userData.isPawn);
+             if (pawnsToReposition.length === 0) return;
+
+             const baseCoord = (index === -1) ? pawnsToReposition[0].userData.homePosition : gameState.boardMap[index];
+
+             pawnsToReposition.forEach(pawn => {
+                 const newCoord = calculateStackedPosition.call(pawn, index, baseCoord);
+                 pawn.position.copy(newCoord);
+             });
+        }
+
+
+        // --- GAME LOGIC FUNCTIONS (Unchanged) ---
+        const safeStartIndices = [0, 13, 26, 39]; 
+        const currentPlayerStart = [51, 12, 25, 38]; 
+        const safeLaneStart = [52, 57, 62, 67];      
+        const finalFinish = 72;
+
+        function getTargetPositionIndex(startPos, steps, playerIndex) {
+            if (startPos === -1) { return steps === 6 ? safeStartIndices[playerIndex] : -1; }
+            let targetIndex = startPos + steps;
+            
+            if (startPos <= currentPlayerStart[playerIndex] && targetIndex > currentPlayerStart[playerIndex]) {
+                const stepsInLane = targetIndex - currentPlayerStart[playerIndex];
+                targetIndex = safeLaneStart[playerIndex] + stepsInLane - 1; 
+            } else if (startPos >= safeLaneStart[playerIndex] && startPos < finalFinish) {
+                 targetIndex = startPos + steps;
+            } else if (targetIndex > 51) {
+                 targetIndex = targetIndex % 52; 
+            }
+            
+            return targetIndex > finalFinish ? null : targetIndex;
+        }
+
+        function movePawn(pawn, targetIndex, callback) {
+            const baseCoord = (targetIndex === -1) ? pawn.userData.homePosition : gameState.boardMap[targetIndex];
+            const oldIndex = pawn.userData.positionIndex;
+            pawn.userData.positionIndex = targetIndex;
+            
+            const targetCoord = calculateStackedPosition.call(pawn, targetIndex, baseCoord);
+
+            function animateMove() {
+                const distance = pawn.position.distanceTo(targetCoord);
+                
+                if (distance > 0.1) {
+                    const direction = targetCoord.clone().sub(pawn.position).normalize();
+                    pawn.position.add(direction.multiplyScalar(0.4));
+                    requestAnimationFrame(animateMove);
+                } else {
+                    pawn.position.copy(targetCoord);
+                    repositionPawnsOnSquare(oldIndex);
+                    repositionPawnsOnSquare(targetIndex);
+                    callback();
+                }
+            }
+            animateMove();
+        }
+
+        function checkForCapture(targetIndex, currentPlayer) {
+            const capturedPawns = gameState.pawns.filter(pawn => 
+                pawn.userData.positionIndex === targetIndex && 
+                pawn.userData.playerId !== currentPlayer &&
+                !safeStartIndices.includes(targetIndex)
+            );
+
+            capturedPawns.forEach(pawn => {
+                pawn.userData.positionIndex = -1;
+                movePawn(pawn, -1, () => {
+                    gameMessage.innerText = `Pawn captured! ${PLAYER_NAMES[pawn.userData.playerId]}'s pawn sent home.`;
+                    repositionPawnsOnSquare(-1); 
+                });
+            });
+        }
+        
+        function checkForWin(playerIndex) {
+            if (gameState.playersFinished[playerIndex] === 4) {
+                alert(`${PLAYER_NAMES[playerIndex]} Wins the Ludo Challenge! Click Restart to play again.`);
+                rollButton.disabled = true;
+            }
+        }
+
+        function endTurn(isBonusTurn) {
+            rollButton.disabled = false;
+            diceCube.classList.remove('rolling');
+            
+            if (!isBonusTurn) {
+                gameState.currentPlayer = (gameState.currentPlayer + 1) % PLAYER_NAMES.length;
+                gameMessage.innerText = "";
+            } else {
+                gameMessage.innerText = "Bonus Roll! Roll again.";
+            }
+
+            const nextPlayerColor = PLAYER_NAMES[gameState.currentPlayer];
+            document.getElementById('current-player').innerText = nextPlayerColor;
+            document.getElementById('current-player').style.color = nextPlayerColor.toLowerCase();
+            
+            gameState.diceValue = null;
+            gameState.possibleMoves = [];
+            gameState.pawns.forEach(p => p.scale.set(1, 1, 1)); 
+        }
+
+        function handleRoll(diceResult) {
+            const currentPlayer = gameState.currentPlayer;
+            const currentPlayerPawns = gameState.pawns.filter(p => p.userData.playerId === currentPlayer);
+            gameState.possibleMoves = [];
+            
+            // Set the final dice face
+            updateDiceVisual(diceResult);
+
+            currentPlayerPawns.forEach(pawn => {
+                const target = getTargetPositionIndex(pawn.userData.positionIndex, diceResult, currentPlayer);
+                if (target !== pawn.userData.positionIndex && target !== null) {
+                    gameState.possibleMoves.push({ pawn: pawn, targetIndex: target });
+                    pawn.scale.set(1.2, 1.2, 1.2); 
+                }
+            });
+
+            if (gameState.possibleMoves.length === 0) {
+                gameMessage.innerText = `Rolled a ${diceResult}. No valid moves.`;
+                setTimeout(() => endTurn(false), 1500); 
+            } else {
+                rollButton.disabled = true; 
+                gameMessage.innerText = `Rolled a ${diceResult}. Click a highlighted pawn to move.`;
+            }
+            
+            diceCube.classList.remove('rolling'); // Stop the animation
+        }
+        
+        function rollDice() {
+            if (gameState.isRolling || rollButton.disabled) return;
+            gameState.isRolling = true;
+            rollButton.disabled = true;
+            
+            // Start the CSS rolling animation
+            diceCube.classList.add('rolling');
+            
+            diceSound.currentTime = 0; 
+            diceSound.play().catch(e => console.warn("Audio playback failed:", e)); 
+            
+            const diceResult = Math.floor(Math.random() * 6) + 1;
+            gameState.diceValue = diceResult;
+            document.getElementById('last-roll').innerText = diceResult;
+
+            setTimeout(() => {
+                gameState.isRolling = false;
+                handleRoll(diceResult);
+            }, 1000); 
+        }
+
+        function onPawnClick(event) {
+            if (!gameState.diceValue || gameState.possibleMoves.length === 0) return;
+
+            // Handle both touch (for mobile) and click (for desktop)
+            let clientX, clientY;
+            if (event.changedTouches && event.changedTouches.length > 0) {
+                clientX = event.changedTouches[0].clientX;
+                clientY = event.changedTouches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            for (let i = 0; i < intersects.length; i++) {
+                const object = intersects[i].object;
+                const move = gameState.possibleMoves.find(m => m.pawn === object);
+                
+                if (move) {
+                    gameState.pawns.forEach(p => p.scale.set(1, 1, 1)); 
+
+                    movePawn(move.pawn, move.targetIndex, () => {
+                        if (move.targetIndex === finalFinish) {
+                            gameState.playersFinished[gameState.currentPlayer]++;
+                            checkForWin(gameState.currentPlayer);
+                            endTurn(gameState.diceValue === 6);
+                        } else {
+                            checkForCapture(move.targetIndex, gameState.currentPlayer);
+                            endTurn(gameState.diceValue === 6);
+                        }
+                    });
+                    
+                    return; 
+                }
+            }
+        }
+        
+        // --- RESTART LOGIC ---
+        function setupPawns() {
+            gameState.pawns.forEach(pawn => scene.remove(pawn));
+            gameState.pawns = [];
+            
+            for (let i = 0; i < 4; i++) { 
+                for (let j = 0; j < 4; j++) { 
+                    const color = getPlayerColor(i);
+                    const pawn = createPawn(color, i);
+                    gameState.pawns.push(pawn);
+                    scene.add(pawn);
+                    const initialOffset = new THREE.Vector3(j % 2 === 0 ? 1 : -1, 0, Math.floor(j / 2) === 0 ? 1 : -1);
+                    pawn.position.add(initialOffset.multiplyScalar(SQUARE_SIZE * 0.5));
+                }
+            }
+        }
+
+        function restartGame() {
+            gameState.currentPlayer = 0;
+            gameState.diceValue = null;
+            gameState.isRolling = false;
+            gameState.possibleMoves = [];
+            gameState.playersFinished = [0, 0, 0, 0];
+
+            rollButton.disabled = false;
+            document.getElementById('last-roll').innerText = '?';
+            const startPlayerColor = PLAYER_NAMES[0];
+            document.getElementById('current-player').innerText = startPlayerColor;
+            document.getElementById('current-player').style.color = startPlayerColor.toLowerCase();
+            gameMessage.innerText = `${startPlayerColor} starts a new game!`;
+            diceCube.classList.remove('rolling');
+            updateDiceVisual(1); // Reset dice to 1
+
+            setupPawns(); 
+        }
+
+        function initializeGame() {
+            createLudoMap();
+            init3D();
+            
+            if (!ludoBoard) {
+                 ludoBoard = createLudoBoard();
+                 scene.add(ludoBoard);
+            }
+           
+            setupPawns();
+
+            animate();
+            window.addEventListener('click', onPawnClick);
+            window.addEventListener('touchstart', onPawnClick, {passive: false}); // Add touch support
+            gameMessage.innerText = `Welcome! ${PLAYER_NAMES[gameState.currentPlayer]} starts.`;
+            updateDiceVisual(1); // Initial dice state
+        }
+        
+        initializeGame();
+        
+    </script>
+</body>
+</html>

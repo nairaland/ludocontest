@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>3D Ludo - Created by D-Talent</title>
+<style>
+:root {
+--primary: #2c3e50;
+--accent: #e74c3c;
+--light: #ecf0f1;
+--glass: rgba(255, 255, 255, 0.9);
+--shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; user-select: none; -webkit-user-select: none; }
+#game-container { width: 100vw; height: 100vh; display: block; }
+
+    /* UI OVERLAYS */
+    .overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        background: rgba(0,0,0,0.85); z-index: 100; transition: opacity 0.5s;
+    }
+    .hidden { opacity: 0; pointer-events: none; }
+    
+    /* SETUP SCREEN */
+    .panel {
+        background: var(--glass); padding: 30px; border-radius: 20px;
+        box-shadow: 0 0 20px rgba(255,255,255,0.2); text-align: center;
+        max-width: 400px; width: 90%; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    h1 { color: #333; margin: 0 0 10px 0; font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px; }
+    h2 { color: #555; font-size: 1rem; margin-bottom: 20px; font-weight: normal; }
+    .control-group { margin-bottom: 20px; text-align: left; }
+    label { display: block; font-weight: bold; color: #444; margin-bottom: 8px; font-size: 0.9rem; }
+    select, button {
+        width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc;
+        font-size: 1rem; background: white; cursor: pointer; transition: 0.2s;
+    }
+    button.start-btn {
+        background: var(--accent); color: white; border: none; font-weight: bold;
+        text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
+    }
+    button.start-btn:hover { background: #c0392b; transform: scale(1.02); }
+    button:disabled { background: #95a5a6; cursor: not-allowed; }
+
+    /* HUD */
+    #hud {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+        display: none; flex-direction: column; justify-content: space-between;
+    }
+    .hud-active { display: flex !important; }
+    
+    .top-bar {
+        padding: 15px; display: flex; justify-content: space-between; align-items: flex-start;
+        pointer-events: auto;
+    }
+    .turn-badge {
+        background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 30px;
+        font-size: 1.2rem; font-weight: bold; border-left: 5px solid white;
+        box-shadow: var(--shadow); transition: 0.3s; text-shadow: 0 1px 2px black;
+    }
+    
+    .controls-area {
+        position: absolute; bottom: 30px; right: 30px; pointer-events: auto;
+        display: flex; flex-direction: column; align-items: flex-end; gap: 15px;
+    }
+    
+    #dice-btn {
+        width: 100px; height: 100px; background: white; border-radius: 20px;
+        border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); cursor: pointer;
+        position: relative; overflow: hidden; transition: transform 0.1s;
+    }
+    #dice-btn:active { transform: scale(0.95); }
+    #dice-btn:disabled { opacity: 0.6; filter: grayscale(1); cursor: default; }
+    #dice-display { font-size: 3rem; font-weight: bold; color: #333; line-height: 100px; text-align: center; }
+    
+    .msg-area {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.8); color: white; padding: 15px 30px; border-radius: 10px;
+        font-size: 1.5rem; opacity: 0; transition: opacity 0.3s; text-align: center;
+    }
+    
+    .footer-credit {
+        position: absolute; bottom: 10px; left: 10px; font-size: 0.7rem; color: rgba(255,255,255,0.5);
+        pointer-events: none; z-index: 50;
+    }
+
+    /* Animations */
+    @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    
+    /* Player Colors in UI */
+    .p-north { border-left-color: #e74c3c !important; color: #e74c3c; } /* Red */
+    .p-south { border-left-color: #3498db !important; color: #3498db; } /* Blue */
+    .p-east  { border-left-color: #2ecc71 !important; color: #2ecc71; } /* Green */
+    .p-west  { border-left-color: #f1c40f !important; color: #f1c40f; } /* Yellow */
+
+</style>
+<!-- Three.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+</head>
+</body>
+
+<!-- Setup Screen -->
+<div id="setup-screen" class="overlay">
+    <div class="panel">
+        <h1>3D Ludo</h1>
+        <h2>Created by D-Talent</h2>
+        
+        <div class="control-group">
+            <label>Game Mode</label>
+            <select id="game-mode">
+                <option value="ai">Play Against AI</option>
+                <option value="human">Play With Humans (Hotseat)</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Number of Opponents</label>
+            <select id="opponents-count">
+                <option value="1">1 Opponent (2 Players)</option>
+                <option value="2">2 Opponents (3 Players)</option>
+                <option value="3">3 Opponents (4 Players)</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>AI Level / Experience</label>
+            <select id="difficulty">
+                <option value="novice">Novice</option>
+                <option value="amateur" selected>Amateur</option>
+                <option value="pro">Professional</option>
+            </select>
+        </div>
+
+        <button id="start-btn" class="start-btn">Start Game</button>
+    </div>
+</div>
+
+<!-- Game HUD -->
+<div id="hud">
+    <div class="top-bar">
+        <div id="turn-indicator" class="turn-badge p-north">NORTH's Turn</div>
+    </div>
+    <div id="msg-box" class="msg-area"></div>
+    <div class="controls-area">
+        <button id="dice-btn">
+            <div id="dice-display">🎲</div>
+        </button>
+    </div>
+    <div class="footer-credit">Created by D-Talent</div>
+</div>
+
+<!-- Game Container -->
+<div id="game-container"></div>
+
+<script>
+    /**
+     * 3D LUDO GAME
+     * Created by D-Talent
+     * Single File Implementation
+     */
+
+    // --- GAME CONSTANTS & CONFIG ---
+    const COLORS = {
+        NORTH: 0xE74C3C, // Red
+        EAST: 0x2ECC71,  // Green
+        SOUTH: 0x3498DB, // Blue
+        WEST: 0xF1C40F,  // Yellow
+        BOARD: 0xFFFFFF,
+        SAFE: 0x95A5A6,
+        PATH_1: 0xECF0F1,
+        PATH_2: 0xBDC3C7
+    };
+
+    const PLAYER_INFO = [
+        { id: 0, name: "NORTH", color: COLORS.NORTH, cssClass: 'p-north', startIdx: 0 },
+        { id: 1, name: "EAST", color: COLORS.EAST, cssClass: 'p-east', startIdx: 13 },
+        { id: 2, name: "SOUTH", color: COLORS.SOUTH, cssClass: 'p-south', startIdx: 26 },
+        { id: 3, name: "WEST", color: COLORS.WEST, cssClass: 'p-west', startIdx: 39 }
+    ];
+
+    // --- AUDIO SYSTEM (Web Audio API) ---
+    const AudioSys = {
+        ctx: null,
+        init: function() {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        },
+        playTone: function(freq, type, duration, vol=0.1) {
+            if(!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        },
+        playRoll: function() {
+            // Rattle sound (noise)
+            if(!this.ctx) return;
+            const bufferSize = this.ctx.sampleRate * 0.2;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for(let i=0; i<bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            gain.gain.value = 0.2;
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+            noise.connect(gain);
+            gain.connect(this.ctx.destination);
+            noise.start();
+        },
+        playMove: function() {
+            this.playTone(400, 'sine', 0.1);
+        },
+        playCapture: function() {
+            this.playTone(150, 'sawtooth', 0.3, 0.2);
+            setTimeout(() => this.playTone(100, 'sawtooth', 0.3, 0.2), 100);
+        },
+        playWin: function() {
+            // Applause-ish noise
+            if(!this.ctx) return;
+            const dur = 1.0;
+            const buf = this.ctx.createBuffer(1, this.ctx.sampleRate*dur, this.ctx.sampleRate);
+            const d = buf.getChannelData(0);
+            for(let i=0; i<d.length; i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+            const src = this.ctx.createBufferSource();
+            src.buffer = buf;
+            const f = this.ctx.createBiquadFilter();
+            f.type = 'lowpass';
+            f.frequency.value = 1000;
+            src.connect(f);
+            f.connect(this.ctx.destination);
+            src.start();
+        },
+        playLose: function() {
+            this.playTone(400, 'triangle', 0.3);
+            setTimeout(() => this.playTone(300, 'triangle', 0.3), 300);
+            setTimeout(() => this.playTone(200, 'triangle', 0.6), 600);
+        }
+    };
+
+    // --- THREE.JS SETUP ---
+    let scene, camera, renderer, raycaster, mouse;
+    let boardGroup, tokensGroup, diceMesh;
+    let gameTokens = []; 
+    let pathMap = []; // Maps logical index 0-51 to Vector3
+    let homePaths = [[], [], [], []]; // 4 home paths for each player
+    let bases = []; // Base positions
+
+    function initThree() {
+        const container = document.getElementById('game-container');
+        
+        // Scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+        scene.fog = new THREE.Fog(0x1a1a1a, 20, 50);
+
+        // Camera
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 22, 12); // High angle
+        camera.lookAt(0, 0, 0);
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // Light
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // Groups
+        boardGroup = new THREE.Group();
+        tokensGroup = new THREE.Group();
+        scene.add(boardGroup);
+        scene.add(tokensGroup);
+
+        // Raycaster
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        // Handlers
+        window.addEventListener('resize', onWindowResize, false);
+        renderer.domElement.addEventListener('pointerdown', onPointerDown, false);
+        renderer.domElement.addEventListener('touchstart', onTouchStart, {passive: false});
+
+        createBoard();
+    }
+
+    function createBoard() {
+        // Ludo Grid is 15x15. Center is (0,0). 1 unit size squares.
+        // Coordinate range -7 to 7.
+        
+        const geo = new THREE.BoxGeometry(0.95, 0.5, 0.95);
+        
+        // Helper to add tile
+        function addTile(x, z, color, isSafe=false) {
+            const mat = new THREE.MeshStandardMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, -0.25, z);
+            mesh.receiveShadow = true;
+            boardGroup.add(mesh);
+            
+            if(isSafe) {
+                // Add star or marker
+                const starGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.6, 5);
+                const starMat = new THREE.MeshBasicMaterial({color: 0x888888});
+                const star = new THREE.Mesh(starGeo, starMat);
+                star.position.set(0, 0, 0);
+                mesh.add(star);
+            }
+            return new THREE.Vector3(x, 0, z);
+        }
+
+        // --- GENERATE PATHS ---
+        // Visual mapping of standard Ludo track
+        // We need to order them 0 to 51 starting from Red's start position (North)
+        
+        // Define the 4 arms
+        // North Arm (Red)
+        // x: -1 to 1, z: -7 to -1
+        // East Arm (Green)
+        // x: 1 to 7, z: -1 to 1
+        // South Arm (Blue)
+        // x: -1 to 1, z: 1 to 7
+        // West Arm (Yellow)
+        // x: -7 to -1, z: -1 to 1
+
+        // Path logical construction:
+        // 0 is Red's start (at x:-1, z:-6)
+        // Loops clockwise
+        
+        // Let's hardcode the path coordinates for precision
+        // Red start: (-1, -6) -> (-1, -1) -> (-6, -1) ...
+        
+        // Simplified generation by walking the grid
+        // Q1 (North-Left) -> Q2 -> Q3 -> Q4
+        
+        // Let's use an array of coordinates manually mapped for safety
+        const pathCoords = [
+            // Red segment (North)
+            {x:-1, z:-6}, {x:-1, z:-5}, {x:-1, z:-4}, {x:-1, z:-3}, {x:-1, z:-2}, // 0-4
+            {x:-2, z:-1}, {x:-3, z:-1}, {x:-4, z:-1}, {x:-5, z:-1}, {x:-6, z:-1}, {x:-7, z:-1}, // 5-10
+            {x:-7, z:0},  // 11 (Corner)
+            {x:-7, z:1}, {x:-6, z:1}, {x:-5, z:1}, {x:-4, z:1}, {x:-3, z:1}, {x:-2, z:1}, // 12-17 (Into West)
+            
+            // Oops, I need to follow standard direction.
+            // Standard Ludo: Clockwise.
+            // Start Red (North): Move UP the home column? No, standard is clockwise around board.
+            // Pos 0 for Red is usually the square right out of base.
+            // Let's define: 
+            // North Arm left col: Downwards.
+            // West Arm top row: Leftwards.
+            // Wait, Ludo is clockwise.
+            // Top-Left (Red Base). Output is usually at index 1 of the arm.
+            // Let's stick to the visual coordinates relative to center (0,0).
+            
+            // CORRECT CLOCKWISE PATH (Starts North-Left, goes Up, Right, Down, etc)
+            // Actually, let's map standard indexes 0-51.
+            // 0: (-1, -6) [Red Start]
+            // 1..4: (-1, -5) to (-1, -2)
+            // 5: (-2, -1)
+            // 6..10: (-3, -1) to (-7, -1) -- Wait, this goes Left (West).
+            // 11: (-7, 0)
+            // 12: (-7, 1)
+            // 13..17: (-6, 1) to (-2, 1) -- Moving Right towards Center
+            // 18: (-1, 2)
+            // 19..23: (-1, 3) to (-1, 7) -- Moving Down (South)
+            // 24: (0, 7)
+            // 25: (1, 7)
+            // 26..30: (1, 6) to (1, 2) -- Moving Up towards Center
+            // 31: (2, 1)
+            // 32..36: (3, 1) to (7, 1) -- Moving Right (East)
+            // 37: (7, 0)
+            // 38: (7, -1)
+            // 39..43: (6, -1) to (2, -1) -- Moving Left towards Center
+            // 44: (1, -2)
+            // 45..49: (1, -3) to (1, -7) -- Moving Up (North)
+            // 50: (0, -7)
+            // 51: (-1, -7) -- Just before start
+        ];
+
+        // Let's rewrite strictly:
+        // 0 (Red Start): (-1, -6)
+        pathMap[0] = {x:-1, z:-6};
+        pathMap[1] = {x:-1, z:-5};
+        pathMap[2] = {x:-1, z:-4};
+        pathMap[3] = {x:-1, z:-3};
+        pathMap[4] = {x:-1, z:-2}; // End of straight
+        
+        pathMap[5] = {x:-2, z:-1}; // Turn left
+        pathMap[6] = {x:-3, z:-1};
+        pathMap[7] = {x:-4, z:-1};
+        pathMap[8] = {x:-5, z:-1}; // Star
+        pathMap[9] = {x:-6, z:-1};
+        pathMap[10] = {x:-7, z:-1}; // End of arm
+        
+        pathMap[11] = {x:-7, z:0}; // Middle End
+        
+        pathMap[12] = {x:-7, z:1}; // Start next arm
+        pathMap[13] = {x:-6, z:1}; // Green Start? No, Green is East.
+        // Wait, coordinate rotation.
+        // If Red is North (-Z), then West is (-X), South is (+Z), East is (+X).
+        // My User Config: Red=N, Green=E, South=Blue, West=Yellow.
+        // But Path 13 usually is the start of the next player.
+        // If we go clockwise from North(-Z, x=-1):
+        // We go (-1,-2) -> (-2,-1) -> ... -> (-7, -1) -> (-7,0) -> (-7,1) -> (-2,1) -> (-1,2) ...
+        // That enters the West arm (Left).
+        // So after Red comes West (Yellow).
+        // But User wants Red(N), Green(E), Blue(S), Yellow(W).
+        // This order is N -> E -> S -> W.
+        // Standard board goes N -> W -> S -> E (Clockwise geometry).
+        // I will adapt the PLAYER MAPPING to the geometry.
+        // North (Red) starts at 0.
+        // West (Yellow) starts at 13.
+        // South (Blue) starts at 26.
+        // East (Green) starts at 39.
+        // This satisfies the colors and names, just the turn order is typically clockwise.
+        // So Turn Order will be: Red -> Yellow -> Blue -> Green.
+        
+        // Fill rest of path
+        // West Arm Inward
+        pathMap[13] = {x:-6, z:1}; // Yellow Start
+        pathMap[14] = {x:-5, z:1};
+        pathMap[15] = {x:-4, z:1};
+        pathMap[16] = {x:-3, z:1};
+        pathMap[17] = {x:-2, z:1};
+
+        // South Arm Outward
+        pathMap[18] = {x:-1, z:2};
+        pathMap[19] = {x:-1, z:3};
+        pathMap[20] = {x:-1, z:4};
+        pathMap[21] = {x:-1, z:5}; // Star
+        pathMap[22] = {x:-1, z:6};
+        pathMap[23] = {x:-1, z:7};
+
+        pathMap[24] = {x:0, z:7};
+
+        // South Arm Inward
+        pathMap[25] = {x:1, z:7};
+        pathMap[26] = {x:1, z:6}; // Blue Start
+        pathMap[27] = {x:1, z:5};
+        pathMap[28] = {x:1, z:4};
+        pathMap[29] = {x:1, z:3};
+        pathMap[30] = {x:1, z:2};
+
+        // East Arm Outward
+        pathMap[31] = {x:2, z:1};
+        pathMap[32] = {x:3, z:1};
+        pathMap[33] = {x:4, z:1};
+        pathMap[34] = {x:5, z:1}; // Star
+        pathMap[35] = {x:6, z:1};
+        pathMap[36] = {x:7, z:1};
+
+        pathMap[37] = {x:7, z:0};
+
+        // East Arm Inward
+        pathMap[38] = {x:7, z:-1};
+        pathMap[39] = {x:6, z:-1}; // Green Start
+        pathMap[40] = {x:5, z:-1};
+        pathMap[41] = {x:4, z:-1};
+        pathMap[42] = {x:3, z:-1};
+        pathMap[43] = {x:2, z:-1};
+
+        // North Arm Inward
+        pathMap[44] = {x:1, z:-2};
+        pathMap[45] = {x:1, z:-3};
+        pathMap[46] = {x:1, z:-4};
+        pathMap[47] = {x:1, z:-5}; // Star
+        pathMap[48] = {x:1, z:-6};
+        pathMap[49] = {x:1, z:-7};
+        
+        pathMap[50] = {x:0, z:-7};
+        pathMap[51] = {x:-1, z:-7}; // Link to 0
+
+        // Draw Path
+        for(let i=0; i<52; i++) {
+            let p = pathMap[i];
+            let isSafe = [0, 8, 13, 21, 26, 34, 39, 47].includes(i);
+            addTile(p.x, p.z, (i%2===0)? COLORS.PATH_1 : COLORS.PATH_2, isSafe);
+        }
+
+        // Home Runs
+        // P0 (North/Red) -> Home col is x=0, z=-1 to -5 (from -6 up)
+        // Path: (0,-6), (0,-5), (0,-4), (0,-3), (0,-2), (0,0)[Home]
+        homePaths[0] = [{x:0, z:-6}, {x:0, z:-5}, {x:0, z:-4}, {x:0, z:-3}, {x:0, z:-2}, {x:0, z:0}];
+        
+        // P1 (East/Green) -> Home col x=2 to 5? No, from right. z=0, x=6 to 1
+        // My P1 is East(Green) mapped to idx 39. Home run enters from 37 -> (6,0)...
+        // Wait, geometry wise: P1(Green) is East. Starts 39. Enters home at 37.
+        // Home path: (6,0), (5,0), (4,0), (3,0), (2,0), (0,0)
+        homePaths[1] = [{x:6, z:0}, {x:5, z:0}, {x:4, z:0}, {x:3, z:0}, {x:2, z:0}, {x:0, z:0}]; 
+        // NOTE: Player indexing in array must match geometry.
+        // My logical array: 0:N, 1:E, 2:S, 3:W.
+        // Geometry Starts: N(0), W(13), S(26), E(39).
+        // So:
+        // Player 0 (North/Red) -> Geometry 0.
+        // Player 1 (East/Green) -> Geometry 39.
+        // Player 2 (South/Blue) -> Geometry 26.
+        // Player 3 (West/Yellow) -> Geometry 13.
+        
+        // FIX PLAYER INFO START IDX
+        PLAYER_INFO[0].startIdx = 0;
+        PLAYER_INFO[1].startIdx = 39;
+        PLAYER_INFO[2].startIdx = 26;
+        PLAYER_INFO[3].startIdx = 13;
+
+        // Correct Home Paths for array index
+        // P0 (N)
+        homePaths[0] = [{x:0, z:-6}, {x:0, z:-5}, {x:0, z:-4}, {x:0, z:-3}, {x:0, z:-2}, {x:0, z:0}];
+        // P1 (E) - Enters from x=7
+        homePaths[1] = [{x:6, z:0}, {x:5, z:0}, {x:4, z:0}, {x:3, z:0}, {x:2, z:0}, {x:0, z:0}];
+        // P2 (S) - Enters from z=7
+        homePaths[2] = [{x:0, z:6}, {x:0, z:5}, {x:0, z:4}, {x:0, z:3}, {x:0, z:2}, {x:0, z:0}];
+        // P3 (W) - Enters from x=-7
+        homePaths[3] = [{x:-6, z:0}, {x:-5, z:0}, {x:-4, z:0}, {x:-3, z:0}, {x:-2, z:0}, {x:0, z:0}];
+
+        // Draw Home Paths
+        homePaths.forEach((path, pid) => {
+            path.forEach((p, i) => {
+                if(i<5) addTile(p.x, p.z, PLAYER_INFO[pid].color);
+            });
+        });
+
+        // Center (Home)
+        const homeGeo = new THREE.BoxGeometry(3, 0.5, 3);
+        const homeMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF }); // Center
+        const homeMesh = new THREE.Mesh(homeGeo, homeMat);
+        homeMesh.position.set(0, -0.25, 0);
+        homeMesh.receiveShadow = true;
+        boardGroup.add(homeMesh);
+        
+        // Colored triangles for center? Let's just use colored boxes for simplicity
+        // or a texture. A plain white center is fine with 3D Ludo text maybe?
+        
+        // Bases (4 corners)
+        const basePos = [
+            {x: -4.5, z: -4.5, c: COLORS.NORTH}, // TL
+            {x: 4.5, z: -4.5, c: COLORS.EAST},   // TR
+            {x: 4.5, z: 4.5, c: COLORS.SOUTH},   // BR
+            {x: -4.5, z: 4.5, c: COLORS.WEST}    // BL
+        ];
+        
+        basePos.forEach((b, i) => {
+            const baseGeo = new THREE.BoxGeometry(6, 0.5, 6);
+            const baseMat = new THREE.MeshStandardMaterial({ color: b.c });
+            const base = new THREE.Mesh(baseGeo, baseMat);
+            base.position.set(b.x, -0.25, b.z);
+            base.receiveShadow = true;
+            boardGroup.add(base);
+            
+            // Base slots (4)
+            const slotOffsets = [
+                {x:-1.5, z:-1.5}, {x:1.5, z:-1.5},
+                {x:-1.5, z:1.5}, {x:1.5, z:1.5}
+            ];
+            bases[i] = slotOffsets.map(off => ({x: b.x + off.x, z: b.z + off.z}));
+            
+            // Visual white circles for slots
+            slotOffsets.forEach(off => {
+                const cGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.6, 16);
+                const cMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+                const c = new THREE.Mesh(cGeo, cMat);
+                c.position.set(b.x + off.x, 0, b.z + off.z);
+                boardGroup.add(c);
+            });
+        });
+
+        // Dice Object
+        createDice();
+    }
+
+    function createDice() {
+        const size = 1.5;
+        const geometry = new THREE.BoxGeometry(size, size, size);
+        
+        // Create textures for faces 1-6
+        const materials = [];
+        for(let i=1; i<=6; i++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0,0,128,128);
+            ctx.fillStyle = '#000000';
+            
+            // Draw dots
+            const r = 12;
+            const c = 64;
+            const q1 = 32, q3 = 96;
+            
+            if(i===1) { ctx.beginPath(); ctx.arc(c,c,r,0,Math.PI*2); ctx.fill(); }
+            if(i===2) { 
+                ctx.beginPath(); ctx.arc(q1,q1,r,0,Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(q3,q3,r,0,Math.PI*2); ctx.fill(); 
+            }
+            if(i===3) {
+                ctx.beginPath(); ctx.arc(q1,q1,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(c,c,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q3,q3,r,0,Math.PI*2); ctx.fill();
+            }
+            if(i===4) {
+                ctx.beginPath(); ctx.arc(q1,q1,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q3,q1,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q1,q3,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q3,q3,r,0,Math.PI*2); ctx.fill();
+            }
+            if(i===5) {
+                ctx.beginPath(); ctx.arc(q1,q1,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q3,q1,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(c,c,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q1,q3,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q3,q3,r,0,Math.PI*2); ctx.fill();
+            }
+            if(i===6) {
+                ctx.beginPath(); ctx.arc(q1,q1,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q3,q1,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q1,c,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q3,c,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q1,q3,r,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(q3,q3,r,0,Math.PI*2); ctx.fill();
+            }
+            
+            // Border
+            ctx.strokeStyle = '#cccccc';
+            ctx.lineWidth = 10;
+            ctx.strokeRect(0,0,128,128);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            materials.push(new THREE.MeshStandardMaterial({ map: tex }));
+        }
+
+        diceMesh = new THREE.Mesh(geometry, materials);
+        diceMesh.position.set(0, 5, 0);
+        diceMesh.castShadow = true;
+        diceMesh.visible = false;
+        scene.add(diceMesh);
+    }
+
+    function createToken(playerId, index) {
+        const color = PLAYER_INFO[playerId].color;
+        const geo = new THREE.CylinderGeometry(0.3, 0.4, 0.8, 16);
+        const mat = new THREE.MeshStandardMaterial({ color: color });
+        const token = new THREE.Mesh(geo, mat);
+        
+        // Add a "head"
+        const headGeo = new THREE.SphereGeometry(0.25, 16, 16);
+        const head = new THREE.Mesh(headGeo, mat);
+        head.position.y = 0.5;
+        token.add(head);
+        
+        token.castShadow = true;
+        token.receiveShadow = true;
+        
+        // Data
+        token.userData = {
+            pid: playerId,
+            idx: index,
+            pos: -1, // -1 = base, 0-50 = path, 51-56 = home path
+            stepCount: 0, // Steps taken
+            isHome: false
+        };
+        
+        tokensGroup.add(token);
+        gameTokens.push(token);
+        
+        resetTokenPos(token);
+        return token;
+    }
+
+    function resetTokenPos(token) {
+        const basePos = bases[token.userData.pid][token.userData.idx];
+        token.position.set(basePos.x, 0.4, basePos.z);
+        token.userData.pos = -1;
+        token.userData.stepCount = 0;
+        token.userData.isHome = false;
+    }
+
+    // --- GAME LOGIC ---
+
+    const Game = {
+        state: 'SETUP', // SETUP, IDLE, ROLLING, INPUT, MOVING, END
+        players: [],
+        currPlrIdx: 0,
+        diceVal: 1,
+        opponents: 1,
+        mode: 'ai',
+        difficulty: 'amateur',
+        turnOrder: [], // Array of player IDs
+        
+        init: function() {
+            // Read UI
+            this.mode = document.getElementById('game-mode').value;
+            this.opponents = parseInt(document.getElementById('opponents-count').value);
+            this.difficulty = document.getElementById('difficulty').value;
+            
+            // Setup Players
+            // P0 is always Human (North/Red)
+            // Opponents:
+            // 1 opp -> P0 + P2 (North + South) - Standard 2 player
+            // 2 opp -> P0 + P1 + P3? Standard 3 player: N, E, W
+            // 3 opp -> All 4.
+            
+            this.players = [];
+            // User is P0
+            this.players[0] = { ...PLAYER_INFO[0], type: 'HUMAN', tokens: [] };
+            
+            // Determine Active Players
+            let actives = [0];
+            if(this.opponents === 1) actives.push(2); // Opposite
+            else if(this.opponents === 2) { actives.push(1); actives.push(3); } // Triangle?
+            // Standard 3 player usually R, G, Y. P0, P1, P3.
+            else { actives.push(1); actives.push(2); actives.push(3); }
+            
+            if(this.opponents === 2) actives = [0, 1, 3]; // Specific 3 player arrangement
+            
+            // Sort actives by geometry order for turn loop (N->E->S->W)
+            actives.sort((a,b) => a-b); // 0,1,2,3
+            this.turnOrder = actives;
+
+            // Init active players
+            actives.forEach(id => {
+                if(id === 0) return;
+                this.players[id] = { 
+                    ...PLAYER_INFO[id], 
+                    type: (this.mode === 'ai') ? 'AI' : 'HUMAN', 
+                    tokens: [] 
+                };
+            });
+
+            // Create Tokens
+            gameTokens = [];
+            tokensGroup.clear();
+            this.turnOrder.forEach(pid => {
+                for(let i=0; i<4; i++) {
+                    const t = createToken(pid, i);
+                    this.players[pid].tokens.push(t);
+                }
+            });
+
+            // UI Setup
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('hud').classList.add('hud-active');
+            AudioSys.init();
+            
+            this.currPlrIdx = 0; // Index in turnOrder
+            this.startTurn();
+            
+            render(); // Start loop
+        },
+
+        startTurn: function() {
+            const pid = this.turnOrder[this.currPlrIdx];
+            const p = this.players[pid];
+            
+            // UI Update
+            const badge = document.getElementById('turn-indicator');
+            badge.className = `turn-badge ${p.cssClass}`;
+            badge.innerText = `${p.name}'s Turn`;
+            
+            document.getElementById('msg-box').style.opacity = 0;
+            
+            const btn = document.getElementById('dice-btn');
+            
+            if(p.type === 'HUMAN') {
+                btn.disabled = false;
+                this.state = 'IDLE';
+            } else {
+                btn.disabled = true;
+                this.state = 'IDLE';
+                setTimeout(() => this.rollDice(), 1000);
+            }
+        },
+
+        rollDice: function() {
+            if(this.state !== 'IDLE') return;
+            this.state = 'ROLLING';
+            
+            document.getElementById('dice-btn').disabled = true;
+            AudioSys.playRoll();
+
+            // Animate Dice
+            diceMesh.visible = true;
+            diceMesh.position.set(0, 5, 0);
+            let frames = 0;
+            const anim = setInterval(() => {
+                diceMesh.rotation.x = Math.random() * Math.PI * 4;
+                diceMesh.rotation.z = Math.random() * Math.PI * 4;
+                diceMesh.position.y = 5 - Math.sin(frames*0.1)*2;
+                frames++;
+                if(frames > 20) {
+                    clearInterval(anim);
+                    this.finishRoll();
+                }
+            }, 50);
+        },
+
+        finishRoll: function() {
+            this.diceVal = Math.floor(Math.random() * 6) + 1;
+            // this.diceVal = 6; // Debug
+            
+            document.getElementById('dice-display').innerText = ""; // Hide text
+            
+            // Orient 3D Dice to show value
+            // Standard UV: 
+            // 1: x0, y0.
+            // Reset rotation
+            diceMesh.rotation.set(0,0,0);
+            // Rotate to show face
+            // Mappings (Standard BoxGeometry UV mapping usually puts materials on faces)
+            // Right(0), Left(1), Top(2), Bottom(3), Front(4), Back(5)
+            // My materials are pushed 1..6.
+            // 1 is Right? No, let's just use rotation logic.
+            // 3D rotations to bring Face N to top (y+)
+            // Material Index 4 (Front) is Face 5? 
+            // Let's brute force rotations visually if textures were mapped to specific faces.
+            // Simpler: Just rely on UI for value, hide 3D dice or keep it spinning.
+            // Requirement: "Dice dots must match".
+            // Okay, I will align the cube.
+            // BoxGeometry faces order: +x, -x, +y, -y, +z, -z (0,1,2,3,4,5)
+            // My materials array is [1,2,3,4,5,6].
+            // If val is 1 (Mat 0, +x): Rotate z=90 (bring +x to +y)
+            // If val is 2 (Mat 1, -x): Rotate z=-90
+            // If val is 3 (Mat 2, +y): Rotate 0
+            // If val is 4 (Mat 3, -y): Rotate x=180
+            // If val is 5 (Mat 4, +z): Rotate x=-90
+            // If val is 6 (Mat 5, -z): Rotate x=90
+            
+            const d = this.diceVal;
+            if(d===1) diceMesh.rotation.set(0,0,Math.PI/2);
+            if(d===2) diceMesh.rotation.set(0,0,-Math.PI/2);
+            if(d===3) diceMesh.rotation.set(0,0,0);
+            if(d===4) diceMesh.rotation.set(Math.PI,0,0);
+            if(d===5) diceMesh.rotation.set(-Math.PI/2,0,0);
+            if(d===6) diceMesh.rotation.set(Math.PI/2,0,0);
+            
+            // Show in UI too
+            // document.getElementById('dice-display').innerText = this.diceVal;
+
+            // Check Moves
+            const pid = this.turnOrder[this.currPlrIdx];
+            const p = this.players[pid];
+            const validTokens = this.getValidMoves(p, this.diceVal);
+
+            if(validTokens.length === 0) {
+                this.showMessage("No Move!");
+                setTimeout(() => this.nextTurn(), 1500);
+            } else {
+                if(p.type === 'HUMAN') {
+                    this.state = 'INPUT';
+                    // Highlight valid tokens
+                    validTokens.forEach(t => {
+                        t.scale.set(1.5, 1.5, 1.5); // Pulse effect in render
+                    });
+                    this.validMoves = validTokens;
+                } else {
+                    this.state = 'AI_THINK';
+                    setTimeout(() => this.aiMove(validTokens), 1000);
+                }
+            }
+        },
+
+        getValidMoves: function(player, roll) {
+            const moves = [];
+            player.tokens.forEach(t => {
+                if(t.userData.isHome) return; // Already finished
+                
+                // Rule: Need 6 to out
+                if(t.userData.pos === -1) {
+                    if(roll === 6) moves.push(t);
+                } else {
+                    // Check if move exceeds home
+                    // Max steps = 51 + 5 = 56 steps total journey?
+                    // Path length = 52.
+                    // Start to Home = 51 squares + 6 home squares. Total 57 positions (0-56).
+                    // StepCount 0 is start.
+                    // Max StepCount is 56 (Home).
+                    if(t.userData.stepCount + roll <= 56) {
+                        moves.push(t);
+                    }
+                }
+            });
+            return moves;
+        },
+
+        humanMove: function(token) {
+            if(this.state !== 'INPUT') return;
+            if(!this.validMoves.includes(token)) return;
+            
+            // Reset scales
+            this.validMoves.forEach(t => t.scale.set(1,1,1));
+            this.validMoves = [];
+            
+            this.executeMove(token, this.diceVal);
+        },
+
+        aiMove: function(options) {
+            // AI Logic
+            let choice = options[0];
+            
+            if(this.difficulty === 'novice') {
+                choice = options[Math.floor(Math.random() * options.length)];
+            } else {
+                // Score moves
+                let bestScore = -100;
+                
+                options.forEach(t => {
+                    let score = 0;
+                    // Preference 1: Get out of base
+                    if(t.userData.pos === -1) score += 50;
+                    
+                    // Preference 2: Capture
+                    const destStep = t.userData.stepCount + this.diceVal;
+                    // Calculate global pos
+                    // ... (Need calculation logic here for collision)
+                    // For simplicity in single file, Random weighted is fine for Amateur
+                    
+                    // Pro: prioritize home run
+                    if(this.difficulty === 'pro' && destStep > 50) score += 40;
+                    
+                    // Random factor
+                    score += Math.random() * 10;
+                    
+                    if(score > bestScore) {
+                        bestScore = score;
+                        choice = t;
+                    }
+                });
+            }
+            
+            this.executeMove(choice, this.diceVal);
+        },
+
+        executeMove: function(token, steps) {
+            this.state = 'MOVING';
+            AudioSys.playMove();
+
+            // Logic
+            const startPos = token.userData.pos;
+            
+            if(startPos === -1) {
+                // Out of base
+                token.userData.pos = 0; // Relative path index 0
+                token.userData.stepCount = 0;
+                this.animateJump(token, this.getGlobalPos(token.userData.pid, 0), () => {
+                    this.checkCollision(token);
+                    // Rule: 6 gives extra turn
+                    if(steps === 6) {
+                        this.showMessage("Extra Turn!");
+                        setTimeout(() => this.startTurn(), 1000);
+                    } else {
+                        this.nextTurn();
+                    }
+                });
+            } else {
+                // Move step by step for effect? No, jump is better for 3D Ludo.
+                // Just one smooth arc to destination.
+                
+                const newStepCount = token.userData.stepCount + steps;
+                token.userData.stepCount = newStepCount;
+                
+                // Determine if in main path or home path
+                let globalTarget;
+                
+                if(newStepCount < 51) {
+                    token.userData.pos = newStepCount; // Relative
+                    globalTarget = this.getGlobalPos(token.userData.pid, newStepCount);
+                } else if (newStepCount >= 51 && newStepCount < 57) {
+                    // Home stretch
+                    const homeIdx = newStepCount - 51;
+                    // Wait, 51 is last tile before home stretch usually?
+                    // Path is 0-50 (51 tiles).
+                    // Let's recheck map.
+                    // Array 0-51 (52 tiles).
+                    // Player starts at 0. Walks 50 steps to reach index 50 (relative).
+                    // 50 is the tile before home path entry.
+                    // So at 51, enters Home[0].
+                    // 56 is Center.
+                    
+                    if(newStepCount <= 50) {
+                        token.userData.pos = newStepCount;
+                        globalTarget = this.getGlobalPos(token.userData.pid, newStepCount);
+                    } else {
+                        // Home path
+                        const hIdx = newStepCount - 51;
+                        if(hIdx >= 6) { // Won
+                            token.userData.isHome = true;
+                            globalTarget = {x:0, z:0}; // Center
+                        } else {
+                            const hp = homePaths[token.userData.pid][hIdx];
+                            globalTarget = hp;
+                        }
+                    }
+                }
+
+                this.animateJump(token, globalTarget, () => {
+                    if(token.userData.stepCount >= 56) {
+                        // Reached Home
+                        AudioSys.playWin(); // Small win
+                        token.userData.isHome = true;
+                        token.visible = false; // Hide or pile up
+                        this.checkWinCondition();
+                    } else {
+                        this.checkCollision(token);
+                    }
+                    
+                    if(steps === 6 && !token.userData.isHome) {
+                        this.showMessage("Extra Turn!");
+                        setTimeout(() => this.startTurn(), 1000);
+                    } else if(token.userData.isHome) {
+                        // Bonus turn for getting home? Some rules say yes.
+                        // Let's say no, next turn unless 6.
+                        if(steps === 6) {
+                            this.showMessage("Extra Turn!");
+                            setTimeout(() => this.startTurn(), 1000);
+                        } else {
+                            this.nextTurn();
+                        }
+                    } else {
+                        this.nextTurn();
+                    }
+                });
+            }
+        },
+
+        getGlobalPos: function(pid, relativeIdx) {
+            // Convert relative player step to global path index
+            // Start Indices: N(0), W(13), S(26), E(39).
+            // Actually geometry:
+            // N: 0. E: 39 (based on my previous map? No, wait)
+            // My Geometry Map: 0-51.
+            // 0 is Red Start.
+            // 13 is Yellow Start.
+            // 26 is Blue Start.
+            // 39 is Green Start.
+            
+            // Player Info:
+            // 0(N) startIdx 0.
+            // 1(E) startIdx 39.
+            // 2(S) startIdx 26.
+            // 3(W) startIdx 13.
+            
+            const start = PLAYER_INFO[pid].startIdx;
+            const globalIdx = (start + relativeIdx) % 52;
+            return pathMap[globalIdx];
+        },
+
+        animateJump: function(token, target, cb) {
+            const start = token.position.clone();
+            const end = new THREE.Vector3(target.x, 0.4, target.z);
+            let progress = 0;
+            
+            const anim = () => {
+                progress += 0.05;
+                if(progress >= 1) {
+                    token.position.copy(end);
+                    if(cb) cb();
+                    return;
+                }
+                
+                // Parabola
+                const current = new THREE.Vector3().lerpVectors(start, end, progress);
+                current.y += Math.sin(progress * Math.PI) * 2; // Jump height
+                token.position.copy(current);
+                requestAnimationFrame(anim);
+            };
+            anim();
+        },
+
+        checkCollision: function(token) {
+            // Get global index of current token
+            if(token.userData.pos === -1 || token.userData.stepCount > 50) return; // Safe in base or home
+            
+            const myGlobalIdx = (PLAYER_INFO[token.userData.pid].startIdx + token.userData.pos) % 52;
+            
+            // Is this a safe zone?
+            const safeIndices = [0, 8, 13, 21, 26, 34, 39, 47];
+            if(safeIndices.includes(myGlobalIdx)) return;
+            
+            // Check opponents
+            this.turnOrder.forEach(pid => {
+                if(pid === token.userData.pid) return;
+                this.players[pid].tokens.forEach(enemy => {
+                    if(enemy.userData.pos !== -1 && enemy.userData.stepCount <= 50) {
+                        const enemyGlobal = (PLAYER_INFO[pid].startIdx + enemy.userData.pos) % 52;
+                        if(enemyGlobal === myGlobalIdx) {
+                            // CAPTURE!
+                            AudioSys.playCapture();
+                            this.showMessage("Captured!");
+                            this.animateJump(enemy, bases[pid][enemy.userData.idx], null); // Send home
+                            resetTokenPos(enemy);
+                        }
+                    }
+                });
+            });
+        },
+
+        checkWinCondition: function() {
+            const pid = this.turnOrder[this.currPlrIdx];
+            const p = this.players[pid];
+            const allHome = p.tokens.every(t => t.userData.isHome);
+            
+            if(allHome) {
+                AudioSys.playWin();
+                if(p.type === 'HUMAN') {
+                    alert(`CONGRATULATIONS! ${p.name} WINS!`);
+                } else {
+                    AudioSys.playLose();
+                    alert(`${p.name} WINS! Game Over.`);
+                }
+                location.reload();
+            }
+        },
+
+        nextTurn: function() {
+            this.currPlrIdx = (this.currPlrIdx + 1) % this.turnOrder.length;
+            this.startTurn();
+        },
+
+        showMessage: function(txt) {
+            const box = document.getElementById('msg-box');
+            box.innerText = txt;
+            box.style.opacity = 1;
+            setTimeout(() => box.style.opacity = 0, 1500);
+        }
+    };
+
+    // --- EVENTS ---
+
+    function onPointerDown(event) {
+        if(Game.state !== 'INPUT') return;
+        
+        // Calculate mouse pos
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(Game.validMoves);
+        
+        if(intersects.length > 0) {
+            // Pick the first valid token
+            Game.humanMove(intersects[0].object);
+        }
+    }
+
+    function onTouchStart(event) {
+        if(event.touches.length > 1) return;
+        event.preventDefault(); // Prevent scroll
+        const touch = event.touches[0];
+        const fakeEvent = {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        };
+        onPointerDown(fakeEvent);
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function render() {
+        requestAnimationFrame(render);
+        
+        // Idle animations
+        if(Game.state === 'INPUT') {
+            Game.validMoves.forEach(t => {
+                t.scale.y = 1 + Math.sin(Date.now()*0.01)*0.2;
+            });
+        }
+        
+        renderer.render(scene, camera);
+    }
+
+    // --- INIT ---
+    document.getElementById('start-btn').addEventListener('click', () => {
+        Game.init();
+    });
+    
+    document.getElementById('dice-btn').addEventListener('click', () => {
+        Game.rollDice();
+    });
+
+    // Initialize Three.js env
+    initThree();
+
+</script>
+
+</body>
+</html>
