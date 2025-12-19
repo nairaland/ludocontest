@@ -20,6 +20,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/25.0.0/tween.umd.js"></script>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             overflow: hidden;
@@ -32,6 +36,300 @@
             display: block;
         }
 
+        /* ============================================
+           SETUP SCREEN STYLES
+           ============================================ */
+        #setup-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 70%, #000 100%);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        #setup-screen.hidden {
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+
+        .setup-container {
+            background: rgba(15, 15, 20, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px 50px;
+            max-width: 520px;
+            width: 90%;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 60px rgba(0, 0, 0, 0.8),
+                0 0 120px rgba(100, 100, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transform: translateY(0);
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #setup-screen.hidden .setup-container {
+            transform: translateY(50px) scale(0.9);
+        }
+
+        .setup-title {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .setup-title h1 {
+            font-size: 2.2rem;
+            font-weight: 900;
+            letter-spacing: 6px;
+            margin: 0;
+            background: linear-gradient(135deg, #fff 0%, #888 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+        }
+
+        .setup-title .subtitle {
+            font-size: 0.75rem;
+            letter-spacing: 4px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 8px;
+            text-transform: uppercase;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            margin: 25px 0;
+        }
+
+        /* Player Selection Grid */
+        .player-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 25px;
+        }
+
+        .player-slot {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .player-slot:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .player-slot-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .player-color-badge {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            box-shadow: 0 0 12px currentColor;
+        }
+
+        .player-color-badge.red {
+            background: #c1121f;
+            color: #c1121f;
+        }
+
+        .player-color-badge.green {
+            background: #007f5f;
+            color: #007f5f;
+        }
+
+        .player-color-badge.yellow {
+            background: #ffb703;
+            color: #ffb703;
+        }
+
+        .player-color-badge.blue {
+            background: #00308f;
+            color: #00308f;
+        }
+
+        .player-slot-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .player-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            background: rgba(20, 20, 25, 0.9);
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            transition: all 0.2s;
+        }
+
+        .player-select:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .player-select:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+        }
+
+        .player-select option {
+            background: #1a1a1a;
+            color: white;
+        }
+
+        /* Rules Section */
+        .rules-section {
+            margin-bottom: 25px;
+        }
+
+        .rules-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .rules-header h3 {
+            font-size: 0.8rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 0;
+        }
+
+        .rules-box {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 16px;
+            max-height: 180px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .rules-box::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .rules-box::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .rules-box::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .rules-box h4 {
+            color: #fff;
+            font-size: 0.9rem;
+            margin: 0 0 8px 0;
+            letter-spacing: 1px;
+        }
+
+        .rules-box ul {
+            margin: 0 0 12px 0;
+            padding-left: 18px;
+        }
+
+        .rules-box li {
+            margin-bottom: 6px;
+        }
+
+        .rules-box strong {
+            color: #ffb703;
+        }
+
+        /* Begin Button */
+        #begin-btn {
+            width: 100%;
+            padding: 18px 30px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #2a2a3a 0%, #1a1a25 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow:
+                0 4px 15px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        #begin-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        #begin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 25px rgba(0, 0, 0, 0.5),
+                0 0 30px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        #begin-btn:hover::before {
+            left: 100%;
+        }
+
+        #begin-btn:active {
+            transform: translateY(0);
+        }
+
+        /* ============================================
+           GAME UI STYLES (hidden initially)
+           ============================================ */
+        #game-container {
+            opacity: 0;
+            transition: opacity 0.8s ease;
+        }
+
+        #game-container.visible {
+            opacity: 1;
+        }
+
         #ui {
             position: absolute;
             top: 20px;
@@ -42,6 +340,14 @@
             justify-content: space-between;
             align-items: flex-start;
             z-index: 10;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s;
+        }
+
+        #ui.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .panel {
@@ -127,30 +433,185 @@
             z-index: 100;
             letter-spacing: 1px;
         }
+
+        /* Floating particles background for setup */
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 
 <body>
 
-    <div id="ui">
-        <div class="panel">
-            <div class="turn-indicator">
-                <span id="player-dot" class="color-dot"></span>
-                <span id="player-text">RED PLAYER</span>
+    <!-- ============================================
+         SETUP SCREEN
+         ============================================ -->
+    <div id="setup-screen">
+        <!-- Floating particles background -->
+        <div class="particles" id="particles"></div>
+
+        <div class="setup-container">
+            <div class="setup-title">
+                <h1>LUDO 3D</h1>
+                <div class="subtitle">Elite Edition</div>
             </div>
-            <button id="dice-btn">Roll Dice</button>
-            <div id="dice-result">-</div>
-        </div>
-        <div class="panel" style="padding: 10px 15px;">
-            <div style="font-size: 0.7rem; opacity: 0.6; font-weight: 800; letter-spacing: 3px;">LUDO 3D ELITE</div>
+
+            <div class="divider"></div>
+
+            <!-- Player Selection -->
+            <div class="player-selection">
+                <div class="player-slot">
+                    <div class="player-slot-header">
+                        <div class="player-color-badge red"></div>
+                        <span class="player-slot-name">Red</span>
+                    </div>
+                    <select class="player-select" id="select-red">
+                        <option value="player">Player</option>
+                        <option value="ai">AI</option>
+                        <option value="nobody">Nobody</option>
+                    </select>
+                </div>
+
+                <div class="player-slot">
+                    <div class="player-slot-header">
+                        <div class="player-color-badge green"></div>
+                        <span class="player-slot-name">Green</span>
+                    </div>
+                    <select class="player-select" id="select-green">
+                        <option value="player">Player</option>
+                        <option value="ai">AI</option>
+                        <option value="nobody">Nobody</option>
+                    </select>
+                </div>
+
+                <div class="player-slot">
+                    <div class="player-slot-header">
+                        <div class="player-color-badge yellow"></div>
+                        <span class="player-slot-name">Yellow</span>
+                    </div>
+                    <select class="player-select" id="select-yellow">
+                        <option value="player">Player</option>
+                        <option value="ai" selected>AI</option>
+                        <option value="nobody">Nobody</option>
+                    </select>
+                </div>
+
+                <div class="player-slot">
+                    <div class="player-slot-header">
+                        <div class="player-color-badge blue"></div>
+                        <span class="player-slot-name">Blue</span>
+                    </div>
+                    <select class="player-select" id="select-blue">
+                        <option value="player">Player</option>
+                        <option value="ai" selected>AI</option>
+                        <option value="nobody">Nobody</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Rules Section -->
+            <div class="rules-section">
+                <div class="rules-header">
+                    <h3>📜 Game Rules</h3>
+                </div>
+                <div class="rules-box">
+                    <h4>Objective</h4>
+                    <ul>
+                        <li>Be the first to move all <strong>4 tokens</strong> from your home base to the center finish
+                            area.</li>
+                    </ul>
+
+                    <h4>Getting Started</h4>
+                    <ul>
+                        <li>Roll a <strong>6</strong> to move a token out of your home base onto the starting tile.</li>
+                        <li>Each player takes turns rolling the dice.</li>
+                    </ul>
+
+                    <h4>Movement</h4>
+                    <ul>
+                        <li>Move your token forward by the number shown on the dice.</li>
+                        <li>Tokens travel around the board and enter their colored home stretch.</li>
+                        <li>You must roll the <strong>exact number</strong> to enter the finish area.</li>
+                    </ul>
+
+                    <h4>Capturing</h4>
+                    <ul>
+                        <li>Land on an opponent's token to send it back to their home base.</li>
+                        <li>Tokens on <strong>safe tiles</strong> (marked with stars) cannot be captured.</li>
+                    </ul>
+
+                    <h4>Bonus Rolls</h4>
+                    <ul>
+                        <li>Rolling a <strong>6</strong> grants an extra turn!</li>
+                        <li>Capturing an opponent also grants a bonus roll.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <button id="begin-btn">Begin Game</button>
         </div>
     </div>
 
-    <div id="msg-box">SELECT A PIECE</div>
+    <!-- ============================================
+         GAME CONTAINER (hidden initially)
+         ============================================ -->
+    <div id="game-container">
+        <div id="ui">
+            <div class="panel">
+                <div class="turn-indicator">
+                    <span id="player-dot" class="color-dot"></span>
+                    <span id="player-text">RED PLAYER</span>
+                </div>
+                <button id="dice-btn">Roll Dice</button>
+                <div id="dice-result">-</div>
+            </div>
+            <div class="panel" style="padding: 10px 15px;">
+                <div style="font-size: 0.7rem; opacity: 0.6; font-weight: 800; letter-spacing: 3px;">LUDO 3D ELITE</div>
+            </div>
+        </div>
+
+        <div id="msg-box">SELECT A PIECE</div>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
         const COLORS = {
             RED: 0xc1121f,
@@ -290,19 +751,115 @@
         const HOME_STRETCH_LENGTH = 6; // Tiles in home stretch
         const TOTAL_PATH_LENGTH = 57;  // Total path length per player
 
+        // ============================================
+        // SCREEN STATE MACHINE
+        // ============================================
+        const SCREENS = {
+            SETUP: 'SETUP',
+            PLAYING: 'PLAYING',
+            GAMEOVER: 'GAMEOVER'
+        };
+
+        let currentScreen = SCREENS.SETUP;
+
+        // Player configuration: 'player', 'ai', or 'nobody'
+        const playerConfig = {
+            RED: 'player',
+            GREEN: 'player',
+            YELLOW: 'ai',
+            BLUE: 'ai'
+        };
+
+        // Three.js and game state variables
         let scene, camera, renderer, raycaster, mouse, controls;
         let currentPlayerIndex = 0;
         let diceValue = 0;
         let gameState = 'WAITING_FOR_ROLL';
         let tokens = [];
+        let gameInitialized = false;
+        let dice = []; // Two 3D dice meshes
 
-        function init() {
+        // ============================================
+        // SETUP SCREEN FUNCTIONS
+        // ============================================
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 30;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (10 + Math.random() * 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        function readPlayerConfig() {
+            playerConfig.RED = document.getElementById('select-red').value;
+            playerConfig.GREEN = document.getElementById('select-green').value;
+            playerConfig.YELLOW = document.getElementById('select-yellow').value;
+            playerConfig.BLUE = document.getElementById('select-blue').value;
+        }
+
+        function getActivePlayers() {
+            return PLAYER_ORDER.filter(color => playerConfig[color] !== 'nobody');
+        }
+
+        function transitionToGame() {
+            // Read player selections
+            readPlayerConfig();
+
+            // Validate at least 2 players
+            const activePlayers = getActivePlayers();
+            if (activePlayers.length < 2) {
+                alert('Please select at least 2 players (Player or AI) to start the game.');
+                return;
+            }
+
+            // Update screen state
+            currentScreen = SCREENS.PLAYING;
+
+            // Hide setup screen with animation
+            const setupScreen = document.getElementById('setup-screen');
+            setupScreen.classList.add('hidden');
+
+            // Initialize game after a short delay for smooth transition
+            setTimeout(() => {
+                initGame();
+
+                // Show game container
+                const gameContainer = document.getElementById('game-container');
+                gameContainer.classList.add('visible');
+
+                // Show UI with delay
+                setTimeout(() => {
+                    document.getElementById('ui').classList.add('visible');
+                }, 200);
+
+                // After transition completes, remove setup screen from DOM
+                setTimeout(() => {
+                    setupScreen.style.display = 'none';
+                }, 800);
+
+            }, 400);
+        }
+
+        // ============================================
+        // GAME INITIALIZATION
+        // ============================================
+        function initGame() {
+            if (gameInitialized) return;
+            gameInitialized = true;
+
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x050505);
 
             camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 20, 16);
-            camera.lookAt(0, -1, 0);
+            // Start camera far away for cinematic entrance
+            camera.position.set(0, 50, 40);
+            camera.lookAt(0, 0, 0);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -310,7 +867,7 @@
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.outputColorSpace = THREE.SRGBColorSpace;
-            document.body.appendChild(renderer.domElement);
+            document.getElementById('game-container').appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
@@ -338,13 +895,240 @@
 
             createAdvancedBoard();
             createTokens();
+            createDice();
+
+            // Find first active player
+            findFirstActivePlayer();
             updateUI();
+
+            // --- USER REQUEST: Highlight 50% of items ---
+
+            // Highlight 1 of 2 dice (50%)
+            setDiceHighlight(0, true);
+
+            // Highlight 50% of tokens (8 out of 16)
+            tokens.forEach((t, i) => {
+                if (i % 2 === 0) setTokenHighlight(t, true);
+            });
+            // --------------------------------------------
 
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('mousedown', onMouseDown);
             document.getElementById('dice-btn').addEventListener('click', rollDice);
 
+            // Cinematic camera animation
+            animateCameraEntrance();
+
             animate();
+        }
+
+        // ============================================
+        // HIGHLIGHTING FUNCTIONS
+        // ============================================
+        function setDiceHighlight(index, active) {
+            if (!dice[index]) return;
+            const intensity = active ? 0.4 : 0; // Glow that keeps dots visible as mid grey
+            const color = 0xffffff; // White glow - dots become mid grey
+
+            // Access material array (dice have 6 face materials)
+            if (dice[index].material) {
+                if (Array.isArray(dice[index].material)) {
+                    dice[index].material.forEach(mat => {
+                        mat.emissive.setHex(active ? color : 0x000000);
+                        mat.emissiveIntensity = intensity;
+                    });
+                } else {
+                    dice[index].material.emissive.setHex(active ? color : 0x000000);
+                    dice[index].material.emissiveIntensity = intensity;
+                }
+            }
+        }
+
+        function setTokenHighlight(token, active) {
+            const colorName = token.userData.colorName;
+            const baseColor = COLORS[colorName];
+
+            // Color-specific intensity multipliers
+            let baseIntensity = 0.8;
+            if (colorName === 'GREEN') {
+                baseIntensity = 1.6; // 2x
+            } else if (colorName === 'BLUE') {
+                baseIntensity = 2.24; // 2x * 1.4x = 2.8x
+            } else if (colorName === 'RED') {
+                baseIntensity = 1.2; // 1.5x
+            }
+            // YELLOW stays at 0.8
+
+            const intensity = active ? baseIntensity : 0.1;
+
+            token.children.forEach(mesh => {
+                if (mesh.material) {
+                    mesh.material.emissive.setHex(baseColor);
+                    mesh.material.emissiveIntensity = intensity;
+                }
+            });
+        }
+
+        function animateCameraEntrance() {
+            new TWEEN.Tween(camera.position)
+                .to({ x: 0, y: 20, z: 16 }, 2000)
+                .easing(TWEEN.Easing.Cubic.Out)
+                .start();
+        }
+
+        function findFirstActivePlayer() {
+            // Skip players set to 'nobody'
+            while (playerConfig[PLAYER_ORDER[currentPlayerIndex]] === 'nobody') {
+                currentPlayerIndex = (currentPlayerIndex + 1) % 4;
+            }
+        }
+
+        // ============================================
+        // DICE CREATION
+        // ============================================
+        const DICE_SIZE = 0.9;
+        const DICE_RADIUS = DICE_SIZE * 0.1; // 10% corner radius
+
+        // Standard dice dot patterns (positions on a 3x3 grid, -1 to 1 range)
+        const DOT_PATTERNS = {
+            1: [[0, 0]],
+            2: [[-0.5, -0.5], [0.5, 0.5]],
+            3: [[-0.5, -0.5], [0, 0], [0.5, 0.5]],
+            4: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]],
+            5: [[-0.5, -0.5], [0.5, -0.5], [0, 0], [-0.5, 0.5], [0.5, 0.5]],
+            6: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0], [0.5, 0], [-0.5, 0.5], [0.5, 0.5]]
+        };
+
+        function createDiceFaceTexture(dotCount) {
+            const size = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // White background with subtle gradient
+            const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.7);
+            gradient.addColorStop(0, '#ffffff');
+            gradient.addColorStop(1, '#f0f0f0');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+
+            // Draw dots
+            const dotRadius = size * 0.1;
+            const pattern = DOT_PATTERNS[dotCount];
+            ctx.fillStyle = '#1a1a1a';
+
+            pattern.forEach(([x, y]) => {
+                const px = size / 2 + x * size * 0.55;
+                const py = size / 2 + y * size * 0.55;
+                ctx.beginPath();
+                ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            return texture;
+        }
+
+        function createDice() {
+            // Create rounded box geometry with 10% corner radius
+            // RoundedBoxGeometry(width, height, depth, segments, radius)
+            const diceGeom = new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 4, DICE_RADIUS);
+
+            // Standard dice face arrangement (opposite faces sum to 7)
+            // BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z
+            // Standard: +X=3, -X=4, +Y=2, -Y=5, +Z=1, -Z=6
+            // (1 opposite 6, 2 opposite 5, 3 opposite 4)
+            const faceOrder = [3, 4, 2, 5, 1, 6];
+
+            // Create two dice - each with its own materials (so they can be highlighted independently)
+            for (let i = 0; i < 2; i++) {
+                // Create unique materials for each die
+                const materials = faceOrder.map(dots => {
+                    return new THREE.MeshStandardMaterial({
+                        map: createDiceFaceTexture(dots),
+                        roughness: 0.3,
+                        metalness: 0.05
+                    });
+                });
+
+                const dieMesh = new THREE.Mesh(diceGeom, materials);
+
+                // Position in center, slightly offset from each other
+                const offsetX = (i === 0) ? -0.6 : 0.6;
+                const offsetZ = (i === 0) ? 0.3 : -0.3;
+                dieMesh.position.set(offsetX, DICE_SIZE / 2 + 0.3, offsetZ);
+
+                // Random initial rotation
+                dieMesh.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+
+                dieMesh.castShadow = true;
+                dieMesh.receiveShadow = true;
+                dieMesh.userData.isDice = true;
+                dieMesh.userData.index = i;
+
+                scene.add(dieMesh);
+                dice.push(dieMesh);
+            }
+        }
+
+        function animateDiceRoll() {
+            const rollDuration = 1200;
+
+            dice.forEach((die, index) => {
+                // Random target rotation (multiple full rotations + final position)
+                const targetRotation = {
+                    x: die.rotation.x + Math.PI * (4 + Math.random() * 4),
+                    y: die.rotation.y + Math.PI * (4 + Math.random() * 4),
+                    z: die.rotation.z + Math.PI * (4 + Math.random() * 4)
+                };
+
+                // Bounce animation
+                const startY = die.position.y;
+                const bounceHeight = 2.5;
+
+                // Rotation animation
+                new TWEEN.Tween(die.rotation)
+                    .to(targetRotation, rollDuration)
+                    .easing(TWEEN.Easing.Cubic.Out)
+                    .start();
+
+                // Bounce up
+                new TWEEN.Tween(die.position)
+                    .to({ y: startY + bounceHeight }, rollDuration * 0.4)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .chain(
+                        // Fall down
+                        new TWEEN.Tween(die.position)
+                            .to({ y: startY }, rollDuration * 0.6)
+                            .easing(TWEEN.Easing.Bounce.Out)
+                    )
+                    .start();
+
+                // Slight horizontal movement
+                const moveX = (Math.random() - 0.5) * 0.4;
+                const moveZ = (Math.random() - 0.5) * 0.4;
+                new TWEEN.Tween(die.position)
+                    .to({
+                        x: die.position.x + moveX,
+                        z: die.position.z + moveZ
+                    }, rollDuration * 0.3)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .chain(
+                        new TWEEN.Tween(die.position)
+                            .to({
+                                x: (index === 0) ? -0.6 : 0.6,
+                                z: (index === 0) ? 0.3 : -0.3
+                            }, rollDuration * 0.7)
+                            .easing(TWEEN.Easing.Quadratic.Out)
+                    )
+                    .start();
+            });
         }
 
         function createRoundedRectShape(width, height, radius) {
@@ -643,7 +1427,13 @@
             if (gameState !== 'WAITING_FOR_ROLL') return;
             const btn = document.getElementById('dice-btn');
             const res = document.getElementById('dice-result');
-            btn.disabled = true; res.innerText = "?";
+            btn.disabled = true;
+            res.innerText = "?";
+
+            // Trigger 3D dice animation
+            animateDiceRoll();
+
+            // Wait for dice animation to complete before showing result
             setTimeout(() => {
                 diceValue = Math.floor(Math.random() * 6) + 1;
                 res.innerText = diceValue;
@@ -656,7 +1446,7 @@
                     showMessage("CHOOSE A PIECE");
                     highlightTokens(valid);
                 }
-            }, 500);
+            }, 1300); // Match dice animation duration + small buffer
         }
 
         function highlightTokens(validOnes) {
@@ -768,7 +1558,16 @@
             renderer.render(scene, camera);
         }
 
-        init();
+        // ============================================
+        // INITIALIZATION - Start with setup screen
+        // ============================================
+        function initSetupScreen() {
+            createParticles();
+            document.getElementById('begin-btn').addEventListener('click', transitionToGame);
+        }
+
+        // Start with setup screen
+        initSetupScreen();
     </script>
 </body>
 
