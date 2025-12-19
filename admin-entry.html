@@ -1446,8 +1446,31 @@
                         }
                     }, 1000); // 1s delay for AI "thinking"
                 } else {
-                    // HUMAN: Show highlights
-                    highlightTokens(validTokensForActive);
+                    // HUMAN PLAYER LOGIC
+
+                    // Check if forced move:
+                    // 1. Only 1 specific token can move with the active die.
+                    const singleTokenOption = validTokensForActive.length === 1;
+
+                    // 2. Do we have other *distinct* dice choices?
+                    // If we have multiple dice but they are all the same value (e.g. rolled 3 and 3),
+                    // then swapping dice gives no new options.
+                    const uniqueValues = new Set(validDiceIndices.map(i => currentTurnValues[i]));
+                    const noDistinctDiceChoice = uniqueValues.size === 1;
+
+                    if (singleTokenOption && noDistinctDiceChoice) {
+                        // FORCE MOVE: The player has literally no other choice.
+                        highlightTokens(validTokensForActive);
+
+                        setTimeout(() => {
+                            if (gameState === 'WAITING_FOR_MOVE') { // Ensure state hasn't changed
+                                moveToken(validTokensForActive[0], currentTurnValues[activeDieIndex], activeDieIndex);
+                            }
+                        }, 400);
+                    } else {
+                        // Standard behavior: Highlight options and wait for user to decide
+                        highlightTokens(validTokensForActive);
+                    }
                 }
             }
         }
