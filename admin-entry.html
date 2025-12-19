@@ -476,7 +476,7 @@
                     </div>
                     <select class="player-select" id="select-green">
                         <option value="player">Player</option>
-                        <option value="ai">AI</option>
+                        <option value="ai" selected>AI</option>
                         <option value="nobody">Nobody</option>
                     </select>
                 </div>
@@ -500,7 +500,7 @@
                     </div>
                     <select class="player-select" id="select-blue">
                         <option value="player">Player</option>
-                        <option value="ai" selected>AI</option>
+                        <option value="ai">AI</option>
                         <option value="nobody">Nobody</option>
                     </select>
                 </div>
@@ -572,6 +572,8 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
         const COLORS = {
             RED: 0xc1121f,
             BLUE: 0x00308f,
@@ -659,9 +661,9 @@
         let currentScreen = SCREENS.SETUP;
         const playerConfig = {
             RED: 'player',
-            GREEN: 'player',
+            GREEN: 'ai',
             YELLOW: 'ai',
-            BLUE: 'ai'
+            BLUE: 'player'
         };
         let scene, camera, renderer, raycaster, mouse, controls;
         let currentPlayerIndex = 0;
@@ -728,7 +730,7 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x050505);
             camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 50, 40);
+            camera.position.set(-40, 50, 0);
             camera.lookAt(0, 0, 0);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -758,6 +760,7 @@
             scene.add(fillLight);
             createAdvancedBoard();
             createTokens();
+            createAILabels();
             createDice();
             findFirstActivePlayer();
             updateUI();
@@ -765,6 +768,12 @@
             window.addEventListener('mousedown', onMouseDown);
             animateCameraEntrance();
             animate();
+
+            // Auto-start the game loop with a roll after camera settles
+            setTimeout(() => {
+                rollDice();
+            }, 2500);
+
             // Debug helper (disabled by default): walk 1 pawn of each color along its path.
             // NOTE: Running 4 walkers at once can tank FPS and make movement look janky on slower devices.
             // Flip this to true only when you're actively debugging paths.
@@ -819,7 +828,7 @@
         }
         function animateCameraEntrance() {
             new TWEEN.Tween(camera.position, tweenGroup)
-                .to({ x: 0, y: 20, z: 16 }, 2000)
+                .to({ x: -22, y: 25, z: 0 }, 2000)
                 .easing(TWEEN.Easing.Cubic.Out)
                 .start();
         }
@@ -886,6 +895,52 @@
                 scene.add(dieMesh);
                 dice.push(dieMesh);
             }
+        }
+        function createAILabels() {
+            const loader = new FontLoader();
+            loader.load('https://cdn.jsdelivr.net/npm/three@0.180.0/examples/fonts/helvetiker_bold.typeface.json', function (font) {
+                PLAYER_ORDER.forEach(colorName => {
+                    if (playerConfig[colorName] === 'ai') {
+                        const textGeo = new TextGeometry('AI', {
+                            font: font,
+                            size: 0.75,
+                            depth: 0.05,
+                            curveSegments: 6,
+                            bevelEnabled: true,
+                            bevelThickness: 0.01,
+                            bevelSize: 0.01,
+                            bevelOffset: 0,
+                            bevelSegments: 3
+                        });
+                        textGeo.computeBoundingBox();
+                        const xOffset = -0.5 * (textGeo.boundingBox.max.x - textGeo.boundingBox.min.x);
+                        const yOffset = -0.5 * (textGeo.boundingBox.max.y - textGeo.boundingBox.min.y);
+                        textGeo.translate(xOffset, yOffset, 0);
+
+                        const textMat = new THREE.MeshStandardMaterial({
+                            color: 0x111111,
+                            roughness: 0.2,
+                            metalness: 0.5
+                        });
+
+                        const mesh = new THREE.Mesh(textGeo, textMat);
+
+                        let pos = { x: 0, z: 0 };
+                        if (colorName === 'RED') pos = { x: -4.5, z: -4.5 };
+                        if (colorName === 'GREEN') pos = { x: 4.5, z: -4.5 };
+                        if (colorName === 'YELLOW') pos = { x: 4.5, z: 4.5 };
+                        if (colorName === 'BLUE') pos = { x: -4.5, z: 4.5 };
+
+                        mesh.position.set(pos.x, 0.22, pos.z);
+                        mesh.rotation.x = -Math.PI / 2;
+                        mesh.rotation.z = -Math.PI / 2;
+
+                        mesh.castShadow = true;
+                        mesh.receiveShadow = true;
+                        scene.add(mesh);
+                    }
+                });
+            });
         }
         function getDiceTopFace(die) {
             const faces = [
@@ -1353,7 +1408,47 @@
 
                 // Highlight valid tokens for the ACTIVE die only
                 const validTokensForActive = validMovesPerDie[activeDieIndex] || [];
-                highlightTokens(validTokensForActive);
+
+                // --- AI LOGIC: If current player is AI, make the move automatically ---
+                if (playerConfig[PLAYER_ORDER[currentPlayerIndex]] === 'ai') {
+                    // Don't show highlights for AI
+                    highlightTokens([]);
+
+                    setTimeout(() => {
+                        let bestToken = null;
+
+                        // 1. Priority: Capture an opponent?
+                        // (Simplified check: see if destination has an opponent)
+                        // For now, we don't have easy pre-calc of collisions without simulating.
+                        // Let's stick to a simpler heuristic:
+
+                        // Priority 1: Leave Home (if rolled 6)
+                        const leaveHomeMove = validTokensForActive.find(t => t.userData.atHome);
+                        if (leaveHomeMove) {
+                            bestToken = leaveHomeMove;
+                        }
+                        // Priority 2: Move closest to finish? Or random?
+                        else if (validTokensForActive.length > 0) {
+                            // Pick random valid move for variety, or the one furthest ahead?
+                            // Let's pick the one furthest ahead to be aggressive.
+                            bestToken = validTokensForActive.sort((a, b) => (b.userData.pathIndex || 0) - (a.userData.pathIndex || 0))[0];
+                        }
+
+                        if (bestToken) {
+                            console.log(`AI (${PLAYER_ORDER[currentPlayerIndex]}) moving token ${bestToken.userData.id}`);
+                            moveToken(bestToken, currentTurnValues[activeDieIndex], activeDieIndex);
+                        } else {
+                            // Should not happen if validDiceIndices > 0, but safety:
+                            // If we stuck here, discard die.
+                            const idxInArray = availableDiceIndices.indexOf(activeDieIndex);
+                            if (idxInArray > -1) availableDiceIndices.splice(idxInArray, 1);
+                            updateTurnState();
+                        }
+                    }, 1000); // 1s delay for AI "thinking"
+                } else {
+                    // HUMAN: Show highlights
+                    highlightTokens(validTokensForActive);
+                }
             }
         }
 
@@ -1522,23 +1617,28 @@
                 rollDice();
             }, 1000);
         }
-        function updateTurnIndicatorGlow() {
+        function pulseActiveHome(time) {
+            const t = time || performance.now();
+            const pulse = (Math.sin(t * 0.005) + 1) * 0.5; // Smooth wave 0..1
             const currentColorName = PLAYER_ORDER[currentPlayerIndex];
-            const baseWhite = new THREE.Color(0xffffff);
-            // 0.0 = pure white, 1.0 = fully player color. Keep this low for a subtle tint.
-            const ACTIVE_TINT = 0.18;
+
             PLAYER_ORDER.forEach(colorName => {
                 const homeRef = homeInnerMeshes[colorName];
                 if (homeRef && homeRef.whiteMat) {
-                    // Ensure emissive doesn't "wash out" the tint.
-                    homeRef.whiteMat.emissive.setHex(0x000000);
-                    homeRef.whiteMat.emissiveIntensity = 0;
-
                     if (colorName === currentColorName) {
-                        const playerColor = new THREE.Color(COLORS[colorName]);
-                        homeRef.whiteMat.color.copy(baseWhite).lerp(playerColor, ACTIVE_TINT);
+                        const colorHex = COLORS[colorName];
+                        const cObj = new THREE.Color(colorHex);
+                        // Pulse tint from 0.2 to 0.7
+                        const strength = 0.2 + (pulse * 0.5);
+                        homeRef.whiteMat.color.setHex(0xffffff).lerp(cObj, strength);
+
+                        // Pulse emissive
+                        homeRef.whiteMat.emissive.setHex(colorHex);
+                        homeRef.whiteMat.emissiveIntensity = 0.2 + (pulse * 0.4);
                     } else {
-                        homeRef.whiteMat.color.copy(baseWhite);
+                        homeRef.whiteMat.color.setHex(0xffffff);
+                        homeRef.whiteMat.emissive.setHex(0x000000);
+                        homeRef.whiteMat.emissiveIntensity = 0;
                     }
                 }
             });
@@ -1552,10 +1652,11 @@
             dot.style.color = colorHex;
             text.innerText = `${colorName} PLAYER`;
             text.style.color = colorHex;
-            updateTurnIndicatorGlow();
-            const shouldHighlightDice = (gameState === 'WAITING_FOR_ROLL' && playerConfig[colorName] === 'player');
-            setDiceHighlight(0, shouldHighlightDice);
-            setDiceHighlight(1, shouldHighlightDice);
+            text.style.color = colorHex;
+            text.style.color = colorHex;
+            // updateTurnIndicatorGlow(); - Removed in favor of animated pulse in loop
+            setDiceHighlight(0, false);
+            setDiceHighlight(1, false);
         }
         function showMessage(msg) {
             const box = document.getElementById('msg-box');
@@ -1588,11 +1689,8 @@
             }
 
             if (gameState === 'WAITING_FOR_ROLL') {
-                const diceIntersects = raycaster.intersectObjects(dice, false);
-                if (diceIntersects.length > 0) {
-                    rollDice();
-                    return;
-                }
+                // Manual rolling disabled. Wait for auto-roll.
+                return;
             }
             if (gameState !== 'WAITING_FOR_MOVE') return;
             const intersects = raycaster.intersectObjects(tokens, true);
@@ -1637,6 +1735,7 @@
             requestAnimationFrame(animate);
             tweenGroup.update(time);
             if (controls) controls.update();
+            pulseActiveHome(time);
             tokens.forEach(t => { t.rotation.y += (t.userData.playerIndex === currentPlayerIndex && gameState === 'WAITING_FOR_MOVE') ? 0.05 : 0.01; });
             renderer.render(scene, camera);
         }
