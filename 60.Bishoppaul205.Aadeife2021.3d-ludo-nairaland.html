@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ludo Challenge</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            pointer-events: none;
+            z-index: 10;
+            text-shadow: 1px 1px 2px black;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background: #ffcc00;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        button:hover { background: #ffdb4d; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="info">
+        <h1>Nairaland 3D Ludo</h1>
+        <p>Current Turn: <span id="turn-indicator" style="color: red;">RED</span></p>
+    </div>
+
+    <div id="controls">
+        <button id="roll-btn">Roll Dice</button>
+        <div id="dice-result" style="margin-top: 10px; color: white; font-size: 20px;"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x202020);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 15, 10);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // --- LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+// --- BOARD CREATION (Polished & Glitch-Free) ---
+    function createBoard() {
+        const boardGroup = new THREE.Group();
+
+        // 1. The Main White Base
+        const geometry = new THREE.BoxGeometry(10, 0.5, 10);
+        const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const base = new THREE.Mesh(geometry, material);
+        base.receiveShadow = true;
+        boardGroup.add(base);
+
+        // 2. Helper to make tiles that don't flicker (lifted to y=0.26)
+        function createTile(color, x, z) {
+            const tileGeo = new THREE.BoxGeometry(0.9, 0.05, 0.9); // Thinner tiles
+            const tileMat = new THREE.MeshStandardMaterial({ color: color });
+            const tile = new THREE.Mesh(tileGeo, tileMat);
+            tile.position.set(x, 0.28, z); // Lifted up to avoid glitching
+            tile.receiveShadow = true;
+            boardGroup.add(tile);
+        }
+
+        // 3. Draw the Safe Path (Grey/White)
+        for (let i = 0; i < 5; i++) {
+            createTile(0xeeeeee, 0, i - 2); 
+            createTile(0xeeeeee, i - 2, 0);
+        }
+        
+        // 4. Colored Paths (Home Runs)
+        // Red (Left)
+        createTile(0xff0000, -4.5, 0); // Start
+        createTile(0xff0000, -3.5, 0);
+        createTile(0xff0000, -2.5, 0);
+        createTile(0xff0000, -1.5, 0);
+
+        // Green (Right)
+        createTile(0x00ff00, 4.5, 0); // Start
+        createTile(0x00ff00, 3.5, 0);
+        createTile(0x00ff00, 2.5, 0);
+        createTile(0x00ff00, 1.5, 0);
+
+        // Yellow (Top)
+        createTile(0xffff00, 0, -4.5); // Start
+        createTile(0xffff00, 0, -3.5);
+        createTile(0xffff00, 0, -2.5);
+        createTile(0xffff00, 0, -1.5);
+
+        // Blue (Bottom)
+        createTile(0x0000ff, 0, 4.5); // Start
+        createTile(0x0000ff, 0, 3.5);
+        createTile(0x0000ff, 0, 2.5);
+        createTile(0x0000ff, 0, 1.5);
+
+        // 5. Center Goal (Purple)
+        const centerGeo = new THREE.BoxGeometry(1.5, 0.2, 1.5);
+        const centerMat = new THREE.MeshStandardMaterial({ color: 0x800080 });
+        const center = new THREE.Mesh(centerGeo, centerMat);
+        center.position.set(0, 0.35, 0);
+        boardGroup.add(center);
+
+        return boardGroup;
+    }
+
+    const ludoBoard = createBoard();
+    scene.add(ludoBoard);
+// --- CREATE PAWN FUNCTION ---
+    function createPawn(color, x, z) {
+        const pawnGroup = new THREE.Group();
+
+        // Pawn Body (Cylinder)
+        const geometry = new THREE.CylinderGeometry(0.2, 0.4, 0.8, 32);
+        const material = new THREE.MeshStandardMaterial({ color: color });
+        const body = new THREE.Mesh(geometry, material);
+        body.position.y = 0.4; // Lift it so it sits ON the board
+        body.castShadow = true;
+        
+        // Pawn Head (Sphere)
+        const headGeo = new THREE.SphereGeometry(0.25, 32, 32);
+        const head = new THREE.Mesh(headGeo, material);
+        head.position.y = 0.9; // Sit on top of the body
+        
+        pawnGroup.add(body);
+        pawnGroup.add(head);
+
+        // Set starting position
+        pawnGroup.position.set(x, 0, z);
+        
+        return pawnGroup;
+    }
+// --- PLACE RED PIECES ---
+    const red1 = createPawn(0xff0000, -2.5, -2.5); 
+    const red2 = createPawn(0xff0000, -3.5, -2.5);
+    const red3 = createPawn(0xff0000, -2.5, -3.5);
+    const red4 = createPawn(0xff0000, -3.5, -3.5);
+
+    scene.add(red1);
+    scene.add(red2);
+    scene.add(red3);
+    scene.add(red4);
+    // --- PLACE GREEN PIECES ---
+    const green1 = createPawn(0x00ff00, 2.5, -2.5); // Green color
+    const green2 = createPawn(0x00ff00, 3.5, -2.5);
+    const green3 = createPawn(0x00ff00, 2.5, -3.5);
+    const green4 = createPawn(0x00ff00, 3.5, -3.5);
+
+    scene.add(green1);
+    scene.add(green2);
+    scene.add(green3);
+    scene.add(green4);
+
+    // --- PLACE YELLOW PIECES ---
+    const yellow1 = createPawn(0xffff00, -2.5, 2.5); // Yellow color
+    const yellow2 = createPawn(0xffff00, -3.5, 2.5);
+    const yellow3 = createPawn(0xffff00, -2.5, 3.5);
+    const yellow4 = createPawn(0xffff00, -3.5, 3.5);
+
+    scene.add(yellow1);
+    scene.add(yellow2);
+    scene.add(yellow3);
+    scene.add(yellow4);
+
+    // --- PLACE BLUE PIECES ---
+    const blue1 = createPawn(0x0000ff, 2.5, 2.5); // Blue color
+    const blue2 = createPawn(0x0000ff, 3.5, 2.5);
+    const blue3 = createPawn(0x0000ff, 2.5, 3.5);
+    const blue4 = createPawn(0x0000ff, 3.5, 3.5);
+
+    scene.add(blue1);
+    scene.add(blue2);
+    scene.add(blue3);
+    scene.add(blue4);
+    // --- CREATE 3D DICE ---
+    let diceMesh;
+    function createDice() {
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        
+        // Simple white cube for the dice
+        const materials = [
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee }), 
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee }), 
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee }), 
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee }), 
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee }), 
+            new THREE.MeshStandardMaterial({ color: 0xeeeeee })  
+        ];
+
+        diceMesh = new THREE.Mesh(geometry, materials);
+        diceMesh.position.set(0, 5, 0); // Start high up in the air
+        diceMesh.castShadow = true;
+        scene.add(diceMesh);
+    }
+    
+    createDice(); // Put the dice on the board
+   // --- REAL GAME LOGIC (Dice = Movement) ---
+    
+    // 1. Extended Red Path (Walking towards center)
+    const redPath = [
+        { x: -4.5, z: 0 }, // Start
+        { x: -3.5, z: 0 }, // Step 1
+        { x: -2.5, z: 0 }, // Step 2
+        { x: -1.5, z: 0 }, // Step 3
+        { x: -0.5, z: 0 }, // Step 4
+        { x: 0, z: 0 }     // Step 5: WINNER (Center)
+    ];
+
+    let currentTurn = 0; // 0: Red
+    let redStepIndex = -1; // -1 means at Home
+
+    const turnNames = ["RED", "GREEN", "YELLOW", "BLUE"];
+    const turnColors = ["red", "lime", "yellow", "cyan"];
+    const turnText = document.getElementById("turn-indicator");
+    const diceResult = document.getElementById("dice-result");
+    
+    let isRolling = false;
+    let diceSpeed = 0.02;
+
+    document.getElementById("roll-btn").addEventListener("click", () => {
+        if (isRolling) return; 
+        
+        isRolling = true;
+        diceSpeed = 0.8; 
+        diceResult.innerText = "Rolling...";
+
+        setTimeout(() => {
+            // 1. Get the Random Roll (1 to 6)
+            const roll = Math.floor(Math.random() * 6) + 1;
+            diceResult.innerText = `Rolled: ${roll}`;
+            diceSpeed = 0.02; 
+            isRolling = false;
+
+            // 2. CHECK: Is it Red's turn?
+            if (currentTurn === 0) {
+                // LOGIC: Can we move?
+                // If current position + roll is within the path limits
+                if (redStepIndex + roll < redPath.length) {
+                    
+                    redStepIndex += roll; // Add the actual dice number!
+                    
+                    const nextSpot = redPath[redStepIndex];
+                    
+                    // Move the Pawn
+                    if (typeof red1 !== 'undefined') {
+                        red1.position.set(nextSpot.x, 0.5, nextSpot.z);
+                    }
+
+                    // Check for Win
+                    if (redStepIndex === redPath.length - 1) {
+                        alert("RED WINS! 🏆");
+                    }
+                } else {
+                    console.log("Move not possible (overshot path)");
+                }
+            }
+
+            // 3. Switch Turn
+            currentTurn = (currentTurn + 1) % 4;
+            turnText.innerText = turnNames[currentTurn];
+            turnText.style.color = turnColors[currentTurn];
+            
+        }, 1000);
+    });
+// --- RAYCASTER (Click Detection System) ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('click', (event) => {
+        // 1. Calculate Mouse Position in 3D Space
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        // 2. Shoot the Laser Beam from Camera
+        raycaster.setFromCamera(mouse, camera);
+
+        // 3. Detect Objects
+        // We check if the laser hit anything in the scene
+        const intersects = raycaster.intersectObjects(scene.children, true);
+
+        if (intersects.length > 0) {
+            // Get the very first object the laser hit
+            const hitObject = intersects[0].object;
+
+            // TEST: Check if it's the Red Pawn
+            // (We check if the hit object matches our 'red1' variable)
+            if (typeof red1 !== 'undefined' && hitObject === red1) {
+                console.log("RED PAWN CLICKED!");
+                alert("🔴 You clicked the Red Pawn!");
+            }
+        }
+    });
+    // --- ANIMATION LOOP ---
+    function animate() {
+        requestAnimationFrame(animate);
+        if (diceMesh) {
+            diceMesh.rotation.x += diceSpeed;
+            diceMesh.rotation.y += diceSpeed;
+        }
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // --- RESIZE & START ---
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+    </script>
+</body>
+</html>

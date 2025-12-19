@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ludo Game Challenge</title>
+    
+    <!-- ============================================
+         EXTERNAL LIBRARIES
+         ============================================ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- ============================================
+         CSS STYLES
+         ============================================ -->
+    <style>
+        /* CSS Variables for consistent theming */
+        :root {
+            --bg-dark: #0f172a;
+            --accent-primary: #6366f1;
+            --accent-secondary: #f43f5e;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --red: #ff4757;
+            --green: #2ed573;
+            --yellow: #ffa502;
+            --blue: #1e90ff;
+            --naira-color: #00b894;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: #f8fafc;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ============================================
+           LAYOUT GRID STRUCTURE
+           ============================================ */
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr 320px;
+            grid-template-rows: 80px 1fr 60px;
+            height: 100vh;
+            gap: 15px;
+            padding: 15px;
+        }
+
+        /* ============================================
+           HEADER STYLING
+           ============================================ */
+        header {
+            grid-column: 1 / -1;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo-text h1 {
+            font-weight: 800;
+            letter-spacing: -1px;
+            font-size: 1.8rem;
+            background: linear-gradient(45deg, #fff, #94a3b8);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+        }
+
+        .logo-text .subtitle {
+            color: var(--naira-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .logo-text .naira-symbol {
+            color: var(--naira-color);
+            font-weight: 800;
+            font-size: 1.2rem;
+        }
+
+        /* ============================================
+           LEFT PANEL (Players & Rules)
+           ============================================ */
+        .left-panel {
+            grid-column: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+            transition: 0.3s;
+            opacity: 0.6;
+        }
+
+        .player-card.active {
+            opacity: 1;
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+            transform: translateX(10px);
+        }
+
+        .p-color { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+
+        /* ============================================
+           CENTER PANEL (3D Board)
+           ============================================ */
+        .game-canvas-area {
+            position: relative;
+            background: #000;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        .floating-ui {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #roll-dice {
+            background: linear-gradient(135deg, var(--accent-primary), #4f46e5);
+            border: none;
+            padding: 16px 40px;
+            border-radius: 50px;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #roll-dice:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(99, 102, 241, 0.5); }
+        #roll-dice:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+
+        /* ============================================
+           RIGHT PANEL (Status)
+           ============================================ */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .status-box {
+            text-align: center;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+        }
+
+        #status-message { font-size: 1rem; color: #94a3b8; line-height: 1.5; }
+
+        .hint-badge {
+            background: #f59e0b;
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .challenge-badge {
+            background: linear-gradient(135deg, var(--naira-color), #00a085);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-left: 10px;
+            border: 1px solid rgba(0, 184, 148, 0.3);
+        }
+
+        /* ============================================
+           AUDIO CONTROLS
+           ============================================ */
+        .audio-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+
+        .audio-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: 0.3s;
+        }
+
+        .audio-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* ============================================
+           WINNING OVERLAY
+           ============================================ */
+        .winning-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            pointer-events: none;
+        }
+
+        .winning-content {
+            pointer-events: auto;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 50px 80px;
+            border-radius: 30px;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 0 100px rgba(255, 215, 0, 0.3);
+            animation: victoryPulse 2s infinite;
+            position: relative;
+            z-index: 1001;
+        }
+
+        @keyframes victoryPulse {
+            0% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.3); }
+            50% { box-shadow: 0 0 150px rgba(255, 215, 0, 0.5); }
+            100% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.3); }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: #FFD700;
+            opacity: 0.7;
+            border-radius: 50%;
+            animation: fall linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(360deg); }
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        footer {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 10px 20px;
+            text-align: center;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .footer-highlight {
+            color: var(--naira-color);
+            font-weight: 600;
+        }
+
+        .footer-naira {
+            color: var(--naira-color);
+            font-weight: 800;
+            font-size: 1rem;
+        }
+
+        /* ============================================
+           SCROLLBAR STYLING
+           ============================================ */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+
+        /* ============================================
+           RESPONSIVE DESIGN
+           ============================================ */
+        @media (max-width: 1200px) {
+            .layout-grid { grid-template-columns: 1fr 1fr; }
+            .left-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================
+         PAGE LAYOUT STRUCTURE
+         ============================================ -->
+    <div class="layout-grid">
+        <!-- HEADER SECTION -->
+        <header>
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <span class="naira-symbol">₦</span>
+                    <i class="fas fa-dice-d6"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>3D LUDO GAME</h1>
+                    <div class="subtitle">₦airaland Challenge #1</div>
+                </div>
+            </div>
+            <div id="dice-display" style="font-size: 1.5rem; font-weight: 600; color: var(--yellow);">
+                <i class="fas fa-dice-d6"></i> Ready
+            </div>
+        </header>
+
+        <!-- LEFT SIDEBAR: Players & Rules -->
+        <aside class="left-panel">
+            <div class="card">
+                <h3 style="margin-bottom: 15px; font-size: 0.9rem; color: #64748b; text-transform: uppercase;">Players</h3>
+                <div class="player-card active" id="player-red">
+                    <div class="p-color" style="background: var(--red); color: var(--red);"></div>
+                    <div class="p-info">
+                        <div style="font-weight: 600;">Player 1</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8;" id="red-count">At Base</div>
+                    </div>
+                </div>
+                <div class="player-card" id="player-green">
+                    <div class="p-color" style="background: var(--green); color: var(--green);"></div>
+                    <div class="p-info">
+                        <div style="font-weight: 600;">Player 2</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8;" id="green-count">At Base</div>
+                    </div>
+                </div>
+                <div class="player-card" id="player-yellow">
+                    <div class="p-color" style="background: var(--yellow); color: var(--yellow);"></div>
+                    <div class="p-info">
+                        <div style="font-weight: 600;">Player 3</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8;" id="yellow-count">At Base</div>
+                    </div>
+                </div>
+                <div class="player-card" id="player-blue">
+                    <div class="p-color" style="background: var(--blue); color: var(--blue);"></div>
+                    <div class="p-info">
+                        <div style="font-weight: 600;">Player 4</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8;" id="blue-count">At Base</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GAME RULES SECTION -->
+            <div class="card" style="flex: 1;">
+                <span class="hint-badge">GAME RULES</span>
+                <ul style="list-style: none; font-size: 0.85rem; color: #94a3b8; line-height: 1.6;">
+                    <li style="margin-bottom: 10px;">🎲 Be the FIRST player to get ANY piece to the golden center circle to win instantly!</li>
+                    <li style="margin-bottom: 10px;">🎲 All 4 pieces for each player start in their colored corner bases.</li>
+                    <li style="margin-bottom: 10px;">🎲 Players take turns in order: Red → Green → Yellow → Blue.</li>
+                    <li style="margin-bottom: 10px;">🎲 <strong>Dice Roll:</strong> Click the "ROLL DICE" button to roll a standard 6-sided dice (1-6).</li>
+                    <li style="margin-bottom: 10px;">🎲 After rolling, click on any of your glowing pieces to move it.</li>
+                    <li style="margin-bottom: 10px;">🎲 Pieces move directly toward the center based on the dice roll (1 step per dice point).</li>
+                    <li style="margin-bottom: 10px;">🎲 Rolling a 6 gives you an extra turn! (Maximum 3 extra turns in a row)</li>
+                    <li style="margin-bottom: 10px;">🎲 <strong>Reaching Center:</strong> When a piece reaches within 0.5 units of the center, it's considered "home".</li>
+                    <li style="margin-bottom: 10px;">🎲 <strong>Instant Win:</strong> The moment ANY player gets ONE piece to the center, they win immediately!</li>
+                    <li style="margin-bottom: 10px;">🎲 <strong>Controls:</strong> Use mouse to rotate/view the 3D board. Click dice button to roll, click pieces to move.</li>
+                    <li style="margin-top: 15px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border-left: 3px solid var(--accent-primary);">
+                        <strong>⚡ START THE GAME</strong>
+                        <div style="margin-top: 8px; font-size: 0.8rem;">
+                            • You can win !<br>
+                        </div>
+                    </li>
+                    <li style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.75rem; color: #64748b;">
+                        <strong>Note:</strong> You can deactivate the sound of the game if you wish.Thanks for playing!
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- MAIN GAME AREA: 3D Canvas -->
+        <main class="game-canvas-area" id="game-canvas">
+            <div id="canvas-container" style="width: 100%; height: 100%;"></div>
+            
+            <!-- AUDIO CONTROLS -->
+            <div class="audio-controls">
+                <button class="audio-btn" id="audio-toggle" title="Toggle Sound">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+                <button class="audio-btn" id="music-toggle" title="Toggle Background Music">
+                    <i class="fas fa-music"></i>
+                </button>
+            </div>
+            
+            <!-- FLOATING UI CONTROLS -->
+            <div class="floating-ui">
+                <div id="selection-hint" style="background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; display: none; border: 1px solid var(--yellow);">
+                    ✨ Select a glowing piece to move
+                </div>
+                <button id="roll-dice">
+                    <i class="fas fa-dice-five"></i> ROLL DICE
+                </button>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR: Game Status -->
+        <aside class="right-panel">
+            <div class="card status-box">
+                <span class="hint-badge">Live Status</span>
+                <div id="status-message">Waiting for Red to start...</div>
+            </div>
+            
+            <div class="card" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                <i class="fas fa-trophy" style="font-size: 2rem; color: #ffd700; margin-bottom: 10px;"></i>
+                <h4 style="font-size: 0.9rem;">CHALLENGE TARGET</h4>
+                <p style="font-size: 0.8rem; color: #94a3b8;">Reach the golden center circle to claim victory!</p>
+                <div style="margin-top: 15px; padding: 10px; background: rgba(0,184,148,0.1); border-radius: 8px; border: 1px solid rgba(0,184,148,0.3);">
+                    <span class="footer-naira">₦</span>
+                    <span style="font-size: 0.75rem; color: #94a3b8;">airaland Challenge</span>
+                </div>
+            </div>
+            
+            <button class="card" onclick="location.reload()" style="cursor: pointer; background: var(--accent-secondary); border: none; color: white; font-weight: 700; padding: 15px;">
+                <i class="fas fa-power-off"></i> RESTART GAME
+            </button>
+        </aside>
+
+        <!-- FOOTER -->
+        <footer>
+            <span>Developed by <span class="footer-highlight">Doffman</span> for <span class="footer-naira">₦</span>airaland</span>
+            <span style="color: #64748b;">-</span>
+            <span>Full-stack Vibe Engineering Challenge #1</span>
+            <span style="color: #64748b;">|</span>
+            <span>
+                <a href="https://www.nairaland.com/" target="_blank" style="color: var(--naira-color); text-decoration: none; font-weight: 600;">
+                    <span class="footer-naira">₦</span>airaland Forum
+                </a>
+            </span>
+        </footer>
+    </div>
+
+    <!-- ============================================
+         WINNING OVERLAY (Hidden by default)
+         ============================================ -->
+    <div class="winning-overlay" id="winner-screen">
+        <div class="winning-content">
+            <div class="logo-icon" style="font-size: 4rem; margin-bottom: 20px;">
+                <i class="fas fa-dice-d6"></i>
+                <span class="naira-symbol">₦</span>
+            </div>
+            <h1 style="font-size: 4rem; margin-bottom: 10px; background: linear-gradient(45deg, #FFD700, #FFA500); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: textGlow 2s infinite alternate;">VICTORY!</h1>
+            <p id="winner-name" style="font-size: 2rem; color: #fff; margin-bottom: 30px; font-weight: 700; text-shadow: 0 0 20px currentColor;"></p>
+            <p style="color: #94a3b8; margin-bottom: 20px;"><span class="footer-naira">₦</span>airaland Challenge Completed!</p>
+            <button onclick="location.reload()" style="padding: 15px 40px; border-radius: 50px; background: linear-gradient(135deg, var(--accent-primary), #4f46e5); border: none; color: white; font-weight: 800; cursor: pointer; font-size: 1.1rem; transition: 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+                <i class="fas fa-redo"></i> PLAY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================
+         JAVASCRIPT GAME LOGIC
+         ============================================ -->
+    <script>
+        // ============================================
+        // GAME VARIABLES AND CONFIGURATION
+        // ============================================
+        let scene, camera, renderer, controls;
+        let diceValue = 0;
+        let currentPlayer = 0; // 0: red, 1: green, 2: yellow, 3: blue
+        let players = [
+            { name: "Red", color: 0xff4757, piecesInHome: 0 },
+            { name: "Green", color: 0x2ed573, piecesInHome: 0 },
+            { name: "Yellow", color: 0xffa502, piecesInHome: 0 },
+            { name: "Blue", color: 0x1e90ff, piecesInHome: 0 }
+        ];
+        
+        let pieceObjects = [];
+        let diceMesh;
+        let gameActive = true;
+        let extraTurns = 0;
+        const MAX_EXTRA_TURNS = 3;
+        let movablePieces = [];
+        let raycaster, mouse;
+        let highlightedPieces = [];
+        const PIECES_TO_WIN = 1; // SIMPLE: First to get ANY piece home wins!
+        let celebrationParticles = null;
+        let animationFrameId = null;
+
+        // ============================================
+        // SOUND SYSTEM USING WEB AUDIO API
+        // ============================================
+        let audioEnabled = true;
+        let musicEnabled = true;
+        let audioContext;
+        let sounds = {};
+        let backgroundMusic;
+        let masterGain;
+
+        // ============================================
+        // AUDIO INITIALIZATION
+        // ============================================
+        function initAudio() {
+            try {
+                // Create Web Audio API context
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                
+                // Create master gain node for volume control
+                masterGain = audioContext.createGain();
+                masterGain.gain.value = 0.7; // Default volume
+                masterGain.connect(audioContext.destination);
+                
+                // Create individual sound effects
+                sounds.diceRoll = createDiceSound();
+                sounds.pieceMove = createMoveSound();
+                sounds.pieceJump = createJumpSound();
+                sounds.victory = createVictorySound();
+                sounds.buttonClick = createClickSound();
+                sounds.error = createErrorSound();
+                sounds.playerSwitch = createSwitchSound();
+                sounds.pieceSelect = createSelectSound();
+                
+                // Setup audio control buttons
+                document.getElementById('audio-toggle').addEventListener('click', toggleSound);
+                document.getElementById('music-toggle').addEventListener('click', toggleMusic);
+                
+                console.log("Audio system initialized successfully");
+            } catch (error) {
+                console.warn("Web Audio API not supported or blocked:", error);
+                audioEnabled = false;
+                document.getElementById('audio-toggle').style.display = 'none';
+                document.getElementById('music-toggle').style.display = 'none';
+            }
+        }
+
+        // ============================================
+        // SOUND CREATION FUNCTIONS
+        // ============================================
+        function createDiceSound() {
+            return {
+                play: function() {
+                    if (!audioEnabled || !audioContext) return;
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    const now = audioContext.currentTime;
+                    
+                    // Create dice rolling sound with multiple frequencies
+                    for (let i = 0; i < 10; i++) {
+                        const time = now + i * 0.03;
+                        oscillator.frequency.setValueAtTime(100 + Math.random() * 500, time);
+                        oscillator.frequency.exponentialRampToValueAtTime(50 + Math.random() * 100, time + 0.03);
+                    }
+                    
+                    oscillator.type = 'sawtooth';
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.3);
+                    
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                }
+            };
+        }
+
+        function createMoveSound() {
+            return {
+                play: function() {
+                    if (!audioEnabled || !audioContext) return;
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    const now = audioContext.currentTime;
+                    oscillator.frequency.setValueAtTime(400, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+                    
+                    oscillator.type = 'sine';
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.1);
+                    
+                    gainNode.gain.setValueAtTime(0.2, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                }
+            };
+        }
+
+        function createJumpSound() {
+            return {
+                play: function() {
+                    if (!audioEnabled || !audioContext) return;
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    const now = audioContext.currentTime;
+                    oscillator.frequency.setValueAtTime(300, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.05);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, now + 0.15);
+                    
+                    oscillator.type = 'sine';
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.2);
+                    
+                    gainNode.gain.setValueAtTime(0.2, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.05, now + 0.05);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                }
+            };
+        }
+
+        function createVictorySound() {
+            return {
+                play: function() {
+                    if (!audioEnabled || !audioContext) return;
+                    
+                    const now = audioContext.currentTime;
+                    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+                    
+                    notes.forEach((freq, index) => {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(masterGain);
+                        
+                        const startTime = now + index * 0.15;
+                        oscillator.frequency.setValueAtTime(freq, startTime);
+                        
+                        oscillator.type = 'triangle';
+                        oscillator.start(startTime);
+                        oscillator.stop(startTime + 0.4);
+                        
+                        gainNode.gain.setValueAtTime(0.3, startTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
+                    });
+                }
+            };
+        }
+
+        function createClickSound() {
+            return {
+                play: function() {
+                    if (!audioEnabled || !audioContext) return;
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    const now = audioContext.currentTime;
+                    oscillator.frequency.setValueAtTime(800, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(300, now + 0.05);
+                    
+                    oscillator.type = 'sine';
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.05);
+                    
+                    gainNode.gain.setValueAtTime(0.15, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                }
+            };
+        }
+
+        function createErrorSound() {
+            return {
+                play: function() {
+                    if (!audioEnabled || !audioContext) return;
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    const now = audioContext.currentTime;
+                    oscillator.frequency.setValueAtTime(150, now);
+                    
+                    oscillator.type = 'square';
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.2);
+                    
+                    gainNode.gain.setValueAtTime(0.2, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                }
+            };
+        }
+
+        function createSwitchSound() {
+            return {
+                play: function() {
+                    if (!audioEnabled || !audioContext) return;
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    const now = audioContext.currentTime;
+                    oscillator.frequency.setValueAtTime(600, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+                    
+                    oscillator.type = 'sine';
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.1);
+                    
+                    gainNode.gain.setValueAtTime(0.15, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                }
+            };
+        }
+
+        function createSelectSound() {
+            return {
+                play: function() {
+                    if (!audioEnabled || !audioContext) return;
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(masterGain);
+                    
+                    const now = audioContext.currentTime;
+                    oscillator.frequency.setValueAtTime(1000, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(500, now + 0.05);
+                    
+                    oscillator.type = 'sine';
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.05);
+                    
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                }
+            };
+        }
+
+        // ============================================
+        // BACKGROUND MUSIC
+        // ============================================
+        function playBackgroundMusic() {
+            if (!musicEnabled || !audioEnabled || !audioContext) return;
+            
+            try {
+                // Create a simple background music loop
+                const now = audioContext.currentTime;
+                
+                // Create oscillators for chords
+                const chords = [
+                    {freq1: 261.63, freq2: 329.63, freq3: 392.00}, // C major
+                    {freq1: 293.66, freq2: 369.99, freq3: 440.00}, // D minor
+                    {freq1: 329.63, freq2: 415.30, freq3: 493.88}, // E minor
+                    {freq1: 349.23, freq2: 440.00, freq3: 523.25}  // F major
+                ];
+                
+                let currentTime = now;
+                
+                // Play chord progression
+                chords.forEach((chord, chordIndex) => {
+                    // Play each note in the chord
+                    [chord.freq1, chord.freq2, chord.freq3].forEach((freq, noteIndex) => {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(masterGain);
+                        
+                        const startTime = currentTime + noteIndex * 0.05;
+                        oscillator.frequency.setValueAtTime(freq, startTime);
+                        
+                        oscillator.type = 'sine';
+                        oscillator.start(startTime);
+                        oscillator.stop(startTime + 1.0);
+                        
+                        gainNode.gain.setValueAtTime(0.02, startTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.005, startTime + 0.8);
+                        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 1.0);
+                    });
+                    
+                    currentTime += 1.5; // Move to next chord
+                });
+                
+                // Schedule next loop
+                setTimeout(playBackgroundMusic, 6000); // 6 second loop
+                
+            } catch (error) {
+                console.warn("Error playing background music:", error);
+            }
+        }
+
+        // ============================================
+        // SOUND HELPER FUNCTIONS
+        // ============================================
+        function playSound(soundName) {
+            if (audioEnabled && sounds[soundName]) {
+                try {
+                    sounds[soundName].play();
+                } catch (error) {
+                    console.warn("Error playing sound:", error);
+                }
+            }
+        }
+
+        function toggleSound() {
+            audioEnabled = !audioEnabled;
+            const button = document.getElementById('audio-toggle');
+            
+            if (audioEnabled) {
+                button.innerHTML = '<i class="fas fa-volume-up"></i>';
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                playSound('buttonClick');
+            } else {
+                button.innerHTML = '<i class="fas fa-volume-mute"></i>';
+            }
+        }
+
+        function toggleMusic() {
+            musicEnabled = !musicEnabled;
+            const button = document.getElementById('music-toggle');
+            
+            if (musicEnabled) {
+                button.innerHTML = '<i class="fas fa-music"></i>';
+                playSound('buttonClick');
+                // Start music if audio is enabled
+                if (audioEnabled) {
+                    playBackgroundMusic();
+                }
+            } else {
+                button.innerHTML = '<i class="fas fa-volume-off"></i>';
+            }
+        }
+
+        // ============================================
+        // GAME INITIALIZATION
+        // ============================================
+        function init() {
+            console.log("Initializing 3D Ludo Game Challenge...");
+            
+            // Initialize audio system
+            initAudio();
+            
+            // ============================================
+            // THREE.JS SCENE SETUP
+            // ============================================
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+            
+            // Set up the camera
+            const canvasContainer = document.getElementById('canvas-container');
+            camera = new THREE.PerspectiveCamera(75, canvasContainer.offsetWidth / canvasContainer.offsetHeight, 0.1, 1000);
+            camera.position.set(15, 15, 15);
+            
+            // Set up the renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(canvasContainer.offsetWidth, canvasContainer.offsetHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // Clear container and add renderer
+            canvasContainer.innerHTML = '';
+            canvasContainer.appendChild(renderer.domElement);
+            
+            // Add orbit controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // Initialize raycaster for mouse interaction
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // ============================================
+            // LIGHTING SETUP
+            // ============================================
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.camera.left = -20;
+            directionalLight.shadow.camera.right = 20;
+            directionalLight.shadow.camera.top = 20;
+            directionalLight.shadow.camera.bottom = -20;
+            scene.add(directionalLight);
+            
+            // ============================================
+            // GAME OBJECTS CREATION
+            // ============================================
+            createBoard();
+            createDice();
+            createPieces();
+            
+            // ============================================
+            // EVENT LISTENERS
+            // ============================================
+            document.getElementById('roll-dice').addEventListener('click', rollDice);
+            window.addEventListener('resize', onWindowResize);
+            
+            // ============================================
+            // START GAME LOOP
+            // ============================================
+            animate();
+            updatePlayerUI();
+            
+            // Start background music
+            if (musicEnabled && audioEnabled) {
+                setTimeout(playBackgroundMusic, 1000);
+            }
+            
+            console.log("3D Ludo Game Challenge initialized successfully!");
+            document.getElementById('status-message').textContent = "Red player's turn. Click ROLL DICE to start!";
+        }
+        
+        // ============================================
+        // BOARD CREATION FUNCTIONS
+        // ============================================
+        function createBoard() {
+            // Board base
+            const boardGeometry = new THREE.BoxGeometry(20, 0.5, 20);
+            const boardMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x1e293b,
+                shininess: 30,
+                specular: 0x444444
+            });
+            const board = new THREE.Mesh(boardGeometry, boardMaterial);
+            board.position.set(0, -0.25, 0);
+            board.receiveShadow = true;
+            scene.add(board);
+            
+            // Create center winning area (golden circle)
+            const centerGeometry = new THREE.CircleGeometry(1, 32);
+            const centerMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xFFD700,
+                emissive: 0xFFD700,
+                emissiveIntensity: 0.5,
+                shininess: 100
+            });
+            const center = new THREE.Mesh(centerGeometry, centerMaterial);
+            center.rotation.x = -Math.PI / 2;
+            center.position.set(0, 0.3, 0);
+            center.receiveShadow = true;
+            scene.add(center);
+            
+            // Add decorative grid lines
+            addGridLines();
+            
+            // Add corner bases
+            addCornerBases();
+        }
+        
+        function addGridLines() {
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x334155 });
+            
+            // Horizontal lines
+            for (let z = -9; z <= 9; z += 2) {
+                const points = [];
+                points.push(new THREE.Vector3(-9, 0.31, z));
+                points.push(new THREE.Vector3(9, 0.31, z));
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+            }
+            
+            // Vertical lines
+            for (let x = -9; x <= 9; x += 2) {
+                const points = [];
+                points.push(new THREE.Vector3(x, 0.31, -9));
+                points.push(new THREE.Vector3(x, 0.31, 9));
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+            }
+        }
+        
+        function addCornerBases() {
+            const baseGeometry = new THREE.BoxGeometry(6, 0.4, 6);
+            
+            // Red base (bottom left)
+            const redBaseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xff4757,
+                transparent: true,
+                opacity: 0.2
+            });
+            const redBase = new THREE.Mesh(baseGeometry, redBaseMaterial);
+            redBase.position.set(-7, 0.1, -7);
+            scene.add(redBase);
+            
+            // Green base (bottom right)
+            const greenBaseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x2ed573,
+                transparent: true,
+                opacity: 0.2
+            });
+            const greenBase = new THREE.Mesh(baseGeometry, greenBaseMaterial);
+            greenBase.position.set(7, 0.1, -7);
+            scene.add(greenBase);
+            
+            // Yellow base (top right)
+            const yellowBaseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xffa502,
+                transparent: true,
+                opacity: 0.2
+            });
+            const yellowBase = new THREE.Mesh(baseGeometry, yellowBaseMaterial);
+            yellowBase.position.set(7, 0.1, 7);
+            scene.add(yellowBase);
+            
+            // Blue base (top left)
+            const blueBaseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x1e90ff,
+                transparent: true,
+                opacity: 0.2
+            });
+            const blueBase = new THREE.Mesh(baseGeometry, blueBaseMaterial);
+            blueBase.position.set(-7, 0.1, 7);
+            scene.add(blueBase);
+        }
+        
+        // ============================================
+        // DICE CREATION AND MANAGEMENT
+        // ============================================
+        function createDice() {
+            // Create dice cube
+            const diceGeometry = new THREE.BoxGeometry(1.8, 1.8, 1.8);
+            const diceMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xffffff,
+                shininess: 80,
+                specular: 0x222222
+            });
+            diceMesh = new THREE.Mesh(diceGeometry, diceMaterial);
+            diceMesh.position.set(0, 8, 0);
+            diceMesh.castShadow = true;
+            scene.add(diceMesh);
+            
+            // Create dice dots group
+            const diceDots = new THREE.Group();
+            diceMesh.add(diceDots);
+            
+            // Show initial dice face (value 1)
+            updateDiceDisplay();
+        }
+        
+        function updateDiceDisplay() {
+            // Clear previous dots
+            while (diceMesh.children.length > 0) {
+                diceMesh.remove(diceMesh.children[0]);
+            }
+            
+            // Create dice dots group
+            const diceDots = new THREE.Group();
+            diceMesh.add(diceDots);
+            
+            // Create dot material
+            const dotGeometry = new THREE.SphereGeometry(0.18, 16, 16);
+            const dotMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x000000,
+                shininess: 100,
+                emissive: 0x222222,
+                emissiveIntensity: 0.2
+            });
+            
+            // Define dot positions for each face of the dice
+            // Standard dice pattern (opposite sides sum to 7)
+            const dotConfigurations = {
+                1: { // Face with 1 dot (opposite of 6)
+                    positions: [[0, 0, 0.9]], // Center
+                    rotation: {x: 0, y: 0, z: 0}
+                },
+                2: { // Face with 2 dots (opposite of 5)
+                    positions: [[-0.4, 0.4, 0.9], [0.4, -0.4, 0.9]], // Diagonal
+                    rotation: {x: 0, y: 0, z: Math.PI/4}
+                },
+                3: { // Face with 3 dots (opposite of 4)
+                    positions: [[-0.4, 0.4, 0.9], [0, 0, 0.9], [0.4, -0.4, 0.9]], // Diagonal with center
+                    rotation: {x: 0, y: 0, z: Math.PI/4}
+                },
+                4: { // Face with 4 dots (opposite of 3)
+                    positions: [
+                        [-0.4, 0.4, 0.9], [0.4, 0.4, 0.9],
+                        [-0.4, -0.4, 0.9], [0.4, -0.4, 0.9]
+                    ], // Four corners
+                    rotation: {x: 0, y: 0, z: 0}
+                },
+                5: { // Face with 5 dots (opposite of 2)
+                    positions: [
+                        [-0.4, 0.4, 0.9], [0.4, 0.4, 0.9],
+                        [0, 0, 0.9],
+                        [-0.4, -0.4, 0.9], [0.4, -0.4, 0.9]
+                    ], // Four corners + center
+                    rotation: {x: 0, y: 0, z: 0}
+                },
+                6: { // Face with 6 dots (opposite of 1)
+                    positions: [
+                        [-0.4, 0.4, 0.9], [0.4, 0.4, 0.9],
+                        [-0.4, 0, 0.9], [0.4, 0, 0.9],
+                        [-0.4, -0.4, 0.9], [0.4, -0.4, 0.9]
+                    ], // Two columns of three
+                    rotation: {x: 0, y: 0, z: 0}
+                }
+            };
+            
+            if (dotConfigurations[diceValue]) {
+                const config = dotConfigurations[diceValue];
+                
+                // Add dots for current face
+                config.positions.forEach(pos => {
+                    const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                    dot.position.set(pos[0], pos[1], pos[2]);
+                    diceDots.add(dot);
+                });
+                
+                // Rotate dice to show the correct face
+                diceMesh.rotation.x = config.rotation.x;
+                diceMesh.rotation.y = config.rotation.y;
+                diceMesh.rotation.z = config.rotation.z;
+            }
+            
+            // Add subtle bevel effect to dice edges
+            const edgesGeometry = new THREE.EdgesGeometry(diceMesh.geometry);
+            const edgesMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x222222, 
+                linewidth: 2 
+            });
+            const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+            diceMesh.add(edges);
+        }
+        
+        // ============================================
+        // PLAYER PIECES MANAGEMENT
+        // ============================================
+        function createPieces() {
+            const pieceGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+            
+            // Create pieces for each player
+            for (let playerIdx = 0; playerIdx < 4; playerIdx++) {
+                const player = players[playerIdx];
+                
+                // Create 4 pieces for each player
+                for (let pieceIdx = 0; pieceIdx < 4; pieceIdx++) {
+                    const pieceMaterial = new THREE.MeshPhongMaterial({ 
+                        color: player.color,
+                        emissive: player.color,
+                        emissiveIntensity: 0.1,
+                        shininess: 30
+                    });
+                    
+                    const piece = new THREE.Mesh(pieceGeometry, pieceMaterial);
+                    piece.castShadow = true;
+                    piece.userData.isPiece = true;
+                    piece.userData.playerIndex = playerIdx;
+                    piece.userData.pieceIndex = pieceIdx;
+                    piece.userData.isHighlighted = false;
+                    piece.userData.originalY = 0.8;
+                    piece.userData.isInHome = false;
+                    piece.userData.position = {x: 0, z: 0}; // Track position
+                    
+                    // Position pieces in their starting corners
+                    let startX, startZ;
+                    if (playerIdx === 0) { // Red - bottom left
+                        startX = -7 + (pieceIdx % 2) * 1.5;
+                        startZ = -7 + Math.floor(pieceIdx / 2) * 1.5;
+                    } else if (playerIdx === 1) { // Green - bottom right
+                        startX = 7 - (pieceIdx % 2) * 1.5;
+                        startZ = -7 + Math.floor(pieceIdx / 2) * 1.5;
+                    } else if (playerIdx === 2) { // Yellow - top right
+                        startX = 7 - (pieceIdx % 2) * 1.5;
+                        startZ = 7 - Math.floor(pieceIdx / 2) * 1.5;
+                    } else { // Blue - top left
+                        startX = -7 + (pieceIdx % 2) * 1.5;
+                        startZ = 7 - Math.floor(pieceIdx / 2) * 1.5;
+                    }
+                    
+                    piece.position.set(startX, 0.8, startZ);
+                    piece.userData.position.x = startX;
+                    piece.userData.position.z = startZ;
+                    scene.add(piece);
+                    
+                    // Store piece reference
+                    pieceObjects.push({
+                        mesh: piece,
+                        player: playerIdx,
+                        pieceIndex: pieceIdx,
+                        isInHome: false,
+                        isHighlighted: false,
+                        originalEmissiveIntensity: 0.1,
+                        originalEmissiveColor: player.color
+                    });
+                }
+            }
+            
+            console.log(`Created ${pieceObjects.length} pieces`);
+        }
+        
+        // ============================================
+        // GAME LOGIC: DICE ROLLING
+        // ============================================
+        function rollDice() {
+            if (!gameActive) return;
+            
+            // Play button click sound
+            playSound('buttonClick');
+            
+            const diceButton = document.getElementById('roll-dice');
+            diceButton.disabled = true;
+            
+            // Reset dice rotation
+            diceMesh.rotation.x = 0;
+            diceMesh.rotation.y = 0;
+            diceMesh.rotation.z = 0;
+            
+            // Hide selection hint
+            document.getElementById('selection-hint').style.display = 'none';
+            
+            // Remove any existing highlights
+            removeHighlights();
+            
+            // Play dice roll sound
+            playSound('diceRoll');
+            
+            // Animate dice roll with realistic rotation
+            let rollCount = 0;
+            const maxRolls = 25; // More rolls for better animation
+            const rollSpeed = 0.5;
+            
+            // Store random rotation axes for more realistic roll
+            const rotationAxes = [
+                {x: Math.random() * rollSpeed, y: Math.random() * rollSpeed, z: Math.random() * rollSpeed},
+                {x: Math.random() * rollSpeed, y: Math.random() * rollSpeed, z: Math.random() * rollSpeed},
+                {x: Math.random() * rollSpeed, y: Math.random() * rollSpeed, z: Math.random() * rollSpeed}
+            ];
+            
+            let currentAxis = 0;
+            
+            function animateRoll() {
+                if (rollCount < maxRolls) {
+                    // Change rotation axis every 8 frames for more realistic roll
+                    if (rollCount % 8 === 0) {
+                        currentAxis = (currentAxis + 1) % rotationAxes.length;
+                    }
+                    
+                    const axis = rotationAxes[currentAxis];
+                    diceMesh.rotation.x += axis.x;
+                    diceMesh.rotation.y += axis.y;
+                    diceMesh.rotation.z += axis.z;
+                    
+                    rollCount++;
+                    requestAnimationFrame(animateRoll);
+                } else {
+                    // Determine final dice value
+                    diceValue = Math.floor(Math.random() * 6) + 1;
+                    document.getElementById('dice-display').innerHTML = `<i class="fas fa-dice-d6"></i> ${diceValue}`;
+                    
+                    // Update dice display with proper markings
+                    updateDiceDisplay();
+                    
+                    // Add a little bounce effect
+                    const startY = diceMesh.position.y;
+                    const bounceHeight = 1.5;
+                    const bounceTime = 300;
+                    const startTime = Date.now();
+                    
+                    function bounce() {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min(elapsed / bounceTime, 1);
+                        
+                        // Bounce animation
+                        const bounceProgress = 4 * progress * (1 - progress);
+                        diceMesh.position.y = startY + bounceHeight * bounceProgress;
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(bounce);
+                        } else {
+                            diceMesh.position.y = startY;
+                            
+                            // Check for possible moves
+                            movablePieces = getMovablePieces();
+                            
+                            if (movablePieces.length > 0) {
+                                // Highlight movable pieces
+                                highlightMovablePieces(movablePieces);
+                                document.getElementById('status-message').textContent = 
+                                    `${players[currentPlayer].name} rolled ${diceValue}. Click on a glowing piece to move!`;
+                                
+                                // Show selection hint
+                                document.getElementById('selection-hint').style.display = 'block';
+                                
+                                // Enable piece selection
+                                enablePieceSelection();
+                                
+                                // Play selection sound
+                                playSound('pieceSelect');
+                            } else {
+                                // No moves available, switch to next player
+                                document.getElementById('status-message').textContent = 
+                                    `${players[currentPlayer].name} rolled ${diceValue}. No moves available. Switching...`;
+                                
+                                // Play error sound
+                                playSound('error');
+                                
+                                // Check for extra turn
+                                if (diceValue === 6 && extraTurns < MAX_EXTRA_TURNS) {
+                                    extraTurns++;
+                                    document.getElementById('status-message').textContent += ` Extra turn! (${extraTurns}/${MAX_EXTRA_TURNS})`;
+                                    setTimeout(() => {
+                                        diceButton.disabled = false;
+                                        updateStatusMessage();
+                                    }, 1500);
+                                } else {
+                                    extraTurns = 0;
+                                    setTimeout(() => {
+                                        switchToNextPlayer();
+                                    }, 1500);
+                                }
+                            }
+                        }
+                    }
+                    
+                    bounce();
+                }
+            }
+            
+            animateRoll();
+        }
+        
+        // ============================================
+        // PIECE MOVEMENT LOGIC
+        // ============================================
+        function getMovablePieces() {
+            const movablePieces = [];
+            
+            for (let i = 0; i < pieceObjects.length; i++) {
+                const piece = pieceObjects[i];
+                
+                if (piece.player === currentPlayer && !piece.isInHome) {
+                    movablePieces.push(i);
+                }
+            }
+            
+            return movablePieces;
+        }
+        
+        function highlightMovablePieces(movablePieces) {
+            highlightedPieces = []; // Clear previous highlights
+            
+            movablePieces.forEach(pieceIndex => {
+                const piece = pieceObjects[pieceIndex];
+                const pieceMesh = piece.mesh;
+                
+                // Store original properties
+                piece.originalEmissiveIntensity = pieceMesh.material.emissiveIntensity;
+                piece.originalEmissiveColor = pieceMesh.material.emissive.getHex();
+                
+                // Increase emissive intensity to make piece glow
+                pieceMesh.material.emissiveIntensity = 0.8;
+                pieceMesh.material.emissive.set(0xffff00); // Bright yellow glow
+                
+                // Mark as highlighted
+                piece.isHighlighted = true;
+                pieceMesh.userData.isHighlighted = true;
+                
+                // Store which pieces are highlighted
+                highlightedPieces.push(pieceIndex);
+            });
+        }
+        
+        function removeHighlights() {
+            highlightedPieces.forEach(pieceIndex => {
+                const piece = pieceObjects[pieceIndex];
+                if (piece && piece.mesh) {
+                    const pieceMesh = piece.mesh;
+                    
+                    // Reset emissive properties
+                    pieceMesh.material.emissiveIntensity = piece.originalEmissiveIntensity || 0.1;
+                    pieceMesh.material.emissive.set(piece.originalEmissiveColor || players[piece.player].color);
+                    
+                    // Remove highlight flag
+                    piece.isHighlighted = false;
+                    pieceMesh.userData.isHighlighted = false;
+                }
+            });
+            
+            highlightedPieces = [];
+        }
+        
+        function enablePieceSelection() {
+            // Add click event listener to the renderer
+            renderer.domElement.addEventListener('click', onCanvasClick, false);
+        }
+        
+        function disablePieceSelection() {
+            renderer.domElement.removeEventListener('click', onCanvasClick, false);
+        }
+        
+        function onCanvasClick(event) {
+            // Play click sound
+            playSound('buttonClick');
+            
+            // Calculate mouse position in normalized device coordinates
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Update the picking ray with the camera and mouse position
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Calculate objects intersecting the picking ray
+            const intersects = raycaster.intersectObjects(scene.children);
+            
+            for (let i = 0; i < intersects.length; i++) {
+                const object = intersects[i].object;
+                
+                // Check if the clicked object is a game piece
+                if (object.userData.isPiece) {
+                    const playerIndex = object.userData.playerIndex;
+                    const pieceIndex = object.userData.pieceIndex;
+                    
+                    // Find the piece object
+                    for (let j = 0; j < pieceObjects.length; j++) {
+                        const piece = pieceObjects[j];
+                        if (piece.player === playerIndex && piece.pieceIndex === pieceIndex) {
+                            // Check if this piece is movable
+                            if (movablePieces.includes(j)) {
+                                // Move the selected piece
+                                movePiece(j);
+                                return;
+                            } else {
+                                // Piece is not movable
+                                document.getElementById('status-message').textContent = 
+                                    `Cannot move that piece. Please select a glowing piece.`;
+                                // Play error sound
+                                playSound('error');
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function movePiece(pieceIndex) {
+            const piece = pieceObjects[pieceIndex];
+            const pieceMesh = piece.mesh;
+            const player = players[currentPlayer];
+            
+            // Play piece selection sound
+            playSound('pieceSelect');
+            
+            // Remove highlights and disable selection
+            removeHighlights();
+            disablePieceSelection();
+            document.getElementById('selection-hint').style.display = 'none';
+            
+            // Get current position
+            const currentPos = pieceMesh.userData.position;
+            
+            // Move piece toward center based on dice value
+            const targetX = 0; // Center
+            const targetZ = 0; // Center
+            
+            // Calculate direction to center
+            const dirX = targetX - currentPos.x;
+            const dirZ = targetZ - currentPos.z;
+            const distance = Math.sqrt(dirX*dirX + dirZ*dirZ);
+            
+            if (distance > 0) {
+                // Normalize direction
+                const normX = dirX / distance;
+                const normZ = dirZ / distance;
+                
+                // Move toward center (simplified: move 1 unit per dice point)
+                const moveAmount = Math.min(diceValue, Math.ceil(distance));
+                const newX = currentPos.x + normX * moveAmount;
+                const newZ = currentPos.z + normZ * moveAmount;
+                
+                // Update position
+                pieceMesh.position.set(newX, 0.8, newZ);
+                pieceMesh.userData.position.x = newX;
+                pieceMesh.userData.position.z = newZ;
+                
+                // Check if piece reached center (within 0.5 units)
+                const newDistance = Math.sqrt(newX*newX + newZ*newZ);
+                if (newDistance <= 0.5) {
+                    // Piece reached center - WINNER!
+                    piece.isInHome = true;
+                    pieceMesh.position.set(0, 0.8, 0); // Exactly at center
+                    pieceMesh.userData.position.x = 0;
+                    pieceMesh.userData.position.z = 0;
+                    
+                    // Mark piece as in home
+                    piece.isInHome = true;
+                    player.piecesInHome++;
+                    
+                    console.log(`${player.name} reached center! Pieces in home: ${player.piecesInHome}`);
+                    
+                    document.getElementById('status-message').textContent = 
+                        `${player.name} reached the center!`;
+                    
+                    // Play victory sound
+                    playSound('victory');
+                    
+                    // Check for win
+                    if (player.piecesInHome >= PIECES_TO_WIN) {
+                        declareWinner(currentPlayer);
+                        return;
+                    }
+                } else {
+                    document.getElementById('status-message').textContent = 
+                        `${player.name} moved a piece ${moveAmount} steps toward the center!`;
+                    
+                    // Play move sound
+                    playSound('pieceMove');
+                }
+                
+                // Animate the movement with jump sound
+                animatePieceMovement(pieceMesh);
+                
+                // Update UI
+                updatePlayerUI();
+                
+                // Check for extra turn
+                const diceButton = document.getElementById('roll-dice');
+                if (diceValue === 6 && extraTurns < MAX_EXTRA_TURNS) {
+                    extraTurns++;
+                    document.getElementById('status-message').textContent += ` Extra turn! (${extraTurns}/${MAX_EXTRA_TURNS})`;
+                    setTimeout(() => {
+                        diceButton.disabled = false;
+                        updateStatusMessage();
+                    }, 1500);
+                } else {
+                    extraTurns = 0;
+                    setTimeout(() => {
+                        switchToNextPlayer();
+                    }, 1500);
+                }
+            }
+        }
+        
+        // ============================================
+        // WIN CONDITION AND CELEBRATION
+        // ============================================
+        function declareWinner(playerIndex) {
+            const winner = players[playerIndex];
+            gameActive = false;
+            
+            console.log(`🎉 ${winner.name} WINS THE GAME! 🎉`);
+            
+            // Show winner message
+            document.getElementById('winner-name').textContent = `${winner.name} PLAYER WINS!`;
+            document.getElementById('winner-screen').style.display = 'flex';
+            
+            // Create confetti effect
+            createConfetti();
+            
+            // Highlight winner in player info
+            document.getElementById(`player-${winner.name.toLowerCase()}`).classList.add('active');
+            
+            // Disable dice button
+            document.getElementById('roll-dice').disabled = true;
+            
+            // Hide selection hint
+            document.getElementById('selection-hint').style.display = 'none';
+            
+            // Make all winner's pieces glow gold
+            pieceObjects.forEach(piece => {
+                if (piece.player === playerIndex) {
+                    piece.mesh.material.emissiveIntensity = 1.0;
+                    piece.mesh.material.emissive.set(0xFFD700); // Gold color
+                }
+            });
+            
+            // Make dice glow gold too
+            diceMesh.material.emissiveIntensity = 0.8;
+            diceMesh.material.emissive.set(0xFFD700);
+            
+            // Add 3D celebration effect to scene
+            addCelebrationEffects();
+        }
+        
+        function createConfetti() {
+            const overlay = document.getElementById('winner-screen');
+            const colors = ['#FFD700', '#FFA500', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
+            
+            for (let i = 0; i < 150; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                confetti.style.animationDelay = Math.random() * 5 + 's';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.width = (Math.random() * 20 + 5) + 'px';
+                confetti.style.height = (Math.random() * 20 + 5) + 'px';
+                confetti.style.opacity = Math.random() * 0.7 + 0.3;
+                overlay.appendChild(confetti);
+            }
+        }
+        
+        function addCelebrationEffects() {
+            // Remove existing particles if any
+            if (celebrationParticles) {
+                scene.remove(celebrationParticles);
+                celebrationParticles = null;
+            }
+            
+            // Create golden particles
+            const particleCount = 200; // Increased for more celebration
+            celebrationParticles = new THREE.Group();
+            
+            for (let i = 0; i < particleCount; i++) {
+                const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+                const material = new THREE.MeshPhongMaterial({
+                    color: 0xFFD700,
+                    emissive: 0xFFD700,
+                    emissiveIntensity: 0.8
+                });
+                
+                const particle = new THREE.Mesh(geometry, material);
+                
+                // Random position around the board
+                particle.position.set(
+                    (Math.random() - 0.5) * 40,
+                    Math.random() * 30 + 5,
+                    (Math.random() - 0.5) * 40
+                );
+                
+                // Random velocity
+                particle.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    -Math.random() * 0.1,
+                    (Math.random() - 0.5) * 0.2
+                );
+                
+                // Random rotation
+                particle.userData.rotationSpeed = new THREE.Vector3(
+                    Math.random() * 0.1,
+                    Math.random() * 0.1,
+                    Math.random() * 0.1
+                );
+                
+                celebrationParticles.add(particle);
+            }
+            
+            scene.add(celebrationParticles);
+        }
+        
+        // ============================================
+        // ANIMATION FUNCTIONS
+        // ============================================
+        function animatePieceMovement(pieceMesh) {
+            const startPosition = pieceMesh.position.clone();
+            const jumpHeight = 1.5;
+            const duration = 500; // milliseconds
+            const startTime = Date.now();
+            
+            // Play jump sound
+            playSound('pieceJump');
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Parabolic jump
+                const jumpProgress = 4 * progress * (1 - progress);
+                pieceMesh.position.y = startPosition.y + jumpHeight * jumpProgress;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    pieceMesh.position.y = startPosition.y;
+                }
+            }
+            
+            animate();
+        }
+        
+        // ============================================
+        // PLAYER MANAGEMENT
+        // ============================================
+        function switchToNextPlayer() {
+            // Play player switch sound
+            playSound('playerSwitch');
+            
+            // Remove current player highlight
+            document.getElementById(`player-${players[currentPlayer].name.toLowerCase()}`).classList.remove('active');
+            
+            // Move to next player
+            currentPlayer = (currentPlayer + 1) % 4;
+            
+            // Skip players who have already won
+            let skippedPlayers = 0;
+            while (players[currentPlayer].piecesInHome >= PIECES_TO_WIN && skippedPlayers < 4) {
+                currentPlayer = (currentPlayer + 1) % 4;
+                skippedPlayers++;
+            }
+            
+            // If all but one player has won
+            if (skippedPlayers === 4) {
+                // Find the player with most pieces home
+                let maxPieces = -1;
+                let winnerIndex = -1;
+                
+                for (let i = 0; i < players.length; i++) {
+                    if (players[i].piecesInHome > maxPieces) {
+                        maxPieces = players[i].piecesInHome;
+                        winnerIndex = i;
+                    }
+                }
+                
+                if (winnerIndex !== -1) {
+                    declareWinner(winnerIndex);
+                }
+                return;
+            }
+            
+            // Add highlight to new current player
+            document.getElementById(`player-${players[currentPlayer].name.toLowerCase()}`).classList.add('active');
+            
+            // Update UI
+            updateStatusMessage();
+            
+            // Enable dice button
+            document.getElementById('roll-dice').disabled = false;
+        }
+        
+        function updateStatusMessage() {
+            document.getElementById('status-message').textContent = 
+                `${players[currentPlayer].name}'s turn. Roll the dice!`;
+        }
+        
+        function updatePlayerUI() {
+            // Update player info with piece counts
+            for (let i = 0; i < players.length; i++) {
+                const player = players[i];
+                const countElement = document.getElementById(`${player.name.toLowerCase()}-count`);
+                
+                // Update count display
+                if (countElement) {
+                    if (player.piecesInHome > 0) {
+                        countElement.textContent = `Home: ${player.piecesInHome}/${PIECES_TO_WIN}`;
+                        countElement.style.color = '#10b981';
+                    } else {
+                        countElement.textContent = `At Base`;
+                        countElement.style.color = '#94a3b8';
+                    }
+                }
+            }
+        }
+        
+        // ============================================
+        // WINDOW RESIZE HANDLER
+        // ============================================
+        function onWindowResize() {
+            if (camera && renderer) {
+                const canvasContainer = document.getElementById('canvas-container');
+                camera.aspect = canvasContainer.offsetWidth / canvasContainer.offsetHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(canvasContainer.offsetWidth, canvasContainer.offsetHeight);
+            }
+        }
+        
+        // ============================================
+        // MAIN ANIMATION LOOP
+        // ============================================
+        function animate() {
+            animationFrameId = requestAnimationFrame(animate);
+            
+            if (scene && camera && renderer) {
+                // Rotate dice slowly when not rolling (more natural rotation)
+                if (diceMesh && !document.getElementById('roll-dice').disabled) {
+                    diceMesh.rotation.y += 0.003;
+                    diceMesh.rotation.x += 0.001;
+                }
+                
+                // Animate highlighted pieces (pulsing effect)
+                highlightedPieces.forEach(pieceIndex => {
+                    const piece = pieceObjects[pieceIndex];
+                    if (piece && piece.mesh && piece.isHighlighted) {
+                        const pieceMesh = piece.mesh;
+                        const time = Date.now() * 0.002;
+                        
+                        // Pulsing up and down
+                        const originalY = pieceMesh.userData.originalY || 0.8;
+                        pieceMesh.position.y = originalY + 0.2 * Math.sin(time * 3);
+                        
+                        // Pulsing emissive intensity
+                        pieceMesh.material.emissiveIntensity = 0.5 + 0.3 * Math.sin(time * 2);
+                    }
+                });
+                
+                // Animate celebration particles
+                if (celebrationParticles && !gameActive) {
+                    celebrationParticles.children.forEach(particle => {
+                        if (particle.userData.velocity) {
+                            // Update position
+                            particle.position.add(particle.userData.velocity);
+                            
+                            // Update rotation
+                            particle.rotation.x += particle.userData.rotationSpeed.x;
+                            particle.rotation.y += particle.userData.rotationSpeed.y;
+                            particle.rotation.z += particle.userData.rotationSpeed.z;
+                            
+                            // Add some gravity
+                            particle.userData.velocity.y -= 0.001;
+                            
+                            // Reset particle if it falls below the board
+                            if (particle.position.y < -5) {
+                                particle.position.set(
+                                    (Math.random() - 0.5) * 40,
+                                    Math.random() * 30 + 20,
+                                    (Math.random() - 0.5) * 40
+                                );
+                                particle.userData.velocity.y = -Math.random() * 0.05;
+                            }
+                        }
+                    });
+                }
+                
+                if (controls) controls.update();
+                renderer.render(scene, camera);
+            }
+        }
+        
+        // ============================================
+        // INITIALIZE GAME ON PAGE LOAD
+        // ============================================
+        window.onload = function() {
+            // Initialize with a small delay to ensure DOM is ready
+            setTimeout(() => {
+                init();
+            }, 100);
+        };
+    </script>
+</body>
+</html>

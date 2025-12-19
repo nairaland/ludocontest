@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+  <title>Ludo 3D – Nairaland Challenge</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #000;
+    }
+
+    #scores {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  transform: translateY(-50%);
+  background: linear-gradient(145deg, #111, #222);
+  padding: 15px 20px;
+  border-radius: 15px;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  box-shadow: 0 0 20px rgba(0,255,255,0.5);
+  min-width: 140px;
+}
+
+#scores div {
+  margin: 8px 0;
+  padding: 6px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* Color per player */
+#scores div:nth-child(1) { background: #cc3333; }  /* Red */
+#scores div:nth-child(2) { background: #33aa33; }  /* Green */
+#scores div:nth-child(3) { background: #3366cc; }  /* Blue */
+#scores div:nth-child(4) { background: #cccc33; color:#000; } /* Yellow */
+
+
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      color: white;
+    }
+
+    #rollBtn {
+  padding: 10px 18px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  background: linear-gradient(145deg, #ff6347, #ff4500); /* gradient orange/red */
+  border: 2px solid #ff6347;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(255,99,71,0.7);
+  transition: all 0.2s ease;
+}
+
+#rollBtn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(255,99,71,1);
+}
+
+
+#info {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #00ffff; /* cyan text */
+  text-shadow: 0 0 5px #00ffff;
+}
+
+
+    button {
+      padding: 8px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="rules" style="
+  position:absolute;
+  top:10px; left:10px;
+  background:rgba(30,30,30,0.9);  /* dark semi-transparent background */
+  padding:15px;
+  border-radius:12px;
+  font-family:'Arial Black', sans-serif;
+  color:#ffd700;                   /* gold text color */
+  box-shadow: 0 0 15px rgba(255,255,0,0.6); /* glowing shadow */
+  z-index:10;
+">
+  <h3 style="margin-top:0; text-align:center; color:#ff6347;">Ludo Rules</h3>
+  <ul style="margin:5px 0 0 15px; line-height:1.5;">
+    <li>Roll 6 to leave base</li>
+    <li>Capture opponent to send them home</li>
+    <li>Rolling 6 grants extra turn</li>
+    <li>First to move all 4 tokens around wins</li>
+  </ul>
+</div>
+<div id="winnerModal" style="
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.85);
+  z-index:20;
+">
+  <div style="
+    background:#111;
+    padding:30px;
+    border-radius:20px;
+    text-align:center;
+    color:#ffd700;
+    box-shadow:0 0 30px gold;
+    max-width:300px;
+  ">
+    <h1 id="winnerText">Winner!</h1>
+    <button id="restartBtn">🔄 Restart Game</button>
+  </div>
+</div>
+
+<div id="ui">
+  <button id="rollBtn">Roll Dice</button>
+  <div id="info">Red's turn</div>
+</div>
+
+<div id="scores"></div>
+
+
+
+  
+<script type="module">
+  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+  
+  /* =======================
+     SCENE SETUP
+  ======================= */
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1e1e1e);
+  
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 35, 35);
+  camera.lookAt(0, 0, 0);
+  
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+  
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  dirLight.position.set(20, 30, 10);
+  scene.add(dirLight);
+  
+  /* =======================
+     CONSTANTS
+  ======================= */
+  const TILE_SIZE = 1;
+  const BOARD_SIZE = 15;
+  const OFFSET = (BOARD_SIZE / 2) - 0.5;
+  
+  /* =======================
+     MATERIALS
+  ======================= */
+  const mats = {
+    base: new THREE.MeshStandardMaterial({ color: 0xdddddd }),
+    red: new THREE.MeshStandardMaterial({ color: 0xcc3333 }),
+    green: new THREE.MeshStandardMaterial({ color: 0x33aa33 }),
+    blue: new THREE.MeshStandardMaterial({ color: 0x3366cc }),
+    yellow: new THREE.MeshStandardMaterial({ color: 0xcccc33 }),
+    center: new THREE.MeshStandardMaterial({ color: 0xffffff }),
+    dice: new THREE.MeshStandardMaterial({ color: 0xffffff })
+  };
+  
+  /* =======================
+     BOARD
+  ======================= */
+  const tileGeo = new THREE.BoxGeometry(TILE_SIZE, 0.2, TILE_SIZE);
+  
+  function tile(x, z, mat) {
+    const m = new THREE.Mesh(tileGeo, mat);
+    m.position.set(x - OFFSET, 0, z - OFFSET);
+    scene.add(m);
+  }
+  
+  function fill(x, z, s, m) {
+    for (let i = x; i < x + s; i++)
+      for (let j = z; j < z + s; j++)
+        tile(i, j, m);
+  }
+  
+  for (let x = 0; x < BOARD_SIZE; x++)
+    for (let z = 0; z < BOARD_SIZE; z++)
+      tile(x, z, mats.base);
+  
+  fill(0, 0, 6, mats.red);
+  fill(9, 0, 6, mats.green);
+  fill(0, 9, 6, mats.blue);
+  fill(9, 9, 6, mats.yellow);
+  fill(6, 6, 3, mats.center);
+  
+  /* =======================
+     PATH (CLOCKWISE)
+  ======================= */
+  const path = [];
+  for (let i = 1; i <= 5; i++) path.push([6, i]);
+  for (let i = 6; i <= 8; i++) path.push([i, 5]);
+  for (let i = 6; i >= 1; i--) path.push([8, i]);
+  for (let i = 9; i <= 13; i++) path.push([i, 6]);
+  for (let i = 6; i <= 8; i++) path.push([13, i]);
+  for (let i = 12; i >= 9; i--) path.push([i, 8]);
+  for (let i = 9; i <= 13; i++) path.push([8, i]);
+  for (let i = 8; i >= 6; i--) path.push([i, 13]);
+  for (let i = 12; i >= 9; i--) path.push([6, i]);
+  for (let i = 8; i >= 6; i--) path.push([i, 9]);
+  for (let i = 5; i >= 1; i--) path.push([5, i]);
+  for (let i = 6; i <= 8; i++) path.push([i, 1]);
+  
+  /* =======================
+     PLAYERS & TOKENS
+  ======================= */
+  const tokenGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.5, 32);
+
+
+  
+  const players = [
+    { name: 'Red', mat: mats.red, start: 0, base: [1,1] },
+    { name: 'Green', mat: mats.green, start: 13, base: [10,1] },
+    { name: 'Blue', mat: mats.blue, start: 26, base: [1,10] },
+    { name: 'Yellow', mat: mats.yellow, start: 39, base: [10,10] }
+  ];
+  
+  const tokens = [];
+  
+  players.forEach((p, pi) => {
+    for (let i = 0; i < 4; i++) {
+      const t = new THREE.Mesh(tokenGeo, p.mat);
+      t.position.set(p.base[0] + (i%2) - OFFSET, 0.35, p.base[1] + Math.floor(i/2) - OFFSET);
+      t.userData = {
+        player: pi,
+        inBase: true,
+        pathIndex: -1,
+        moving: false,
+        finished: false,
+        targetPos: t.position.clone() // 👈 ADD THIS LINE
+      };
+      scene.add(t);
+      tokens.push(t);
+    }
+  });
+  updateScores(); // initialize scoreboard
+
+  
+  /* =======================
+     DICE & TURN LOGIC
+  ======================= */
+  const diceMaterials = [
+  makeDiceFace(1), // right
+  makeDiceFace(6), // left
+  makeDiceFace(2), // top
+  makeDiceFace(5), // bottom
+  makeDiceFace(3), // front
+  makeDiceFace(4)  // back
+];
+
+const dice = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  diceMaterials
+);
+
+  
+
+  dice.position.set(0,2,0);
+  scene.add(dice);
+  
+  let currentPlayer = 0;
+  let diceValue = 0; // 0 means "not rolled yet"
+
+  let rolling = false;
+  let stepsLeft = 0;
+  let activeToken = null;
+  let rollFrames = 0;
+
+  
+  document.getElementById('info').innerText = "Red's turn";
+  
+  document.getElementById('rollBtn').onclick = () => {
+    if (rolling || activeToken) return;
+
+
+  rolling = true;
+  rollFrames = 30;
+  diceValue = Math.floor(Math.random() * 6) + 1;
+
+  document.getElementById('info').innerText =
+    `${players[currentPlayer].name} rolled ${diceValue}`;
+
+  // 🔥 AUTO-SKIP IF NO VALID MOVE
+  if (!hasValidMove(currentPlayer, diceValue)) {
+    setTimeout(() => {
+      diceValue = 0;
+      currentPlayer = (currentPlayer + 1) % players.length;
+      document.getElementById('info').innerText =
+        `${players[currentPlayer].name}'s turn`;
+    }, 800);
+  }
+};
+
+  
+  tokens.forEach(token => {
+    token.cursor = 'pointer';
+    token.onClick = () => selectToken(token);
+  });
+  
+  renderer.domElement.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((e.clientX - rect.left) / rect.width) * 2 - 1,
+    -((e.clientY - rect.top) / rect.height) * 2 + 1
+  );
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(tokens);
+  if (hits.length) selectToken(hits[0].object);
+});
+
+
+  function makeDiceFace(n) {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 160px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(n.toString(), size / 2, size / 2);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  return new THREE.MeshStandardMaterial({ map: tex });
+}
+
+  
+  function selectToken(token) {
+    if (token.userData.player !== currentPlayer) return;
+    if (token.userData.inBase && diceValue !== 6) return;
+  
+    activeToken = token;
+    stepsLeft = diceValue;
+  
+    if (token.userData.inBase) {
+      token.userData.inBase = false;
+      token.userData.pathIndex = players[currentPlayer].start;
+    }
+  }
+
+
+  function updateScores() {
+  const scoreDiv = document.getElementById('scores');
+  scoreDiv.innerHTML = players.map((p, i) => {
+    const count = tokens.filter(
+      t => t.userData.player === i && t.userData.finished
+    ).length;
+    return `<div>${p.name}: ${count}/4</div>`;
+  }).join('');
+}
+
+
+  function hasValidMove(playerIndex, dice) {
+  return tokens.some(t =>
+    t.userData.player === playerIndex &&
+    (!t.userData.inBase || dice === 6)
+  );
+}
+
+  function sendTokenHome(token) {
+  const player = players[token.userData.player];
+  token.userData.inBase = true;
+  token.userData.pathIndex = -1;
+
+  // find a free base slot
+  const index = tokens.filter(
+    t => t.userData.player === token.userData.player && t.userData.inBase
+  ).length - 1;
+
+  token.position.set(
+    player.base[0] + (index % 2) - OFFSET,
+    0.35,
+    player.base[1] + Math.floor(index / 2) - OFFSET
+  );
+}
+
+
+
+
+function checkCapture(movedToken) {
+  tokens.forEach(other => {
+    if (
+      other !== movedToken &&
+      !other.userData.inBase &&
+      other.userData.player !== movedToken.userData.player
+    ) {
+      const a = path[movedToken.userData.pathIndex - 1];
+      const b = path[other.userData.pathIndex - 1];
+      if (a && b && a[0] === b[0] && a[1] === b[1]) {
+        sendTokenHome(other);
+      }
+    }
+  });
+}
+
+function checkWinner(playerIndex) {
+  const finished = tokens.filter(
+    t => t.userData.player === playerIndex && t.userData.finished
+  );
+
+  if (finished.length === 4) {
+    document.getElementById('winnerText').innerText =
+      `${players[playerIndex].name} Wins! 🎉`;
+    document.getElementById('winnerModal').style.display = 'flex';
+
+    rolling = false;
+    activeToken = null;
+    diceValue = 0;
+
+    return true;
+  }
+  return false;
+}
+
+
+function aiTurn() {
+  if (currentPlayer === 0) return; // human
+  if (rolling || activeToken || diceValue !== 0) return;
+
+  // Roll dice
+  rolling = true;
+  rollFrames = 30;
+  diceValue = Math.floor(Math.random() * 6) + 1;
+
+  document.getElementById('info').innerText =
+    `${players[currentPlayer].name} rolled ${diceValue}`;
+
+  // 🔥 IF AI HAS NO VALID MOVE, SKIP TURN
+  if (!hasValidMove(currentPlayer, diceValue)) {
+    setTimeout(() => {
+      diceValue = 0;
+      currentPlayer = (currentPlayer + 1) % players.length;
+      document.getElementById('info').innerText =
+        `${players[currentPlayer].name}'s turn`;
+
+      // chain next AI if needed
+      if (currentPlayer !== 0) {
+        setTimeout(aiTurn, 400);
+      }
+    }, 800);
+    return;
+  }
+
+  // Otherwise pick a token and move
+  setTimeout(() => {
+    const aiTokens = tokens.filter(
+      t => t.userData.player === currentPlayer
+    );
+
+    for (let t of aiTokens) {
+      if (!t.userData.inBase || diceValue === 6) {
+        selectToken(t);
+        break;
+      }
+    }
+  }, 600);
+}
+
+  
+  /* =======================
+     ANIMATION LOOP
+  ======================= */
+  function animate() {
+  requestAnimationFrame(animate);
+  aiTurn();
+
+  // glow
+  tokens.forEach(t => t.material.emissive.set(0x000000));
+  tokens
+    .filter(t => t.userData.player === currentPlayer)
+    .forEach(t => t.material.emissive.set(0x444444));
+
+  if (rolling) {
+    dice.rotation.x += 0.4;
+    dice.rotation.y += 0.5;
+    rollFrames--;
+    if (rollFrames <= 0) {
+      rolling = false;
+      dice.rotation.set(0, 0, 0);
+    }
+  }
+
+  if (activeToken && stepsLeft > 0) {
+    const nextIndex = activeToken.userData.pathIndex + 1;
+
+    // FINISH
+    if (activeToken.userData.pathIndex >= path.length - 1) {
+
+  activeToken.userData.finished = true;
+  activeToken.userData.moving = false;
+  activeToken = null;
+  stepsLeft = 0;
+
+  updateScores();              // 🔥 UPDATE SCORE HERE
+  checkWinner(currentPlayer);
+
+  const rolledSix = (diceValue === 6);
+diceValue = 0;
+
+if (!rolledSix) {
+  currentPlayer = (currentPlayer + 1) % players.length;
+}
+
+
+  document.getElementById('info').innerText =
+    `${players[currentPlayer].name}'s turn`;
+}
+
+    else {
+      // NORMAL MOVE
+      const p = path[nextIndex];
+      activeToken.userData.targetPos.set(
+  p[0] - OFFSET,
+  0.35,
+  p[1] - OFFSET
+);
+
+      activeToken.userData.pathIndex++;
+      stepsLeft--;
+    }
+
+    if (stepsLeft === 0 && activeToken) {
+  const rolledSix = (diceValue === 6);
+
+  activeToken.userData.moving = false;
+  checkCapture(activeToken);
+  activeToken = null;
+
+  diceValue = 0;
+
+  if (!rolledSix) {
+    currentPlayer = (currentPlayer + 1) % players.length;
+  }
+
+  document.getElementById('info').innerText =
+    `${players[currentPlayer].name}'s turn`;
+
+  if (currentPlayer !== 0) {
+    setTimeout(aiTurn, 500);
+  }
+}
+
+  }
+
+  renderer.render(scene, camera);
+}
+
+  animate();
+  
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  document.getElementById('restartBtn').onclick = () => {
+  location.reload();
+};
+
+  </script>
+  
+
+</body>
+</html>

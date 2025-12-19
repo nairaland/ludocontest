@@ -1,0 +1,2701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ludo - Nigerian Style</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Carter+One&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Carter One', cursive; background-color: #1a1a2e; color: white; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Start Screen */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            pointer-events: auto;
+        }
+        
+        h1 { font-size: 3rem; margin-bottom: 20px; color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        .player-select-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            color: white;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .player-select-btn:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+
+        /* HUD */
+        #hud-top {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: auto;
+        }
+
+        #current-player-panel {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border-left: 5px solid #fff;
+            backdrop-filter: blur(5px);
+        }
+
+        #player-name { font-size: 1.5rem; font-weight: bold; margin: 0; }
+        #game-status { font-size: 1rem; color: #ddd; margin-top: 5px; }
+
+        #controls-panel {
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .control-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+        /* Dice Area */
+        #dice-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        #roll-btn {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            margin-top: 15px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        #roll-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+
+        #roll-btn:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(46, 125, 50, 0.4);
+        }
+
+        #dice-display {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .dice-result {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #333;
+            font-weight: bold;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+            border: 2px solid #ccc;
+        }
+
+        /* Messages */
+        #message-area {
+            position: absolute;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            z-index: 50;
+            width: 80%;
+        }
+
+        .toast {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            transform: translateY(20px);
+        }
+        
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* Winner Modal */
+        #winner-modal {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 200;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+        
+        #winner-text { font-size: 4rem; color: #ffd700; margin-bottom: 30px; animation: pulse 2s infinite; text-shadow: 2px 2px 4px #000000; }
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* Rules Modal */
+        #rules-modal {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 150;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+        .rules-content {
+            background: #222;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 2px solid #444;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        .rules-content h2 { color: #ffd700; margin-top: 0; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .rules-content h3 { color: #4CAF50; margin-top: 20px; margin-bottom: 10px; }
+        .rules-content ul { padding-left: 20px; line-height: 1.6; color: #ddd; }
+        .rules-content li { margin-bottom: 8px; }
+        .close-rules-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            float: right;
+            font-family: inherit;
+            font-weight: bold;
+            margin-top: -10px;
+        }
+        .close-rules-btn:hover { background: #d32f2f; }
+
+        /* Split Move Selection UI */
+        #split-ui {
+            display: none;
+            position: absolute;
+            bottom: 220px;
+            right: 30px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: auto;
+            z-index: 60;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .split-option {
+            display: block;
+            margin: 5px;
+            padding: 8px 15px;
+            background: #2196F3;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .split-option:hover { background: #1976D2; }
+
+    </style>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <div id="ui-layer">
+        <div id="hud-top">
+            <div id="current-player-panel">
+                <h2 id="player-name">Player 1</h2>
+                <div id="game-status">Waiting to start...</div>
+            </div>
+            <div id="controls-panel">
+                <button class="control-btn" onclick="document.getElementById('settings-modal').style.display='flex'">Settings</button>
+                <button class="control-btn" onclick="document.getElementById('rules-modal').style.display='flex'">Rules</button>
+            </div>
+        </div>
+
+        <div id="message-area">
+            <div id="toast-msg" class="toast">Message</div>
+        </div>
+
+        <div id="split-ui">
+            <div style="color:white; margin-bottom:5px; font-size:0.9rem;">Choose Move Type:</div>
+            <button class="split-option" id="btn-move-sum">Move One Token (Sum)</button>
+            <button class="split-option" id="btn-move-split">Split Dice</button>
+        </div>
+
+        <div id="dice-container">
+            <div id="dice-display">
+                <div id="die-1" class="dice-result">-</div>
+                <div id="die-2" class="dice-result">-</div>
+            </div>
+            <button id="roll-btn">ROLL DICE</button>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>3D LUDO</h1>
+        <p style="color: #ccc; margin-bottom: 30px;">Nigerian Style Rules • 2 Dice</p>
+        <div id="player-count-selection">
+            <button id="resume-btn" class="player-select-btn" style="display:none; background: linear-gradient(45deg, #FF9800, #F57C00);" onclick="loadGame()">Resume Game</button>
+            <button class="player-select-btn" onclick="showNameEntry(2)">2 Players</button>
+            <button class="player-select-btn" onclick="showNameEntry(3)">3 Players</button>
+            <button class="player-select-btn" onclick="showNameEntry(4)">4 Players</button>
+        </div>
+        
+        <div id="name-entry-form" style="display:none; flex-direction:column; align-items:center; background:rgba(0,0,0,0.8); padding:30px; border-radius:20px;">
+            <h2 style="margin-top:0;">Enter Player Names</h2>
+            <div id="name-inputs-container"></div>
+            <button class="player-select-btn" onclick="finalizeGameStart()">Start Game</button>
+            <button style="background:transparent; border:1px solid #666; color:#ccc; padding:5px 15px; margin-top:10px; cursor:pointer; border-radius:15px;" onclick="cancelNameEntry()">Back</button>
+        </div>
+    </div>
+
+    <div id="winner-modal">
+        <h1 id="winner-text">PLAYER 1 WINS!</h1>
+        <button class="player-select-btn" onclick="location.reload()">Play Again</button>
+    </div>
+
+    <div id="settings-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:200; justify-content:center; align-items:center;">
+        <div style="background:#222; padding:40px; border-radius:20px; width:400px; max-width:90%; border:1px solid #444; box-shadow:0 0 30px rgba(0,0,0,0.5); text-align:center;">
+            <h2 style="margin-top:0; color:#fff; margin-bottom:30px; border-bottom:1px solid #444; padding-bottom:15px;">Settings</h2>
+            
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <button class="control-btn" style="width:100%; padding:15px; font-size:1.1rem;" id="toggle-sound">Sound: ON</button>
+                <button class="control-btn" style="width:100%; padding:15px; font-size:1.1rem;" id="toggle-music">Music: OFF</button>
+                <button class="control-btn" style="width:100%; padding:15px; font-size:1.1rem;" id="reset-cam">Reset Camera</button>
+            </div>
+
+            <button style="margin-top:30px; background:#444; border:none; color:white; padding:10px 30px; border-radius:20px; cursor:pointer; font-size:1rem;" onclick="document.getElementById('settings-modal').style.display='none'">Close</button>
+        </div>
+    </div>
+
+    <div id="rules-modal">
+        <div class="rules-content">
+            <button class="close-rules-btn" onclick="document.getElementById('rules-modal').style.display='none'">X</button>
+            <h2>Naija Ludo Rules</h2>
+            
+            <h3>Starting</h3>
+            <ul>
+                <li>You need a <strong>6</strong> to move a token out of the pen.</li>
+                <li>Rolling a 6 gives you an <strong>extra turn</strong>.</li>
+            </ul>
+
+            <h3>Movement</h3>
+            <ul>
+                <li>You can split your dice roll between two tokens (e.g., move one 4 steps and another 3 steps).</li>
+                <li>Or move one token the sum of both dice (7 steps).</li>
+                <li>If you roll doubles (e.g., 3 and 3), you play them normally. (Some variations play doubles twice, but standard is once).</li>
+            </ul>
+
+            <h3>Capturing</h3>
+            <ul>
+                <li>If you land on an opponent's token, it is captured and sent back to the pen.</li>
+                <li><strong>Safe Squares:</strong> Colored squares (Start) and Star squares are safe. No capturing allowed there.</li>
+                <li>You cannot capture inside the Home column.</li>
+            </ul>
+
+            <h3>Winning</h3>
+            <ul>
+                <li>Move all 4 tokens into the center triangle to win.</li>
+                <li>You must roll the exact number to enter the center.</li>
+            </ul>
+
+            <h3>Controls</h3>
+            <ul>
+                <li><strong>Space / Enter:</strong> Roll Dice</li>
+                <li><strong>Tab / Arrows:</strong> Select Token</li>
+                <li><strong>Enter:</strong> Move Selected Token</li>
+                <li><strong>1-9:</strong> Select Move Option</li>
+                <li><strong>R:</strong> Reset Camera</li>
+                <li><strong>M:</strong> Toggle Music</li>
+                <li><strong>S:</strong> Toggle Sound</li>
+                <li><strong>Esc:</strong> Close Menus / Open Settings</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION & CONSTANTS ---
+        const COLORS = {
+            RED: 0xd63031, // Red
+            GREEN: 0x27ae60, // Green
+            BLUE: 0x0984e3, // Blue
+            YELLOW: 0xfdcb6e, // Yellow
+            WHITE: 0xffffff,
+            BLACK: 0x111111,
+            BOARD_BG: 0xf0f0f0,
+            SAFE_STAR: 0x888888
+        };
+
+        const PLAYER_INFO = [
+            { id: 0, name: "Red", color: COLORS.RED, startPos: 0, homeIndex: 0 }, // Bottom Left
+            { id: 1, name: "Blue", color: COLORS.BLUE, startPos: 13, homeIndex: 1 }, // Top Left
+            { id: 2, name: "Yellow", color: COLORS.YELLOW, startPos: 26, homeIndex: 2 }, // Top Right
+            { id: 3, name: "Green", color: COLORS.GREEN, startPos: 39, homeIndex: 3 } // Bottom Right
+        ];
+        
+        // Note: Standard Ludo board is 15x15.
+        // We will build it procedurally.
+        
+        // --- GLOBAL VARIABLES ---
+        let scene, camera, renderer, controls;
+        let raycaster, mouse;
+        let boardGroup, tokensGroup, diceGroup;
+        let players = [];
+        let currentPlayerIndex = 0;
+        let gameState = 'START'; // START, ROLL, SELECT_TOKEN, ANIMATING, END
+        let diceValues = [1, 1];
+        let tokens = []; // All token meshes
+        let validMoves = []; // List of tokens that can move
+        let numPlayers = 4;
+        let splitMode = false; // If true, we are in the middle of a split move
+        let splitFirstMoveDone = false; // Track if first part of split is done
+        let remainingDiceForSplit = []; // Dice values left to use
+
+        // --- SOUND MANAGER ---
+        const SoundManager = {
+            ctx: null,
+            enabled: true,
+            bgmEnabled: false,
+            nextNoteTime: 0,
+            timerID: null,
+            tempo: 110,
+            lookahead: 25.0,
+            scheduleAheadTime: 0.1,
+            shakerBuffer: null,
+            
+            init: function() {
+                try {
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                    this.bgmEnabled = false;
+                    
+                    // Pre-generate Shaker Buffer
+                    const bufferSize = this.ctx.sampleRate * 0.05; // 50ms
+                    this.shakerBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = this.shakerBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                } catch(e) {
+                    console.warn('Web Audio API not supported');
+                }
+            },
+            
+            toggle: function() {
+                this.enabled = !this.enabled;
+                const btn = document.getElementById('toggle-sound');
+                btn.innerText = this.enabled ? "Sound: ON" : "Sound: OFF";
+                return this.enabled;
+            },
+
+            toggleBGM: function() {
+                this.bgmEnabled = !this.bgmEnabled;
+                const btn = document.getElementById('toggle-music');
+                btn.innerText = this.bgmEnabled ? "Music: ON" : "Music: OFF";
+                
+                if (this.bgmEnabled) {
+                    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                    this.startBGM();
+                } else {
+                    this.stopBGM();
+                }
+            },
+
+            startBGM: function() {
+                if (this.timerID) return;
+                if (!this.ctx) return;
+                this.nextNoteTime = this.ctx.currentTime;
+                this.scheduler();
+            },
+
+            stopBGM: function() {
+                clearTimeout(this.timerID);
+                this.timerID = null;
+            },
+
+            scheduler: function() {
+                while (this.nextNoteTime < this.ctx.currentTime + this.scheduleAheadTime) {
+                    this.scheduleMeasure(this.nextNoteTime);
+                    this.nextNoteTime += (60.0 / this.tempo) * 4; // 4 beats per measure
+                }
+                this.timerID = setTimeout(() => this.scheduler(), this.lookahead);
+            },
+
+            scheduleMeasure: function(time) {
+                // 16th notes
+                const sixteenth = (60.0 / this.tempo) / 4;
+                
+                // Afrobeat Bell Pattern (Standard 12/8 feel mapped to 4/4)
+                // 1 . . 4 . . 7 . 9 . 11 . 13 . . .
+                const bellPattern = [1,0,0,1,0,0,1,0,1,0,1,0,1,0,0,0];
+                
+                for (let i = 0; i < 16; i++) {
+                    const t = time + i * sixteenth;
+                    
+                    // Bell (Agogo)
+                    if (bellPattern[i]) {
+                        this.playBell(t, i === 0 ? 800 : 600);
+                    }
+                    
+                    // Shaker (Shekere) - Constant 16ths with accents
+                    this.playShaker(t, i % 4 === 0 ? 0.05 : 0.02);
+                    
+                    // Talking Drum (Gangan) - Syncopated
+                    // Simple pattern: 1, 4, 7, 10, 12, 15
+                    if ([0, 3, 6, 9, 11, 14].includes(i)) {
+                         // Randomize pitch slightly for "talking" effect
+                         const pitch = (i % 2 === 0) ? 130 : 180;
+                         this.playTalkingDrum(t, pitch);
+                    }
+                    
+                    // Kick (Omele) - Four on the floor
+                    if (i % 4 === 0) {
+                        this.playKick(t);
+                    }
+                }
+            },
+            
+            playBell: function(time, freq) {
+                if (!this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.05, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(time);
+                osc.stop(time + 0.1);
+            },
+            
+            playShaker: function(time, vol) {
+                if (!this.enabled || !this.shakerBuffer) return;
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = this.shakerBuffer;
+                const gain = this.ctx.createGain();
+                
+                // Filter for shaker sound
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 5000;
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                gain.gain.setValueAtTime(vol, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                
+                noise.start(time);
+            },
+            
+            playTalkingDrum: function(time, baseFreq) {
+                if (!this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.frequency.setValueAtTime(baseFreq, time);
+                // Pitch bend up then down (squeezing)
+                osc.frequency.linearRampToValueAtTime(baseFreq + 50, time + 0.05);
+                osc.frequency.linearRampToValueAtTime(baseFreq, time + 0.15);
+                
+                gain.gain.setValueAtTime(0.15, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start(time);
+                osc.stop(time + 0.2);
+            },
+            
+            playKick: function(time) {
+                if (!this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+                
+                gain.gain.setValueAtTime(0.3, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start(time);
+                osc.stop(time + 0.5);
+            },
+            
+            playTone: function(freq, type, duration, vol=0.1) {
+                if (!this.enabled || !this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            
+            playRoll: function() {
+                if (!this.enabled) return;
+                for(let i=0; i<5; i++) {
+                    setTimeout(() => this.playTone(200 + Math.random()*200, 'square', 0.05, 0.05), i*40);
+                }
+            },
+            
+            playMove: function() {
+                this.playTone(600, 'sine', 0.1, 0.1);
+            },
+            
+            playCapture: function() {
+                if (!this.enabled || !this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            },
+            
+            playWin: function() {
+                if (!this.enabled) return;
+                const now = this.ctx.currentTime;
+                [440, 554, 659, 880].forEach((f, i) => {
+                    setTimeout(() => this.playTone(f, 'triangle', 0.3, 0.2), i*150);
+                });
+            }
+        };
+
+        // --- SAVE/LOAD SYSTEM ---
+        function saveGame() {
+            if (document.getElementById('winner-modal').style.display === 'flex') return;
+            
+            const saveData = {
+                numPlayers,
+                currentPlayerIndex,
+                gameState,
+                remainingDice,
+                rolledSix,
+                diceValues,
+                players: players.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    color: p.color,
+                    hasFinished: p.hasFinished,
+                    tokens: p.tokens.map(t => ({
+                        tokenId: t.userData.tokenId,
+                        inPen: t.userData.inPen,
+                        pathIndex: t.userData.pathIndex,
+                        isHome: t.userData.isHome,
+                        homePathIndex: t.userData.homePathIndex,
+                        distanceTraveled: t.userData.distanceTraveled,
+                        finished: t.userData.finished
+                    }))
+                }))
+            };
+            localStorage.setItem('ludoGameState', JSON.stringify(saveData));
+        }
+
+        function loadGame() {
+            const json = localStorage.getItem('ludoGameState');
+            if (!json) return;
+            
+            const data = JSON.parse(json);
+            
+            // Restore Globals
+            numPlayers = data.numPlayers;
+            currentPlayerIndex = data.currentPlayerIndex;
+            gameState = data.gameState;
+            remainingDice = data.remainingDice;
+            rolledSix = data.rolledSix;
+            diceValues = data.diceValues || [1, 1];
+            
+            // Clear Scene
+            document.getElementById('start-screen').style.display = 'none';
+            tokens.forEach(t => {
+                tokensGroup.remove(t);
+                if (t.geometry) t.geometry.dispose();
+                if (t.material) t.material.dispose();
+            });
+            tokens = [];
+            tokensGroup.children = [];
+            players = [];
+            
+            // Restore Players & Tokens
+            data.players.forEach((pData, i) => {
+                players.push({
+                    id: pData.id,
+                    color: pData.color,
+                    name: pData.name,
+                    tokens: [],
+                    hasFinished: pData.hasFinished
+                });
+                
+                // Create meshes
+                createTokensForPlayer(pData.id, i);
+                
+                // Apply saved state to meshes
+                const p = players[i];
+                p.tokens.forEach((mesh, tIdx) => {
+                    const tData = pData.tokens[tIdx];
+                    Object.assign(mesh.userData, tData);
+                    mesh.userData.playerId = pData.id; // Ensure ID is correct
+                    
+                    // Update Position
+                    if (tData.inPen) {
+                        // Already in pen from createTokensForPlayer, but ensure correct spot
+                        // returnToPen logic handles this, or we can just leave it if createTokens puts it there.
+                        // createTokens puts it in pen.
+                    } else if (tData.finished) {
+                        mesh.visible = false;
+                    } else {
+                        // Move to board position
+                        const pos = getPositionFromUserData(mesh);
+                        mesh.position.set(pos.x, 0.6, pos.z);
+                    }
+                });
+            });
+            
+            // Restore Dice Visuals
+            const diceMeshes = diceGroup.children;
+            if (diceMeshes.length >= 2) {
+                setDiceFace(diceMeshes[0], diceValues[0]);
+                setDiceFace(diceMeshes[1], diceValues[1]);
+                document.getElementById('die-1').innerText = diceValues[0];
+                document.getElementById('die-2').innerText = diceValues[1];
+            }
+            
+            // Update UI
+            updateUI();
+            resolveTokenOverlaps();
+            highlightValidTokens();
+            
+            if (gameState === 'ROLL') {
+                document.getElementById('roll-btn').disabled = false;
+                showToast(`${players[currentPlayerIndex].name}'s Turn`);
+            } else {
+                document.getElementById('roll-btn').disabled = true;
+                showToast("Resume: Select Token");
+            }
+        }
+
+        function checkSave() {
+            if (localStorage.getItem('ludoGameState')) {
+                document.getElementById('resume-btn').style.display = 'inline-block';
+            }
+        }
+
+        // --- TEXTURE GENERATOR ---
+        const TextureFactory = {
+            createWood: function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                
+                // Base brown
+                ctx.fillStyle = '#5d4037';
+                ctx.fillRect(0, 0, 512, 512);
+                
+                // Grain
+                ctx.strokeStyle = '#3e2723';
+                ctx.lineWidth = 2;
+                for(let i=0; i<100; i++) {
+                    ctx.beginPath();
+                    const x = Math.random() * 512;
+                    ctx.moveTo(x, 0);
+                    // Wavy line
+                    for(let y=0; y<=512; y+=10) {
+                        ctx.lineTo(x + Math.sin(y*0.05)*20 + (Math.random()-0.5)*5, y);
+                    }
+                    ctx.stroke();
+                }
+                
+                // Noise
+                const imageData = ctx.getImageData(0,0,512,512);
+                const data = imageData.data;
+                for(let i=0; i<data.length; i+=4) {
+                    const noise = (Math.random() - 0.5) * 20;
+                    data[i] += noise;
+                    data[i+1] += noise;
+                    data[i+2] += noise;
+                }
+                ctx.putImageData(imageData, 0, 0);
+                
+                return new THREE.CanvasTexture(canvas);
+            },
+            
+            createMarble: function(baseColorHex) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                
+                // Base color
+                ctx.fillStyle = '#' + new THREE.Color(baseColorHex).getHexString();
+                ctx.fillRect(0, 0, 256, 256);
+                
+                // Veins
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 3;
+                for(let i=0; i<10; i++) {
+                    ctx.beginPath();
+                    let x = Math.random() * 256;
+                    let y = Math.random() * 256;
+                    ctx.moveTo(x, y);
+                    for(let j=0; j<20; j++) {
+                        x += (Math.random() - 0.5) * 50;
+                        y += (Math.random() - 0.5) * 50;
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                }
+                
+                // Noise/Speckles
+                const imageData = ctx.getImageData(0,0,256,256);
+                const data = imageData.data;
+                for(let i=0; i<data.length; i+=4) {
+                    const noise = (Math.random() - 0.5) * 30;
+                    data[i] = Math.min(255, Math.max(0, data[i] + noise));
+                    data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
+                    data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
+                }
+                ctx.putImageData(imageData, 0, 0);
+                
+                return new THREE.CanvasTexture(canvas);
+            },
+
+            createPlasticNoise: function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0,0,128,128);
+                
+                const imageData = ctx.getImageData(0,0,128,128);
+                const data = imageData.data;
+                for(let i=0; i<data.length; i+=4) {
+                    const val = 200 + Math.random() * 55;
+                    data[i] = val;
+                    data[i+1] = val;
+                    data[i+2] = val;
+                    data[i+3] = 255;
+                }
+                ctx.putImageData(imageData, 0, 0);
+                return new THREE.CanvasTexture(canvas);
+            }
+        };
+
+        // --- INITIALIZATION ---
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050510); // Dark background
+            scene.fog = new THREE.Fog(0x050510, 20, 100);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 45, 30);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.1; // Don't go below ground
+            controls.minDistance = 10;
+            controls.maxDistance = 80;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 50, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 100;
+            dirLight.shadow.camera.left = -30;
+            dirLight.shadow.camera.right = 30;
+            dirLight.shadow.camera.top = 30;
+            dirLight.shadow.camera.bottom = -30;
+            scene.add(dirLight);
+
+            // Groups
+            boardGroup = new THREE.Group();
+            scene.add(boardGroup);
+            tokensGroup = new THREE.Group();
+            scene.add(tokensGroup);
+            diceGroup = new THREE.Group();
+            scene.add(diceGroup);
+
+            // Raycaster
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('click', onMouseClick, false);
+            window.addEventListener('keydown', handleKeyboardInput, false);
+            document.getElementById('roll-btn').addEventListener('click', rollDice);
+            document.getElementById('reset-cam').addEventListener('click', resetCamera);
+            document.getElementById('toggle-sound').addEventListener('click', () => SoundManager.toggle());
+            document.getElementById('toggle-music').addEventListener('click', () => SoundManager.toggleBGM());
+            
+            // Build Game Assets
+            createEnvironment();
+            createBoard();
+            createDice(); // Added call
+            
+            ConfettiManager.init(); // Initialize Confetti
+
+            checkSave();
+
+            SoundManager.init();
+            
+            // Animation Loop
+            animate();
+        }
+
+        function returnToPen(token) {
+            token.userData.inPen = true;
+            token.userData.pathIndex = -1;
+            token.userData.distanceTraveled = 0;
+            
+            const pId = token.userData.playerId;
+            const tId = token.userData.tokenId;
+            
+             const dirMap = [{x: -1, z: 1}, {x: -1, z: -1}, {x: 1, z: -1}, {x: 1, z: 1}];
+             const dir = dirMap[pId];
+             const offsets = [{x: -1, z: -1}, {x: 1, z: -1}, {x: -1, z: 1}, {x: 1, z: 1}];
+             const penX = dir.x * 6.75 + offsets[tId].x;
+             const penZ = dir.z * 6.75 + offsets[tId].z;
+             
+             // Use custom animation system
+             const start = token.position.clone();
+             const end = new THREE.Vector3(penX, 0.6, penZ);
+             
+             let progress = 0;
+             animations.push({
+                 update: () => {
+                     progress += 0.05;
+                     if (progress >= 1) {
+                         token.position.copy(end);
+                         return true;
+                     }
+                     token.position.lerpVectors(start, end, progress);
+                     token.position.y = 0.6 + Math.sin(progress * Math.PI) * 5; // High arc
+                     return false;
+                 }
+             });
+        }
+
+        // ... (existing code) ...
+
+        // --- CONFETTI MANAGER ---
+        const ConfettiManager = {
+            mesh: null,
+            count: 1000,
+            dummy: new THREE.Object3D(),
+            particles: [],
+            active: false,
+
+            init: function() {
+                const geometry = new THREE.PlaneGeometry(0.2, 0.2);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    side: THREE.DoubleSide
+                });
+                
+                this.mesh = new THREE.InstancedMesh(geometry, material, this.count);
+                this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                this.mesh.visible = false;
+                scene.add(this.mesh);
+            },
+
+            start: function() {
+                this.active = true;
+                this.mesh.visible = true;
+                this.particles = [];
+
+                const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
+
+                for(let i=0; i<this.count; i++) {
+                    this.particles.push({
+                        position: new THREE.Vector3(
+                            (Math.random() - 0.5) * 40,
+                            30 + Math.random() * 20,
+                            (Math.random() - 0.5) * 40
+                        ),
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.2,
+                            -0.1 - Math.random() * 0.2,
+                            (Math.random() - 0.5) * 0.2
+                        ),
+                        rotation: new THREE.Vector3(
+                            Math.random() * Math.PI,
+                            Math.random() * Math.PI,
+                            Math.random() * Math.PI
+                        ),
+                        rotSpeed: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.2,
+                            (Math.random() - 0.5) * 0.2,
+                            (Math.random() - 0.5) * 0.2
+                        ),
+                        color: new THREE.Color(colors[Math.floor(Math.random() * colors.length)])
+                    });
+                    
+                    this.mesh.setColorAt(i, this.particles[i].color);
+                }
+                this.mesh.instanceColor.needsUpdate = true;
+            },
+
+            update: function() {
+                if (!this.active) return;
+
+                for(let i=0; i<this.count; i++) {
+                    const p = this.particles[i];
+                    
+                    p.position.add(p.velocity);
+                    p.rotation.add(p.rotSpeed);
+                    
+                    // Reset if below ground
+                    if (p.position.y < -5) {
+                        p.position.y = 30 + Math.random() * 10;
+                        p.velocity.y = -0.1 - Math.random() * 0.2;
+                    }
+
+                    this.dummy.position.copy(p.position);
+                    this.dummy.rotation.set(p.rotation.x, p.rotation.y, p.rotation.z);
+                    this.dummy.updateMatrix();
+                    
+                    this.mesh.setMatrixAt(i, this.dummy.matrix);
+                }
+                this.mesh.instanceMatrix.needsUpdate = true;
+            }
+        };
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            
+            // Update Physics
+            updateDicePhysics();
+            
+            // Update Confetti
+            ConfettiManager.update();
+            
+            // Process animations
+            for (let i = animations.length - 1; i >= 0; i--) {
+                const finished = animations[i].update();
+                if (finished) {
+                    animations.splice(i, 1);
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        function showNameEntry(n) {
+            numPlayers = n;
+            document.getElementById('player-count-selection').style.display = 'none';
+            const form = document.getElementById('name-entry-form');
+            form.style.display = 'flex';
+            
+            const container = document.getElementById('name-inputs-container');
+            container.innerHTML = '';
+            
+            // Requested Order: Red, Yellow, Green, Blue
+            // Map to PLAYER_INFO indices: 0 (Red), 2 (Yellow), 3 (Green), 1 (Blue)
+            const orderIndices = [0, 2, 3, 1];
+            
+            for(let i=0; i<n; i++) {
+                const pIdx = orderIndices[i];
+                const defaultName = PLAYER_INFO[pIdx].name;
+                const colorHex = '#' + PLAYER_INFO[pIdx].color.toString(16).padStart(6, '0');
+                
+                const div = document.createElement('div');
+                div.style.marginBottom = '15px';
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                
+                div.innerHTML = `
+                    <div style="width:20px; height:20px; background:${colorHex}; border-radius:50%; margin-right:10px; border:2px solid white;"></div>
+                    <label style="margin-right:10px; width:80px;">Player ${i+1}:</label>
+                    <input type="text" id="pname-${i}" value="${defaultName}" style="padding:8px; border-radius:5px; border:none; width:150px;">
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        function cancelNameEntry() {
+            document.getElementById('name-entry-form').style.display = 'none';
+            document.getElementById('player-count-selection').style.display = 'block';
+        }
+
+        function finalizeGameStart() {
+            document.getElementById('start-screen').style.display = 'none';
+            
+            // Clear existing tokens/groups to prevent duplicates or ghost tokens
+            tokens.forEach(t => {
+                tokensGroup.remove(t);
+                if (t.geometry) t.geometry.dispose();
+                if (t.material) t.material.dispose();
+            });
+            tokens = [];
+            tokensGroup.children = []; // Ensure group is empty
+            
+            // Initialize Players
+            players = [];
+            
+            // Requested Order: Red, Yellow, Green, Blue
+            // Map to PLAYER_INFO indices: 0 (Red), 2 (Yellow), 3 (Green), 1 (Blue)
+            const orderIndices = [0, 2, 3, 1];
+            
+            for(let i=0; i<numPlayers; i++) {
+                const pIdx = orderIndices[i];
+                const nameInput = document.getElementById(`pname-${i}`).value;
+                const finalName = nameInput.trim() || PLAYER_INFO[pIdx].name;
+                
+                players.push({
+                    id: pIdx, // Keep original ID for logic (0=Red, 1=Blue, etc)
+                    color: PLAYER_INFO[pIdx].color,
+                    name: finalName,
+                    tokens: [],
+                    hasFinished: false
+                });
+                
+                createTokensForPlayer(pIdx, i); // Pass index in 'players' array
+            }
+
+            currentPlayerIndex = 0;
+            updateUI();
+            gameState = 'ROLL';
+            showToast(`Game Started! ${players[0].name}'s Turn`);
+            saveGame();
+        }
+
+        function startGame(n) {
+            // Deprecated, replaced by showNameEntry
+            showNameEntry(n);
+        }
+
+        // --- BOARD GENERATION ---
+        function createEnvironment() {
+            // 1. Starry Skybox
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Gradient Background
+            const grad = ctx.createLinearGradient(0, 0, 0, 512);
+            grad.addColorStop(0, '#0b1026');
+            grad.addColorStop(1, '#2b32b2');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Stars
+            ctx.fillStyle = 'white';
+            for(let i=0; i<500; i++) {
+                const x = Math.random() * 512;
+                const y = Math.random() * 512;
+                const r = Math.random() * 1.5;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI*2);
+                ctx.fill();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            scene.background = texture;
+            
+            // 2. Floating Platform (Table) - Increased size for Dice Mat
+            const woodTex = TextureFactory.createWood();
+            const geo = new THREE.CylinderGeometry(40, 36, 2, 64);
+            const mat = new THREE.MeshPhongMaterial({ 
+                map: woodTex,
+                shininess: 10
+            });
+            const table = new THREE.Mesh(geo, mat);
+            table.position.y = -1.1; // Just below board
+            table.receiveShadow = true;
+            scene.add(table);
+            
+            // 3. Dice Mat (Outside Board)
+            const matCenter = new THREE.Vector3(26, -0.5, 0);
+            const matSize = 14;
+            
+            // Mat Base
+            const matGeo = new THREE.BoxGeometry(matSize, 0.5, matSize);
+            const matMat = new THREE.MeshPhongMaterial({ color: 0x1b5e20 }); // Dark Green Felt
+            const matMesh = new THREE.Mesh(matGeo, matMat);
+            matMesh.position.copy(matCenter);
+            matMesh.receiveShadow = true;
+            scene.add(matMesh);
+
+            // Mat Walls
+            const wallHeight = 1.0;
+            const wallThickness = 0.5;
+            const wallMat = new THREE.MeshPhongMaterial({ map: woodTex }); // Wood trim
+
+            const walls = [
+                { size: [matSize + wallThickness*2, wallHeight, wallThickness], pos: [0, 0, matSize/2 + wallThickness/2] }, // Front
+                { size: [matSize + wallThickness*2, wallHeight, wallThickness], pos: [0, 0, -matSize/2 - wallThickness/2] }, // Back
+                { size: [wallThickness, wallHeight, matSize], pos: [matSize/2 + wallThickness/2, 0, 0] }, // Right
+                { size: [wallThickness, wallHeight, matSize], pos: [-matSize/2 - wallThickness/2, 0, 0] }, // Left
+            ];
+
+            walls.forEach(w => {
+                const g = new THREE.BoxGeometry(...w.size);
+                const m = new THREE.Mesh(g, wallMat);
+                m.position.set(
+                    matCenter.x + w.pos[0],
+                    matCenter.y + 0.5, 
+                    matCenter.z + w.pos[2]
+                );
+                m.castShadow = true;
+                m.receiveShadow = true;
+                scene.add(m);
+            });
+
+            // 4. Ambient Particles (Dust)
+            const particlesGeo = new THREE.BufferGeometry();
+            const particleCount = 200;
+            const posArray = new Float32Array(particleCount * 3);
+            
+            for(let i=0; i<particleCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 50;
+            }
+            
+            particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particlesMat = new THREE.PointsMaterial({
+                size: 0.2,
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.5
+            });
+            const particles = new THREE.Points(particlesGeo, particlesMat);
+            scene.add(particles);
+            
+            // Animate particles slowly
+            animations.push({
+                update: () => {
+                    particles.rotation.y += 0.0005;
+                    return false; // Never finish
+                }
+            });
+        }
+
+        function createBoard() {
+            // Base Board
+            const boardGeometry = new THREE.BoxGeometry(24, 1, 24);
+            const boardMaterial = new THREE.MeshPhongMaterial({ map: TextureFactory.createWood() });
+            const board = new THREE.Mesh(boardGeometry, boardMaterial);
+            board.position.y = -0.5;
+            board.receiveShadow = true;
+            boardGroup.add(board);
+            
+            // We need to create the grid. 15x15 grid.
+            // Each cell size = 1.5 units (24 / 16 approx, let's say 1.5 * 15 = 22.5)
+            const cellSize = 1.5;
+            const offset = (15 * cellSize) / 2 - (cellSize / 2); // Center the grid
+
+            // Helper to place a square
+            function createSquare(x, z, color, isSafe = false, isStar = false) {
+                const geo = new THREE.BoxGeometry(cellSize * 0.95, 0.2, cellSize * 0.95);
+                const mat = new THREE.MeshPhongMaterial({ color: color });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x * cellSize - offset, 0.1, z * cellSize - offset);
+                mesh.receiveShadow = true;
+                boardGroup.add(mesh);
+                
+                if (isStar) {
+                    // Add star marker
+                    const starGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.25, 5);
+                    const starMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+                    const star = new THREE.Mesh(starGeo, starMat);
+                    star.position.copy(mesh.position);
+                    star.position.y += 0.1;
+                    star.rotation.x = Math.PI / 2; // Lay flat? No, cylinder stands up
+                    star.scale.set(1, 0.1, 1);
+                    boardGroup.add(star);
+                }
+                return mesh;
+            }
+
+            // Create the 4 large corner pens
+            // Top Left (Blue), Top Right (Yellow), Bottom Left (Red), Bottom Right (Green)
+            // Grid is 0-14 x 0-14.
+            // Pens are 6x6 blocks in corners.
+            
+            // Red Pen (Bottom Left: x=0-5, z=9-14) - Wait, coordinate system:
+            // ThreeJS: x is right, z is down (towards viewer).
+            // Let's map grid (0,0) to Top-Left.
+            // (0,0) -> (-offset, -offset) in 3D space? No, let's map standard cartesian.
+            // x: -7 to +7. z: -7 to +7.
+            
+            // Let's define the track coordinates explicitly or procedurally.
+            // Standard Ludo Track:
+            // Cross shape. 3 columns wide.
+            
+            // Draw Pens
+            // Correct Mapping:
+            // Red (BL): (-1, 1)
+            // Blue (TL): (-1, -1)
+            // Yellow (TR): (1, -1)
+            // Green (BR): (1, 1)
+            createPen(-1, 1, COLORS.RED);    // Bottom Left
+            createPen(-1, -1, COLORS.BLUE);    // Top Left
+            createPen(1, -1, COLORS.YELLOW);   // Top Right
+            createPen(1, 1, COLORS.GREEN);   // Bottom Right
+
+            // Draw Center
+            createCenter();
+
+            // Draw Tracks
+            generatePathCoordinates();
+            drawTrackSquares();
+        }
+
+        // --- PATH LOGIC ---
+        let mainPath = []; // Array of {x, z} for the 52-step loop
+        let homePaths = [[], [], [], []]; // Array of arrays for home columns
+        let startSquares = []; // Indices of start squares for each player
+
+        function generatePathCoordinates() {
+            mainPath = [];
+            // 1. Red Start (Bottom-Left) moving UP: (6, 13) -> (6, 9)
+            for (let r = 13; r >= 9; r--) mainPath.push({x: 6, z: r});
+            // 2. Turn Left into Left Arm: (5, 8) -> (0, 8)
+            for (let c = 5; c >= 0; c--) mainPath.push({x: c, z: 8});
+            // 3. Move Up at end of Left Arm: (0, 7)
+            mainPath.push({x: 0, z: 7});
+            // 4. Move Right along top of Left Arm: (0, 6) -> (5, 6)
+            for (let c = 0; c <= 5; c++) mainPath.push({x: c, z: 6});
+            // 5. Move Up into Top Arm: (6, 5) -> (6, 0)
+            for (let r = 5; r >= 0; r--) mainPath.push({x: 6, z: r});
+            // 6. Move Right at top of Top Arm: (7, 0)
+            mainPath.push({x: 7, z: 0});
+            // 7. Move Down along right of Top Arm: (8, 0) -> (8, 5)
+            for (let r = 0; r <= 5; r++) mainPath.push({x: 8, z: r});
+            // 8. Move Right into Right Arm: (9, 6) -> (14, 6)
+            for (let c = 9; c <= 14; c++) mainPath.push({x: c, z: 6});
+            // 9. Move Down at end of Right Arm: (14, 7)
+            mainPath.push({x: 14, z: 7});
+            // 10. Move Left along bottom of Right Arm: (14, 8) -> (9, 8)
+            for (let c = 14; c >= 9; c--) mainPath.push({x: c, z: 8});
+            // 11. Move Down into Bottom Arm: (8, 9) -> (8, 14)
+            for (let r = 9; r <= 14; r++) mainPath.push({x: 8, z: r});
+            // 12. Move Left at bottom of Bottom Arm: (7, 14)
+            mainPath.push({x: 7, z: 14});
+            // 13. Move Up along left of Bottom Arm: (6, 14)
+            mainPath.push({x: 6, z: 14});
+
+            // Home Paths (6 squares each, leading to center)
+            // Red (Bottom): (7, 13) -> (7, 8)
+            for (let r = 13; r >= 8; r--) homePaths[0].push({x: 7, z: r});
+            // Blue (Left): (1, 7) -> (6, 7)
+            for (let c = 1; c <= 6; c++) homePaths[1].push({x: c, z: 7});
+            // Yellow (Top): (7, 1) -> (7, 6)
+            for (let r = 1; r <= 6; r++) homePaths[2].push({x: 7, z: r});
+            // Green (Right): (13, 7) -> (8, 7)
+            for (let c = 13; c >= 8; c--) homePaths[3].push({x: c, z: 7});
+
+            // Start Indices on Main Path
+            // Red: 0 (6, 13)
+            // Blue: 13 (1, 6) - Wait, let's verify.
+            // Red path length: 52.
+            // Blue starts 13 steps after Red?
+            // Red segment: 5+6+1+1 = 13 steps.
+            // Yes.
+            startSquares = [0, 13, 26, 39];
+        }
+
+        function drawTrackSquares() {
+            const cellSize = 1.5;
+            const offset = (15 * cellSize) / 2 - (cellSize / 2);
+
+            // Draw Main Path
+            mainPath.forEach((pos, index) => {
+                let color = COLORS.WHITE;
+                let isSafe = false;
+                let isStar = false;
+
+                // Check if it's a start square (Colored)
+                if (index === 0) { color = COLORS.RED; isSafe = true; }
+                else if (index === 13) { color = COLORS.BLUE; isSafe = true; }
+                else if (index === 26) { color = COLORS.YELLOW; isSafe = true; }
+                else if (index === 39) { color = COLORS.GREEN; isSafe = true; }
+                
+                // Check if it's a safe star (Standard Ludo positions)
+                // Usually 8 squares from start? Or specific spots.
+                // Nigerian Ludo often has stars at:
+                // Start squares (already handled)
+                // Plus squares: (8, 2), (6, 12), (2, 6), (12, 8)
+                // Let's map these coordinates to indices or just check coords.
+                const safeCoords = [
+                    {x: 8, z: 2}, {x: 6, z: 12}, {x: 2, z: 6}, {x: 12, z: 8}
+                ];
+                if (safeCoords.some(p => p.x === pos.x && p.z === pos.z)) {
+                    isSafe = true;
+                    isStar = true;
+                    color = 0xdddddd; // Slightly darker white
+                }
+
+                createSquare(pos.x, pos.z, color, isSafe, isStar);
+            });
+
+            // Draw Home Columns
+            homePaths.forEach((path, playerIdx) => {
+                const color = PLAYER_INFO[playerIdx].color;
+                path.forEach((pos, i) => {
+                    // Last one is the center triangle base, handled by center?
+                    // No, draw all 6.
+                    createSquare(pos.x, pos.z, color, true, false);
+                });
+            });
+        }
+
+        function createSquare(x, z, color, isSafe = false, isStar = false) {
+            const cellSize = 1.5;
+            const offset = (15 * cellSize) / 2 - (cellSize / 2);
+            
+            const geo = new THREE.BoxGeometry(cellSize * 0.95, 0.2, cellSize * 0.95);
+            const mat = new THREE.MeshPhongMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x * cellSize - offset, 0.1, z * cellSize - offset);
+            mesh.receiveShadow = true;
+            
+            // Add border
+            const edges = new THREE.EdgesGeometry(geo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
+            mesh.add(line);
+
+            boardGroup.add(mesh);
+            
+            if (isStar) {
+                // Add star marker (Simple 5-point star shape or texture)
+                // Using a simple star shape geometry
+                const starShape = new THREE.Shape();
+                const outerRadius = 0.4;
+                const innerRadius = 0.2;
+                const points = 5;
+                for (let i = 0; i < points * 2; i++) {
+                    const r = (i % 2 === 0) ? outerRadius : innerRadius;
+                    const a = (i / (points * 2)) * Math.PI * 2;
+                    starShape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                }
+                const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 0.1, bevelEnabled: false });
+                const starMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
+                const star = new THREE.Mesh(starGeo, starMat);
+                star.rotation.x = Math.PI / 2;
+                star.position.y = 0.15;
+                mesh.add(star);
+            }
+            return mesh;
+        }
+
+        function createPen(dirX, dirZ, color) {
+            // Large colored block
+            const size = 1.5 * 6;
+            const geo = new THREE.BoxGeometry(size - 0.5, 0.5, size - 0.5);
+            const mat = new THREE.MeshPhongMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            
+            // Position: 
+            // Center is 0.
+            // 6 cells wide. Center of 6 cells is 3 cells from edge.
+            // Edge is 7.5 units. 
+            // Position = dir * (offset - (2.5 * 1.5)) approx
+            const pos = 1.5 * 4.5; // 6.75
+            
+            mesh.position.set(dirX * pos, 0.25, dirZ * pos);
+            mesh.receiveShadow = true;
+            boardGroup.add(mesh);
+
+            // White circle inside for tokens
+            const circleGeo = new THREE.CylinderGeometry(3, 3, 0.6, 32);
+            const circleMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+            const circle = new THREE.Mesh(circleGeo, circleMat);
+            circle.position.copy(mesh.position);
+            circle.position.y += 0.1;
+            circle.receiveShadow = true;
+            boardGroup.add(circle);
+        }
+
+        function createCenter() {
+            const cellSize = 1.5;
+            const offset = (15 * cellSize) / 2 - (cellSize / 2);
+            const centerX = 7 * cellSize - offset;
+            const centerZ = 7 * cellSize - offset;
+            
+            // Create 4 triangles meeting at center
+            const size = 1.5 * 3; // 3 cells wide
+            const halfSize = size / 2;
+            
+            const colors = [COLORS.RED, COLORS.BLUE, COLORS.YELLOW, COLORS.GREEN];
+            // Rotations for the 4 triangles: Bottom, Left, Top, Right
+            const rotations = [0, Math.PI/2, Math.PI, -Math.PI/2];
+            
+            colors.forEach((col, i) => {
+                const shape = new THREE.Shape();
+                shape.moveTo(-halfSize, halfSize);
+                shape.lineTo(halfSize, halfSize);
+                shape.lineTo(0, 0);
+                shape.lineTo(-halfSize, halfSize);
+                
+                const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.2, bevelEnabled: false });
+                const mat = new THREE.MeshPhongMaterial({ color: col });
+                const mesh = new THREE.Mesh(geo, mat);
+                
+                mesh.rotation.x = Math.PI / 2;
+                mesh.rotation.z = rotations[i];
+                mesh.position.set(centerX, 0.1, centerZ);
+                
+                boardGroup.add(mesh);
+            });
+            
+            // White center circle
+            const cGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.25, 32);
+            const cMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const cMesh = new THREE.Mesh(cGeo, cMat);
+            cMesh.position.set(centerX, 0.15, centerZ);
+            boardGroup.add(cMesh);
+        }
+
+        function createTokensForPlayer(playerId, playerArrayIndex) {
+            const p = players[playerArrayIndex]; // Get player object from our new array
+            const penCenters = [
+                {x: -1, z: 1}, // Red (Bottom Left) - Wait, earlier I used (-1, -1) for Red?
+                // Let's check createPen calls:
+                // createPen(-1, -1, COLORS.RED);    // Bottom Left
+                // createPen(-1, 1, COLORS.BLUE);    // Top Left
+                // createPen(1, 1, COLORS.YELLOW);   // Top Right
+                // createPen(1, -1, COLORS.GREEN);   // Bottom Right
+                
+                // So:
+                // Red: (-1, -1) -> x < 0, z > 0 in grid? No.
+                // Grid (0,0) is Top-Left.
+                // 3D World: x is Right, z is Down (towards viewer).
+                // createPen(-1, -1) -> Left, Top? No.
+                // Let's re-verify createPen logic.
+                // pos = dir * 6.75.
+                // (-1, -1) -> x=-6.75, z=-6.75.
+                // Grid (0,0) is Top-Left.
+                // (0,0) in 3D is (-offset, -offset).
+                // offset = 10.5 approx.
+                // So (-10.5, -10.5) is Top-Left.
+                // (-6.75, -6.75) is roughly Top-Left quadrant.
+                // So (-1, -1) is Top-Left (Blue).
+                // (-1, 1) is Bottom-Left (Red).
+                // (1, -1) is Top-Right (Yellow).
+                // (1, 1) is Bottom-Right (Green).
+                
+                // Wait, my createPen calls were:
+                // createPen(-1, -1, COLORS.RED);
+                // createPen(-1, 1, COLORS.BLUE);
+                // createPen(1, 1, COLORS.YELLOW);
+                // createPen(1, -1, COLORS.GREEN);
+                
+                // If (-1, -1) is Top-Left, then Red is Top-Left?
+                // But Red is usually Bottom-Left.
+                // Let's fix the mapping to match the visual reference.
+                // Reference:
+                // TL: Blue. TR: Yellow.
+                // BL: Red. BR: Green.
+                
+                // 3D Coords:
+                // x negative = Left. x positive = Right.
+                // z negative = Top (away). z positive = Bottom (near).
+                
+                // TL (Blue): x < 0, z < 0. -> (-1, -1)
+                // TR (Yellow): x > 0, z < 0. -> (1, -1)
+                // BL (Red): x < 0, z > 0. -> (-1, 1)
+                // BR (Green): x > 0, z > 0. -> (1, 1)
+                
+                // So I need to update createPen calls to match this.
+                // And update this function.
+            ];
+            
+            // Correct Mapping based on 3D coords (x, z)
+            // 0: Red (BL) -> (-1, 1)
+            // 1: Blue (TL) -> (-1, -1)
+            // 2: Yellow (TR) -> (1, -1)
+            // 3: Green (BR) -> (1, 1)
+            
+            const dirMap = [
+                {x: -1, z: 1}, // Red
+                {x: -1, z: -1}, // Blue
+                {x: 1, z: -1}, // Yellow
+                {x: 1, z: 1}  // Green
+            ];
+            
+            const dir = dirMap[playerId];
+            const penX = dir.x * 6.75;
+            const penZ = dir.z * 6.75;
+            
+            // 4 tokens in a square pattern around pen center
+            const offsets = [
+                {x: -1, z: -1}, {x: 1, z: -1},
+                {x: -1, z: 1}, {x: 1, z: 1}
+            ];
+            
+            for(let i=0; i<4; i++) {
+                const geo = new THREE.CylinderGeometry(0.4, 0.4, 0.8, 32);
+                const mat = new THREE.MeshPhongMaterial({ 
+                    map: TextureFactory.createMarble(p.color),
+                    specular: 0x555555,
+                    shininess: 50
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                
+                // Initial Position
+                mesh.position.set(penX + offsets[i].x, 0.6, penZ + offsets[i].z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                
+                // Store metadata
+                mesh.userData = {
+                    playerId: playerId,
+                    tokenId: i,
+                    isHome: false,
+                    inPen: true,
+                    pathIndex: -1, // -1 means in pen
+                    homePathIndex: -1 // -1 means not in home column
+                };
+                
+                tokensGroup.add(mesh);
+                p.tokens.push(mesh);
+                tokens.push(mesh);
+            }
+        }
+        
+        // Fix createPen calls to match the logic above
+        // We will do this by replacing the createBoard function content or just the calls.
+        // Since I can't easily jump back, I'll add a fix function or just ensure createBoard calls are correct.
+        // Wait, I already wrote createBoard. I need to edit it.
+        
+        // --- PHYSICS ENGINE (Custom Lightweight) ---
+        const physics = {
+            gravity: -0.05, // Increased gravity for faster fall
+            floorY: 0.5, 
+            drag: 0.98,
+            bounce: 0.6,
+            dice: []
+        };
+
+        function initDicePhysics(mesh) {
+            return {
+                mesh: mesh,
+                velocity: new THREE.Vector3(0, 0, 0),
+                angularVelocity: new THREE.Vector3(0, 0, 0),
+                active: false
+            };
+        }
+
+        function updateDicePhysics() {
+            // Dice-Dice Collision
+            if (physics.dice.length >= 2) {
+                const d1 = physics.dice[0];
+                const d2 = physics.dice[1];
+                
+                if (d1.active && d2.active) {
+                    const dist = d1.mesh.position.distanceTo(d2.mesh.position);
+                    const minDist = 1.8; // Box diagonal is ~2.6, side is 1.5. 1.8 is a good sphere approx.
+
+                    if (dist < minDist) {
+                        // Push apart vector
+                        const normal = d1.mesh.position.clone().sub(d2.mesh.position).normalize();
+                        
+                        // Relative velocity
+                        const relVel = d1.velocity.clone().sub(d2.velocity);
+                        const velAlongNormal = relVel.dot(normal);
+
+                        // Only resolve if moving towards each other
+                        if (velAlongNormal < 0) {
+                            // Impulse scalar
+                            const j = -(1 + 0.5) * velAlongNormal; // 0.5 restitution
+                            const impulse = normal.clone().multiplyScalar(j * 0.5); // Equal mass
+
+                            d1.velocity.add(impulse);
+                            d2.velocity.sub(impulse);
+                            
+                            // Positional correction (prevent sinking)
+                            const correction = normal.clone().multiplyScalar((minDist - dist) * 0.5);
+                            d1.mesh.position.add(correction);
+                            d2.mesh.position.sub(correction);
+                            
+                            // Add some random spin on collision
+                            d1.angularVelocity.add(new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(0.1));
+                            d2.angularVelocity.add(new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(0.1));
+                        }
+                    }
+                }
+            }
+
+            physics.dice.forEach(d => {
+                if (!d.active) return;
+
+                // Apply Gravity
+                d.velocity.y += physics.gravity;
+
+                // Apply Velocity
+                d.mesh.position.add(d.velocity);
+                
+                // Apply Rotation
+                d.mesh.rotation.x += d.angularVelocity.x;
+                d.mesh.rotation.y += d.angularVelocity.y;
+                d.mesh.rotation.z += d.angularVelocity.z;
+
+                // Floor Collision (Mat Surface)
+                if (d.mesh.position.y < physics.floorY) {
+                    d.mesh.position.y = physics.floorY;
+                    d.velocity.y *= -physics.bounce;
+                    
+                    // Friction on floor
+                    d.velocity.x *= 0.9;
+                    d.velocity.z *= 0.9;
+                    d.angularVelocity.multiplyScalar(0.9);
+                    
+                    // Stop if slow
+                    if (Math.abs(d.velocity.y) < 0.05 && Math.abs(d.velocity.x) < 0.05 && Math.abs(d.velocity.z) < 0.05) {
+                        d.active = false;
+                        checkDiceStopped();
+                    }
+                }
+
+                // Wall Collision (Mat Bounds)
+                // Mat Center: (26, 0, 0)
+                // Mat Size: 14x14
+                // Inner Bounds: X[19.25, 32.75], Z[-6.75, 6.75]
+                // Dice Radius: 0.75
+                const minX = 20.0;
+                const maxX = 32.0;
+                const minZ = -6.0;
+                const maxZ = 6.0;
+
+                if (d.mesh.position.x < minX) {
+                    d.mesh.position.x = minX;
+                    d.velocity.x *= -1;
+                } else if (d.mesh.position.x > maxX) {
+                    d.mesh.position.x = maxX;
+                    d.velocity.x *= -1;
+                }
+
+                if (d.mesh.position.z < minZ) {
+                    d.mesh.position.z = minZ;
+                    d.velocity.z *= -1;
+                } else if (d.mesh.position.z > maxZ) {
+                    d.mesh.position.z = maxZ;
+                    d.velocity.z *= -1;
+                }
+            });
+        }
+
+        function throwDicePhysics() {
+            physics.dice.forEach(d => {
+                d.active = true;
+                // Start high above mat
+                d.mesh.position.set(
+                    26 + (Math.random() - 0.5) * 4, 
+                    12, 
+                    (Math.random() - 0.5) * 4
+                );
+                
+                // Random Velocity - FASTER
+                d.velocity.set(
+                    (Math.random() - 0.5) * 1.5,
+                    (Math.random() * -0.5) - 1.0, // Stronger downward throw
+                    (Math.random() - 0.5) * 1.5
+                );
+                
+                // Random Spin - FASTER
+                d.angularVelocity.set(
+                    (Math.random() - 0.5) * 0.8,
+                    (Math.random() - 0.5) * 0.8,
+                    (Math.random() - 0.5) * 0.8
+                );
+            });
+        }
+
+        function checkDiceStopped() {
+            if (physics.dice.every(d => !d.active)) {
+                // All stopped
+                const d1 = getDieValue(physics.dice[0].mesh);
+                const d2 = getDieValue(physics.dice[1].mesh);
+                
+                // Snap to nearest face
+                snapDieRotation(physics.dice[0].mesh, d1);
+                snapDieRotation(physics.dice[1].mesh, d2);
+                
+                document.getElementById('die-1').innerText = d1;
+                document.getElementById('die-2').innerText = d2;
+                
+                finalizeRoll(d1, d2);
+            }
+        }
+
+        function getDieValue(mesh) {
+            // Determine which local axis is pointing UP (+Y)
+            const up = new THREE.Vector3(0, 1, 0);
+            up.applyQuaternion(mesh.quaternion.clone().invert());
+            
+            // Find axis closest to (0,1,0)
+            let maxDot = -Infinity;
+            let face = 1;
+            
+            // Normals for faces 1..6 based on texture mapping
+            // 1: +x, 2: -x, 3: +y, 4: -y, 5: +z, 6: -z
+            const normals = [
+                new THREE.Vector3(1, 0, 0),  // 1
+                new THREE.Vector3(-1, 0, 0), // 2
+                new THREE.Vector3(0, 1, 0),  // 3
+                new THREE.Vector3(0, -1, 0), // 4
+                new THREE.Vector3(0, 0, 1),  // 5
+                new THREE.Vector3(0, 0, -1)  // 6
+            ];
+            
+            normals.forEach((n, i) => {
+                const dot = n.dot(up);
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    face = i + 1;
+                }
+            });
+            
+            return face;
+        }
+
+        function snapDieRotation(mesh, value) {
+            // Animate to perfect rotation for the value
+            // We can reuse setDiceFace logic but animate it
+            // For now, just set it to look clean
+            setDiceFace(mesh, value);
+        }
+
+        function createDice() {
+            // Create 2 dice
+            const size = 1.5;
+            const geo = new THREE.BoxGeometry(size, size, size);
+            
+            // Create canvas textures for dice faces
+            const materials = [];
+            const plasticBump = TextureFactory.createPlasticNoise();
+
+            for(let i=1; i<=6; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                
+                // Plastic White Background (Subtle off-white)
+                ctx.fillStyle = '#fdfdfd';
+                ctx.fillRect(0, 0, 128, 128);
+                
+                // Add subtle noise to texture directly
+                const imageData = ctx.getImageData(0,0,128,128);
+                const data = imageData.data;
+                for(let k=0; k<data.length; k+=4) {
+                    const n = (Math.random()-0.5)*5;
+                    data[k] += n;
+                    data[k+1] += n;
+                    data[k+2] += n;
+                }
+                ctx.putImageData(imageData, 0, 0);
+
+                ctx.fillStyle = 'black';
+                
+                // Draw dots
+                const dotSize = 10;
+                const center = 64;
+                const q1 = 32;
+                const q3 = 96;
+                
+                if(i%2 === 1) ctx.beginPath(), ctx.arc(center, center, dotSize, 0, Math.PI*2), ctx.fill();
+                if(i>1) {
+                    ctx.beginPath(), ctx.arc(q1, q1, dotSize, 0, Math.PI*2), ctx.fill();
+                    ctx.beginPath(), ctx.arc(q3, q3, dotSize, 0, Math.PI*2), ctx.fill();
+                }
+                if(i>3) {
+                    ctx.beginPath(), ctx.arc(q3, q1, dotSize, 0, Math.PI*2), ctx.fill();
+                    ctx.beginPath(), ctx.arc(q1, q3, dotSize, 0, Math.PI*2), ctx.fill();
+                }
+                if(i===6) {
+                    ctx.beginPath(), ctx.arc(q1, center, dotSize, 0, Math.PI*2), ctx.fill();
+                    ctx.beginPath(), ctx.arc(q3, center, dotSize, 0, Math.PI*2), ctx.fill();
+                }
+                
+                // Border
+                ctx.strokeStyle = '#ccc';
+                ctx.lineWidth = 5;
+                ctx.strokeRect(0,0,128,128);
+                
+                const tex = new THREE.CanvasTexture(canvas);
+                materials.push(new THREE.MeshPhongMaterial({ 
+                    map: tex,
+                    bumpMap: plasticBump,
+                    bumpScale: 0.02,
+                    specular: 0x333333,
+                    shininess: 100 // High shininess for plastic
+                }));
+            }
+            
+            physics.dice = [];
+            for(let i=0; i<2; i++) {
+                const die = new THREE.Mesh(geo, materials);
+                // Position dice on the mat
+                die.position.set(25 + i*2, 0.5, 0); 
+                die.castShadow = true;
+                diceGroup.add(die);
+                die.visible = true; // Make visible
+                
+                // Initial random rotation
+                die.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+                
+                // Add to physics
+                physics.dice.push(initDicePhysics(die));
+            }
+        }
+
+        // --- GAME LOGIC ---
+        function rollDice() {
+            if (gameState !== 'ROLL') return;
+            
+            SoundManager.playRoll();
+            document.getElementById('roll-btn').disabled = true;
+            
+            // Use Physics Throw
+            throwDicePhysics();
+        }
+
+        function setDiceFace(dieMesh, value) {
+            // Reset rotation
+            dieMesh.rotation.set(0, 0, 0);
+            dieMesh.position.y = 0.5; // Landed on mat (y=-0.25 + 0.75)
+            
+            // Target is +y (Up)
+            // Materials: 0=1, 1=2, 2=3, 3=4, 4=5, 5=6
+            // Faces: 0=+x, 1=-x, 2=+y, 3=-y, 4=+z, 5=-z
+            
+            switch(value) {
+                case 1: // Face 0 (+x) -> Rotate Z +90
+                    dieMesh.rotation.z = Math.PI / 2;
+                    break;
+                case 2: // Face 1 (-x) -> Rotate Z -90
+                    dieMesh.rotation.z = -Math.PI / 2;
+                    break;
+                case 3: // Face 2 (+y) -> No rotation
+                    break;
+                case 4: // Face 3 (-y) -> Rotate X 180
+                    dieMesh.rotation.x = Math.PI;
+                    break;
+                case 5: // Face 4 (+z) -> Rotate X -90
+                    dieMesh.rotation.x = -Math.PI / 2;
+                    break;
+                case 6: // Face 5 (-z) -> Rotate X +90
+                    dieMesh.rotation.x = Math.PI / 2;
+                    break;
+            }
+        }
+
+        function finalizeRoll(d1, d2) {
+            diceValues = [d1, d2];
+            console.log(`Rolled: ${d1}, ${d2}`);
+            
+            // Set final 3D rotation
+            const diceMeshes = diceGroup.children;
+            if (diceMeshes.length >= 2) {
+                setDiceFace(diceMeshes[0], d1);
+                setDiceFace(diceMeshes[1], d2);
+            }
+            
+            // Logic to determine next state
+            remainingDice = [d1, d2];
+            rolledSix = (d1 === 6 || d2 === 6);
+            
+            // Check if any moves are possible at all
+            if (!canAnyTokenMove()) {
+                showToast("No valid moves!");
+                setTimeout(nextTurn, 2000);
+                return;
+            }
+            
+            gameState = 'SELECT_TOKEN';
+            showToast("Select a token to move");
+            highlightValidTokens();
+            saveGame();
+            
+            document.getElementById('roll-btn').disabled = true;
+        }
+
+        let remainingDice = [];
+        let rolledSix = false;
+
+        function canAnyTokenMove() {
+            const p = players[currentPlayerIndex];
+            for (let t of p.tokens) {
+                if (getValidMovesForToken(t).length > 0) return true;
+            }
+            return false;
+        }
+
+        function getValidMovesForToken(token) {
+            const moves = [];
+            // If in Pen
+            if (token.userData.inPen) {
+                // Check if 6 is rolled (ensure type safety)
+                if (remainingDice.some(d => d === 6)) {
+                    moves.push({ type: 'EXIT', cost: 6, steps: 0 });
+                }
+                return moves;
+            }
+
+            // If on Board
+            // Try each die individually
+            const uniqueDice = [...new Set(remainingDice)];
+            uniqueDice.forEach(d => {
+                if (canMoveSteps(token, d)) {
+                    moves.push({ type: 'MOVE', cost: d, steps: d });
+                }
+            });
+
+            // Try sum if both dice available
+            if (remainingDice.length === 2) {
+                const sum = remainingDice[0] + remainingDice[1];
+                if (canMoveSteps(token, sum)) {
+                    moves.push({ type: 'MOVE_SUM', cost: sum, steps: sum });
+                }
+            }
+            
+            return moves;
+        }
+
+        function canMoveSteps(token, steps) {
+            // Logic to check if path is clear (not needed for Ludo usually, can jump)
+            // Check if destination is valid (not beyond home)
+            // Check if destination is blocked by own token? (Usually yes)
+            
+            let currentPathIdx = token.userData.pathIndex;
+            let isHome = token.userData.isHome;
+            let homeIdx = token.userData.homePathIndex;
+            
+            // Calculate destination
+            // If on main track
+            if (!isHome) {
+                // Check if we reach home column entrance
+                // Player Start Index
+                const pStart = PLAYER_INFO[token.userData.playerId].startPos;
+                // Home Entrance Index is (pStart - 1 + 52) % 52.
+                // Actually, simpler: Track distance traveled.
+                // Let's add 'distanceTraveled' to userData.
+                
+                const dist = token.userData.distanceTraveled || 0;
+                const targetDist = dist + steps;
+                
+                if (targetDist > 56) return false; // 50 squares + 6 home squares = 56 max
+                
+                // Check for own token block at destination
+                // We need to calculate exact coordinate of destination to check occupancy
+                // This is complex. Let's simplify:
+                // Allow stacking? Standard Ludo allows stacking or blocks.
+                // Nigerian Ludo: "Landing exactly on opponent captures".
+                // "Cannot capture own tokens" -> implies you can't land on own token? Or you stack?
+                // Usually stacking is allowed or it forms a blockade.
+                // Let's assume stacking is allowed for simplicity, or just ignore own token collision for now.
+                
+                return true;
+            } else {
+                // In home column
+                if (homeIdx + steps < 6) return true;
+                return false;
+            }
+        }
+
+        function onMouseClick(event) {
+            if (gameState !== 'SELECT_TOKEN') return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(tokensGroup.children);
+
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                // Fix: Compare token's owner ID with current player's ID
+                if (obj.userData.playerId === players[currentPlayerIndex].id) {
+                    handleTokenClick(obj);
+                } else {
+                    showToast("Not your token!");
+                }
+            }
+        }
+
+        let selectedToken = null;
+
+        function highlightSelectedToken(token) {
+            clearSelection();
+            selectedToken = token;
+            // Visual Effect: Bright Emissive + Scale Up
+            token.material.emissive.setHex(0xffffff);
+            token.scale.set(1.3, 1.3, 1.3);
+        }
+
+        function clearSelection() {
+            if (selectedToken) {
+                selectedToken.scale.set(1, 1, 1);
+                selectedToken = null;
+            }
+            // Restore valid token highlights
+            highlightValidTokens();
+        }
+
+        function handleTokenClick(token) {
+            const moves = getValidMovesForToken(token);
+            if (moves.length === 0) {
+                showToast("Cannot move this token");
+                return;
+            }
+
+            // Highlight the token immediately
+            highlightSelectedToken(token);
+
+            if (moves.length === 1) {
+                // Small delay to let user see selection before moving? 
+                // Or just move. Let's just move, but clear selection first.
+                // Actually, executeMove will handle logic.
+                // If we move immediately, the selection might look glitchy if we don't clear it.
+                // But executeMove starts animation.
+                // Let's keep selection during animation? No, scale might interfere with movement logic if not careful (though usually position is separate).
+                // Better to clear selection before moving.
+                
+                // Wait, if I clear selection immediately, the user won't see the highlight.
+                // But for single move, it's instant.
+                // Let's just clear it in executeMove.
+                executeMove(token, moves[0]);
+            } else {
+                // Multiple options (e.g. Die 1, Die 2, or Sum)
+                // Show UI to pick
+                showMoveOptions(token, moves);
+            }
+        }
+
+        function showMoveOptions(token, moves) {
+            const ui = document.getElementById('split-ui');
+            ui.style.display = 'block';
+            ui.innerHTML = '<div style="color:white; margin-bottom:5px;">Choose Move:</div>';
+            
+            moves.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = 'split-option';
+                if (m.type === 'EXIT') btn.innerText = `Exit Pen (Use 6)`;
+                else if (m.type === 'MOVE_SUM') btn.innerText = `Move ${m.steps} (Sum)`;
+                else btn.innerText = `Move ${m.steps}`;
+                
+                btn.onclick = () => {
+                    ui.style.display = 'none';
+                    executeMove(token, m);
+                };
+                ui.appendChild(btn);
+            });
+        }
+
+        function executeMove(token, move) {
+            clearSelection(); // Reset visual state
+            
+            // Remove used dice
+            if (move.type === 'MOVE_SUM') {
+                remainingDice = [];
+            } else {
+                const idx = remainingDice.indexOf(move.cost);
+                if (idx > -1) remainingDice.splice(idx, 1);
+            }
+
+            // Perform Animation & Logic
+            if (move.type === 'EXIT') {
+                exitPen(token);
+            } else {
+                moveTokenAlongPath(token, move.steps);
+            }
+        }
+
+        function exitPen(token) {
+            const pId = token.userData.playerId;
+            const startIdx = PLAYER_INFO[pId].startPos;
+            const targetPos = mainPath[startIdx];
+            
+            // Animate
+            animateTokenToPos(token, targetPos, () => {
+                token.userData.inPen = false;
+                token.userData.pathIndex = startIdx;
+                token.userData.distanceTraveled = 0;
+                checkCapture(token);
+                resolveTokenOverlaps(); // Fix positions if stacked
+                checkTurnEnd();
+            });
+        }
+
+        function moveTokenAlongPath(token, steps) {
+            // Calculate path points
+            const pathPoints = [];
+            let currentIdx = token.userData.pathIndex;
+            let currentDist = token.userData.distanceTraveled || 0;
+            let isHome = token.userData.isHome;
+            let homeIdx = token.userData.homePathIndex;
+            const pId = token.userData.playerId;
+
+            for(let i=0; i<steps; i++) {
+                currentDist++;
+                
+                if (!isHome) {
+                    // Check if entering home
+                    // Distance to enter home is 51 (0-50 is 51 steps).
+                    // Actually, track is 52 squares.
+                    // If dist == 51, next is Home[0].
+                    if (currentDist > 50) {
+                        isHome = true;
+                        homeIdx = 0;
+                        pathPoints.push(homePaths[pId][homeIdx]);
+                    } else {
+                        currentIdx = (currentIdx + 1) % 52;
+                        pathPoints.push(mainPath[currentIdx]);
+                    }
+                } else {
+                    homeIdx++;
+                    pathPoints.push(homePaths[pId][homeIdx]);
+                }
+            }
+
+            // Animate through points
+            animateTokenAlongPoints(token, pathPoints, () => {
+                // Update State
+                token.userData.distanceTraveled = currentDist;
+                token.userData.isHome = isHome;
+                token.userData.pathIndex = currentIdx;
+                token.userData.homePathIndex = homeIdx;
+                
+                if (isHome && homeIdx === 5) {
+                    // Reached Center
+                    token.visible = false; // Hide or move to winner circle
+                    token.userData.finished = true;
+                    if (checkWin()) return;
+                } else {
+                    checkCapture(token);
+                }
+                resolveTokenOverlaps(); // Fix positions if stacked
+                checkTurnEnd();
+            });
+        }
+
+        function checkCapture(token) {
+            if (token.userData.isHome) return; // Cannot capture in home column
+            
+            // Check if any opponent token is at the same pathIndex
+            // And not on a safe spot
+            const pos = token.userData.pathIndex;
+            
+            // Is safe?
+            // Start squares are safe.
+            // Star squares are safe.
+            // We need to check if 'pos' corresponds to a safe square.
+            // Start Indices: 0, 13, 26, 39.
+            const isSafe = [0, 13, 26, 39].includes(pos) || 
+                           isStarSquare(pos); // Need to implement isStarSquare
+            
+            if (isSafe) return;
+
+            players.forEach(p => {
+                if (p.id !== token.userData.playerId) {
+                    p.tokens.forEach(enemy => {
+                        if (!enemy.userData.inPen && !enemy.userData.isHome && !enemy.userData.finished) {
+                            if (enemy.userData.pathIndex === pos) {
+                                // Capture!
+                                showToast("Captured!");
+                                SoundManager.playCapture();
+                                returnToPen(enemy);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        
+        function isStarSquare(index) {
+            // Map index to coords, check against star coords
+            const pos = mainPath[index];
+            const safeCoords = [{x: 8, z: 2}, {x: 6, z: 12}, {x: 2, z: 6}, {x: 12, z: 8}];
+            return safeCoords.some(p => p.x === pos.x && p.z === pos.z);
+        }
+
+        function returnToPen(token) {
+            token.userData.inPen = true;
+            token.userData.pathIndex = -1;
+            token.userData.distanceTraveled = 0;
+            
+            const pId = token.userData.playerId;
+            const tId = token.userData.tokenId;
+            
+            // Re-calculate pen position
+            const dirMap = [
+                {x: -1, z: 1}, // Red
+                {x: -1, z: -1}, // Blue
+                {x: 1, z: -1}, // Yellow
+                {x: 1, z: 1}  // Green
+            ];
+            const dir = dirMap[pId];
+            const offsets = [
+                {x: -1, z: -1}, {x: 1, z: -1},
+                {x: -1, z: 1}, {x: 1, z: 1}
+            ];
+            
+            const penX = dir.x * 6.75 + offsets[tId].x;
+            const penZ = dir.z * 6.75 + offsets[tId].z;
+             
+            // Animate back to pen using world coordinates
+            animateTokenToPos(token, {x: penX, z: penZ}, null, true);
+        }
+
+        function checkTurnEnd() {
+            if (remainingDice.length > 0 && canAnyTokenMove()) {
+                gameState = 'SELECT_TOKEN';
+                showToast("Select token for remaining die");
+                highlightValidTokens();
+                saveGame();
+            } else {
+                if (rolledSix) {
+                    showToast("Rolled a 6! Extra Turn!");
+                    gameState = 'ROLL';
+                    document.getElementById('roll-btn').disabled = false;
+                    saveGame();
+                } else {
+                    nextTurn();
+                }
+            }
+        }
+
+        function nextTurn() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % numPlayers;
+            updateUI();
+            gameState = 'ROLL';
+            document.getElementById('roll-btn').disabled = false;
+            showToast(`${players[currentPlayerIndex].name}'s Turn`);
+            saveGame();
+        }
+        
+        function checkWin() {
+            const p = players[currentPlayerIndex];
+            const finishedCount = p.tokens.filter(t => t.userData.finished).length;
+            if (finishedCount === 4) {
+                SoundManager.playWin();
+                ConfettiManager.start(); // Start Confetti
+                document.getElementById('winner-modal').style.display = 'flex';
+                document.getElementById('winner-text').innerText = `${p.name} WINS!`;
+                localStorage.removeItem('ludoGameState');
+                return true;
+            }
+            return false;
+        }
+
+        function resolveTokenOverlaps() {
+            // Group tokens by position
+            const groups = {};
+            
+            players.forEach(p => {
+                p.tokens.forEach(t => {
+                    if (t.userData.inPen || t.userData.finished) return;
+                    
+                    let key = "";
+                    if (t.userData.isHome) {
+                        key = `HOME_${p.id}_${t.userData.homePathIndex}`;
+                    } else {
+                        key = `BOARD_${t.userData.pathIndex}`;
+                    }
+                    
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(t);
+                });
+            });
+            
+            // Apply offsets
+            Object.values(groups).forEach(group => {
+                // Always reset to center first if count is 1, to fix any previous offset
+                // But we need to know the center.
+                
+                const count = group.length;
+                const spread = 0.4; // Distance from center
+                
+                group.forEach((t, i) => {
+                    let offsetX = 0;
+                    let offsetZ = 0;
+                    
+                    if (count === 2) {
+                        offsetX = (i === 0 ? -1 : 1) * (spread / 1.5);
+                        offsetZ = (i === 0 ? -1 : 1) * (spread / 1.5); 
+                    } else if (count === 3) {
+                        const angle = (i / 3) * Math.PI * 2;
+                        offsetX = Math.cos(angle) * spread;
+                        offsetZ = Math.sin(angle) * spread;
+                    } else if (count >= 4) {
+                        offsetX = (i % 2 === 0 ? -1 : 1) * (spread / 1.2);
+                        offsetZ = (i < 2 ? -1 : 1) * (spread / 1.2);
+                    }
+                    
+                    let basePos = getPositionFromUserData(t);
+                    const targetX = basePos.x + offsetX;
+                    const targetZ = basePos.z + offsetZ;
+                    
+                    slideToken(t, targetX, targetZ);
+                });
+            });
+        }
+
+        function getPositionFromUserData(token) {
+            const cellSize = 1.5;
+            const offset = (15 * cellSize) / 2 - (cellSize / 2);
+            
+            let gridPos;
+            if (token.userData.isHome) {
+                gridPos = homePaths[token.userData.playerId][token.userData.homePathIndex];
+            } else {
+                gridPos = mainPath[token.userData.pathIndex];
+            }
+            
+            return {
+                x: gridPos.x * cellSize - offset,
+                z: gridPos.z * cellSize - offset
+            };
+        }
+
+        function slideToken(token, x, z) {
+            // Check if already there (approx)
+            if (Math.abs(token.position.x - x) < 0.01 && Math.abs(token.position.z - z) < 0.01) return;
+            
+            // Add to animations
+            animations.push({
+                token: token,
+                start: token.position.clone(),
+                end: new THREE.Vector3(x, token.position.y, z),
+                startTime: Date.now(),
+                duration: 200, // Fast slide
+                update: function() {
+                    const now = Date.now();
+                    const progress = Math.min((now - this.startTime) / this.duration, 1);
+                    this.token.position.lerpVectors(this.start, this.end, progress);
+                    return progress >= 1;
+                }
+            });
+        }
+
+        // --- ANIMATION UTILS ---
+        // We need a Tween library or simple lerp.
+        // Let's include TWEEN.js via CDN or write a simple one.
+        // I'll write a simple one in the animate loop.
+        
+        const animations = [];
+        
+        function animateTokenToPos(token, targetGridPos, onComplete, isWorldCoords = false) {
+            SoundManager.playMove();
+            const cellSize = 1.5;
+            const offset = (15 * cellSize) / 2 - (cellSize / 2);
+            
+            let tx, tz;
+            if (isWorldCoords) {
+                tx = targetGridPos.x;
+                tz = targetGridPos.z;
+            } else {
+                tx = targetGridPos.x * cellSize - offset;
+                tz = targetGridPos.z * cellSize - offset;
+            }
+            
+            // Parabolic arc
+            const start = token.position.clone();
+            const end = new THREE.Vector3(tx, 0.6, tz);
+            const mid = start.clone().lerp(end, 0.5);
+            mid.y += 2; // Jump height
+            
+            let progress = 0;
+            const speed = 0.05;
+            
+            animations.push({
+                update: () => {
+                    progress += speed;
+                    if (progress >= 1) {
+                        token.position.copy(end);
+                        if (onComplete) onComplete();
+                        return true; // Finished
+                    }
+                    
+                    // Quadratic Bezier
+                    const p0 = start;
+                    const p1 = mid;
+                    const p2 = end;
+                    
+                    token.position.x = (1-progress)*(1-progress)*p0.x + 2*(1-progress)*progress*p1.x + progress*progress*p2.x;
+                    token.position.y = (1-progress)*(1-progress)*p0.y + 2*(1-progress)*progress*p1.y + progress*progress*p2.y;
+                    token.position.z = (1-progress)*(1-progress)*p0.z + 2*(1-progress)*progress*p1.z + progress*progress*p2.z;
+                    
+                    return false;
+                }
+            });
+        }
+        
+        function animateTokenAlongPoints(token, points, onComplete) {
+            if (points.length === 0) {
+                if (onComplete) onComplete();
+                return;
+            }
+            
+            const nextPoint = points.shift();
+            animateTokenToPos(token, nextPoint, () => {
+                animateTokenAlongPoints(token, points, onComplete);
+            });
+        }
+
+        // --- KEYBOARD SUPPORT ---
+        let keyboardTokenIndex = -1;
+        let validTokensForTurn = [];
+
+        function handleKeyboardInput(e) {
+            if (e.target.tagName === 'INPUT') return;
+
+            const key = e.key;
+            
+            // Global Shortcuts
+            if (key.toLowerCase() === 'r') resetCamera();
+            if (key.toLowerCase() === 'm') SoundManager.toggleBGM();
+            if (key.toLowerCase() === 's') SoundManager.toggle();
+            
+            // Rulebook Scrolling
+            const rulesModal = document.getElementById('rules-modal');
+            if (rulesModal.style.display === 'flex') {
+                const content = rulesModal.querySelector('.rules-content');
+                if (key === 'ArrowDown') {
+                    content.scrollTop += 50;
+                    e.preventDefault();
+                    return;
+                }
+                if (key === 'ArrowUp') {
+                    content.scrollTop -= 50;
+                    e.preventDefault();
+                    return;
+                }
+            }
+
+            // Modals
+            if (key === 'Escape') {
+                const settings = document.getElementById('settings-modal');
+                const rules = document.getElementById('rules-modal');
+                const winner = document.getElementById('winner-modal');
+                
+                if (rules.style.display === 'flex') rules.style.display = 'none';
+                else if (settings.style.display === 'flex') settings.style.display = 'none';
+                else if (winner.style.display === 'flex') location.reload();
+                else settings.style.display = 'flex';
+                return;
+            }
+
+            // Game States
+            if (gameState === 'ROLL') {
+                if (key === ' ' || key === 'Enter') {
+                    if (!document.getElementById('roll-btn').disabled) {
+                        rollDice();
+                    }
+                }
+            } else if (gameState === 'SELECT_TOKEN') {
+                const splitUI = document.getElementById('split-ui');
+                if (splitUI.style.display === 'block') {
+                    const buttons = splitUI.querySelectorAll('button');
+                    const num = parseInt(key);
+                    if (!isNaN(num) && num > 0 && num <= buttons.length) {
+                        buttons[num-1].click();
+                    }
+                    return;
+                }
+
+                if (key === 'Tab' || key === 'ArrowRight') {
+                    e.preventDefault();
+                    cycleTokenSelection(1);
+                } else if (key === 'ArrowLeft') {
+                    e.preventDefault();
+                    cycleTokenSelection(-1);
+                } else if (key === 'Enter') {
+                    if (keyboardTokenIndex !== -1 && validTokensForTurn[keyboardTokenIndex]) {
+                        handleTokenClick(validTokensForTurn[keyboardTokenIndex]);
+                    }
+                }
+            }
+        }
+
+        function cycleTokenSelection(dir) {
+            if (validTokensForTurn.length === 0) return;
+            
+            keyboardTokenIndex += dir;
+            if (keyboardTokenIndex >= validTokensForTurn.length) keyboardTokenIndex = 0;
+            if (keyboardTokenIndex < 0) keyboardTokenIndex = validTokensForTurn.length - 1;
+            
+            // Re-highlight
+            tokens.forEach(t => t.material.emissive.setHex(0x000000));
+            validTokensForTurn.forEach(t => t.material.emissive.setHex(0x555555));
+            
+            const t = validTokensForTurn[keyboardTokenIndex];
+            t.material.emissive.setHex(0xffff00); // Yellow highlight
+            
+            showToast(`Selected Token ${t.userData.tokenId + 1}`);
+        }
+
+        function highlightValidTokens() {
+            // Reset all emissive
+            tokens.forEach(t => t.material.emissive.setHex(0x000000));
+            
+            const p = players[currentPlayerIndex];
+            validTokensForTurn = [];
+            
+            p.tokens.forEach(t => {
+                if (getValidMovesForToken(t).length > 0) {
+                    t.material.emissive.setHex(0x555555);
+                    validTokensForTurn.push(t);
+                }
+            });
+            
+            keyboardTokenIndex = -1;
+        }
+
+        function updateUI() {
+            const p = players[currentPlayerIndex];
+            document.getElementById('player-name').innerText = p.name + "'s Turn";
+            document.getElementById('player-name').style.color = '#' + p.color.toString(16);
+            document.getElementById('current-player-panel').style.borderLeftColor = '#' + p.color.toString(16);
+        }
+
+        function showToast(msg) {
+            const el = document.getElementById('toast-msg');
+            el.innerText = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function resetCamera() {
+            controls.reset();
+        }
+
+        // Start init
+        init();
+
+    </script>
+
+    </div>
+</body>
+</html>

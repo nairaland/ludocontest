@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head> <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="https://fontface-embeds.vercel.app/embed_fonts.css">
+	<title>3D Ludo – Control Starter</title>
+		<style>
+	*{
+		-webkit-text-stroke: 0 !important; -webkit-text-stroke-width: 0%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: antialiased;
+		margin: 0; outline: none; padding: 0; scroll-behavior: smooth; text-decoration: none; text-emphasis: none; -webkit-text-emphasis: none; 
+		text-rendering: optimizeLegibility; text-size-adjust: 100%; -webkit-text-size-adjust: 100%; user-select: none; -webkit-user-select: none; -moz-user-select: none;
+		-webkit-tap-highlight-color: transparent; -moz-tap-highlight-color: transparent; -webkit-user-zoom: none; 
+		letter-spacing: -0.02em; font-family: Satoshi-Regular, sans-serif, Helvetica; font-weight: 500;
+		--gl_0: #c0c0c01c; --gl_1: #c0c0c052; --gl_2: #c0c0c08a; --gl_3: #c0c0c0c3; --gl_4: #c0c0c0fc; --footerBgColor: #200036;
+	}
+	body {overflow: hidden; background: #111;} button, .pop { cursor: pointer;} .pop {transition: transform 0.75s ease-in-out;}
+    button { padding: 7px; border-radius: 5px; border: 0px; font-family: press_start2p;}
+
+	.pop:hover { transform: scale(1.1); transition: transform 0.5s ease-out, background-color 0.5s ease ;background-color: sienna;color: wheat;}
+	.pop:active, .pop:hover:active {transform: scale(0.9);}
+	.isFooter { position: fixed; width: 100%; height: 4%; bottom: 0; left: 0; overflow: hidden; background-color: var(--footerBgColor); color: white; font-family: atalon;
+	display: flex; align-items: center; justify-content: center;}
+	input { font-size: 16px;}
+	.isFooter a { color: skyblue; font-family: inherit; text-decoration: underline; text-underline-offset: -12px; font-size: 1rem;}
+
+	.gamearea,#HUD,#Gutter,#Optioner,#Rack { border: 0px;border-radius: 5px;backdrop-filter: blur(3px);
+		-webkit-backdrop-filter: blur(3px);
+		/* outline: 1px solid silver; */
+	}
+.gamearea {
+	position: relative;
+	width: 99dvw;
+	height: 96dvh;
+	margin: auto;
+}
+#HUD, #Rack {
+	color: white;
+	height: 120px;
+}
+#Gutter {
+	color: white;
+	font-family: press_start2p, sans-serif;
+	font-size: 2rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+#BoardArea {
+	position: relative;
+	top: 0;
+	margin: auto;
+	width: 365px;
+	height: 340px;
+	background-color: transparent;
+	border: 0px;
+	/* outline: 1px solid silver; */
+}
+.roll-btn{
+	padding: 15px;
+	font-size: 1.2rem;
+	font-family: "Satoshi-Bold";
+}
+@media screen and (max-width: 490px) and (max-height: 950px){
+.gamearea,
+#HUD,
+#Gutter,
+#Optioner {
+	outline: 1px solid var(--gl_0);
+	/* outline: none; */
+}
+	#BoardArea{
+		position: absolute;
+		top: 90px;
+		left: 50%;
+		transform: translateX(-50%);
+		outline: none;
+	}
+	#Optioner, #Gutter, #Rack {
+		position: absolute;
+		bottom: 0;
+		width: 30%;
+		height: 23%;
+	}
+	#Optioner {
+		/* background-color: wheat; */
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	#Gutter{
+		width: 67%;
+		right: 0;
+	}
+	#Rack{
+		width: 100%;
+		height: 20%;
+		bottom: 23%;
+	}	
+}
+#Rack, #HUD{
+	display: flex;
+	gap: 5px;
+}
+#Rack{
+	flex-direction: row-reverse;
+}
+.c1,.c2{
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+.c1 {
+	width: 30%;
+}
+.c2{
+	width: 70%;
+}
+.isCount {
+	outline: 1px solid var(--gl_0);
+	height: 40%;
+}
+.isTaunt{
+	outline: 1px solid var(--gl_1);
+	height: 60%;
+	border-radius: 10px;
+}
+
+.avbox{
+	font-size: 4rem;
+	box-sizing: border-box;
+	padding: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/**/
+/**/
+.instruct_ph,
+.landing{
+	width: 100%;
+	height: 100%;
+	z-index: 100;
+	background-color: black;
+	backdrop-filter: grayscale(75%);
+	-webkit-backdrop-filter: grayscale(75%);
+	position: absolute;
+	color: white;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+  opacity: 1;
+  transition: opacity 0.6s ease;
+}
+.instruct_ph.fade-out,
+.landing.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.landing h1{
+	font-size: 4rem;
+}
+.landing h1 span{
+	font-family: "press_start2p";
+}
+.start, .start2, .start4, .instruct{
+	padding: 15px;
+	word-spacing: -5px;
+	letter-spacing: -1px;
+}
+#cubex{
+    width: 75px; height:75px;
+	/* outline: 1px solid silver; */
+}
+
+/* S.O.S 😂 */
+
+/* DESKTOP/TABLET GRID LAYOUT */
+@media screen and (min-width: 491px) {
+  .gamearea {
+    display: grid;
+    grid-template-areas:
+      "hud hud"
+      "board optioner"
+      "rack gutter";
+    grid-template-columns: 1fr 200px;
+    grid-template-rows: 150px 1fr 150px;
+    gap: 15px;
+    width: 95vw;
+    height: 95vh;
+    padding: 10px;
+    margin: auto;
+    background: linear-gradient(135deg, #111 0%, #1a1a1a 100%);
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(0,0,0,0.7);
+  }
+
+  #HUD {
+    grid-area: hud;
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    backdrop-filter: blur(8px);
+  }
+
+  #BoardArea {
+    grid-area: board;
+	position: absolute;
+	top: 0;
+    width: 500px;
+    height: 500px;
+    margin: auto;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(255,255,255,0.05);
+   /* background-color: #1e1e1e; */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #Optioner {
+    grid-area: optioner;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  #Rack {
+    grid-area: rack;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  #Gutter {
+    grid-area: gutter;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: #fff;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  /* Hover / highlight touches */
+  #Optioner button.roll-btn {
+    width: 100%;
+    padding: 15px 10px;
+    font-size: 1.25rem;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #222, #333);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    transition: transform 0.3s ease, background 0.3s ease;
+  }
+
+  #Optioner button.roll-btn:hover {
+    transform: scale(1.05);
+    background: linear-gradient(145deg, #444, #555);
+  }
+}
+
+#reset-g{
+	position: fixed;
+	top: 0;
+	right: 5dvw;
+	padding: 20px;
+	z-index: 99;
+}
+</style>
+</head>
+<body>
+	<div class="landing">
+		<h4>ideationSpace Presents</h4><br>
+		<h1>Ludo <span>3D</span></h1>
+        <div id="cubex"></div>
+		<br><br><br><br>
+		<button class="start pop"> START (vs CPU) </button><br>
+		<!--
+		<button class="start2 pop"> START With 2 Seeds</button><br>
+		<button class="start4 pop"> START With 4 Seeds</button><br>
+		-->
+		<button class="instruct pop"> INSTRUCTIONS </button>
+	</div>
+	<div class="instruct_ph fade-out">
+      <p>Tap the button to roll the dice.</p>
+      <p>Tap a seed directly to select it.</p>
+      <p>You need to roll <strong>6</strong> to bring a seed out of home.</p>
+      <p>If you roll <strong>6</strong> again, you get another turn.</p>
+      <p>Beat the game. First to complete the run wins!</p>
+      <br>
+	  <p> Alas the game is incomplete! I ran out of time 😂</p>
+	  <p> A fair number of features still work though. <br>
+		  No opponent logic implemented yet... <br>
+		  You could play against yourself. Enjoy 😌
+	  </p>
+		<br><br>
+      <button class="exit_ph pop">Back</button>
+    </div>
+	
+	<div class="gamearea">
+		<button id="reset-g" class="pop" onclick="window.location.reload()">EXIT</button>
+		<div id="BoardArea"></div>
+		<div id="HUD">
+			<div class="c1">
+				<div class="avbox" id="cpu-av"> 🤖 </div>
+			</div>
+			<div class="c2">
+				<div class="isCount" id="cpu-count"> CPU Seed count</div>
+				<div class="isTaunt" id="cpu-taunt"> CPU Taunt</div>
+			</div>
+		</div>
+		<div id="Rack">
+			<div class="c1">
+				<div class="avbox" id="usr-av"> 👤 </div>
+			</div>
+			<div class="c2">
+				<div class="isCount" id="usr-count"> User Seed count</div>
+				<div class="isTaunt" id="usr-taunt"> User Taunt</div>
+			</div>
+		</div>
+		<div id="Optioner">
+			<button class="roll-btn pop">Roll Dice</button>
+		</div>
+		<div id="Gutter"></div>
+	</div>
+	<!-- site credits -->
+	<div class="isFooter">Proudly Brought to You by &nbsp;
+		<a title="ideation, now!" href='https://trireme-ideations.vercel.app'>ideationSpace</a>
+	</div>
+	
+	<script type="module">
+
+// prepare landing
+document.querySelector('.start').addEventListener('click', () => {
+  document.querySelector('.landing').classList.add('fade-out');
+});
+
+document.querySelector('.instruct').addEventListener('click', () => {
+  document.querySelector('.instruct_ph').classList.remove('fade-out');
+});
+
+document.querySelector('.exit_ph').addEventListener('click', () => {
+  document.querySelector('.instruct_ph').classList.add('fade-out');
+});
+//	
+		import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+
+		/* =====================
+		BASIC SCENE SETUP
+		====================== */
+		const canvas = document.querySelector("#BoardArea");
+		const attrib = getComputedStyle(canvas);
+		const width_bound = parseInt(attrib.width);
+		const height_bound = parseInt(attrib.height);
+
+		const scene = new THREE.Scene();
+		// scene.background = new THREE.Color(0x1a1a1a);
+		scene.background = new THREE.Color("#111");
+
+////add dice
+
+function createDie() {
+  const size = 1;
+
+  // canvas-based face texture
+  function faceTexture(pips) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    const ctx = c.getContext("2d");
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 256, 256);
+
+    ctx.fillStyle = "#000000";
+    const r = 18;
+    const positions = {
+      1: [[128,128]],
+      2: [[64,64],[192,192]],
+      3: [[64,64],[128,128],[192,192]],
+      4: [[64,64],[64,192],[192,64],[192,192]],
+      5: [[64,64],[64,192],[128,128],[192,64],[192,192]],
+      6: [[64,64],[64,128],[64,192],[192,64],[192,128],[192,192]]
+    };
+
+    positions[pips].forEach(([x,y]) => {
+      ctx.beginPath();
+      ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fill();
+    });
+
+    return new THREE.CanvasTexture(c);
+  }
+
+  const materials = [
+    new THREE.MeshStandardMaterial({ map: faceTexture(1) }), // +X
+    new THREE.MeshStandardMaterial({ map: faceTexture(6) }), // -X
+    new THREE.MeshStandardMaterial({ map: faceTexture(2) }), // +Y
+    new THREE.MeshStandardMaterial({ map: faceTexture(5) }), // -Y
+    new THREE.MeshStandardMaterial({ map: faceTexture(3) }), // +Z
+    new THREE.MeshStandardMaterial({ map: faceTexture(4) })  // -Z
+  ];
+
+  const geometry = new THREE.BoxGeometry(size, size, size);
+  const die = new THREE.Mesh(geometry, materials);
+
+  die.castShadow = true;
+  die.receiveShadow = true;
+
+  return die;
+}
+
+const die = createDie();
+const container = document.getElementById("cubex");
+die.position.set(0, 0, 0);
+
+// --- DICE SCENE ---
+const dieScene = new THREE.Scene();
+dieScene.background = new THREE.Color("black");
+dieScene.add(new THREE.AmbientLight(0xffffff, 1.0));
+
+const dieLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dieLight.position.set(5, 6, 7);
+dieScene.add(dieLight);
+
+const dieCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 10);
+dieCamera.position.set(2, 2, 3);
+dieCamera.lookAt(0, 0, 0);
+dieScene.add(die);
+
+const dieRenderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: true
+});
+dieRenderer.setSize(120, 120);
+container.appendChild(dieRenderer.domElement);
+
+function animateDie() {
+  requestAnimationFrame(animateDie);
+  die.rotation.x += 0.015;
+  die.rotation.y += 0.02;
+  dieRenderer.render(dieScene, dieCamera);
+}
+animateDie();
+//////
+		
+		const boardRoot = new THREE.Group();
+		scene.add(boardRoot);
+
+		const camera = new THREE.PerspectiveCamera(75, width_bound / height_bound, 0.1, 100);
+		
+		const H_ROT = 3;
+		const D_ZOM = 25;
+		const F_LTR = -35;
+		camera.position.set(H_ROT, D_ZOM, F_LTR);
+		
+		const BOARD_OFFSET_A = 0;
+		const BOARD_Y_OFFSET = -10;
+		const BOARD_OFFSET_B = -5;
+		const BOARD_SCALER = 2.2;
+		camera.lookAt(BOARD_OFFSET_A, BOARD_Y_OFFSET, BOARD_OFFSET_B);
+
+		const renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setSize(width_bound, height_bound);
+		canvas.appendChild(renderer.domElement);
+
+		/* =====================
+		RAYCASTING
+		====================== */
+		const raycaster = new THREE.Raycaster();
+		const pointer = new THREE.Vector2();
+		let selectedToken = null;
+
+		/* =====================
+		LIGHTING
+		====================== */
+		scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+		const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+		dirLight.position.set(10, 20, 10);
+		scene.add(dirLight);
+
+		/* =====================
+		MATERIALS
+		====================== */
+		const materials = {
+			board: new THREE.MeshStandardMaterial({ color: 0xf0f0f0 }),
+			red: new THREE.MeshStandardMaterial({ color: 0xd64545 }),
+			green: new THREE.MeshStandardMaterial({ color: 0x3aa655 }),
+			yellow: new THREE.MeshStandardMaterial({ color: 0xe6c84f }),
+			blue: new THREE.MeshStandardMaterial({ color: 0x3b6fd8 }),
+			path: new THREE.MeshStandardMaterial({ color: 0xdddddd })
+		};
+
+		/* =====================
+		BASE BOARD
+		====================== */
+		const BOARD_SIZE = 20;
+		const board = new THREE.Mesh(
+			new THREE.BoxGeometry(BOARD_SIZE, 1, BOARD_SIZE),
+			materials.board
+		);
+		board.position.y = -0.5;
+		boardRoot.add(board);
+		boardRoot.scale.setScalar(BOARD_SCALER);
+
+// =====================
+// TOKEN POINTER CURSOR
+// =====================
+renderer.domElement.addEventListener("pointermove", (event) => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(pointer, camera);
+
+    const intersects = raycaster.intersectObjects(tokens, true);
+    if (intersects.length > 0) {
+        renderer.domElement.style.cursor = "pointer";
+    } else {
+        renderer.domElement.style.cursor = "default";
+    }
+});
+
+
+		/* =====================
+		GRID + TILES
+		====================== */
+		const BEZEL = 1.15;
+		const GRID_SIZE = 13;
+		const PLAY_AREA = BOARD_SIZE - BEZEL * 2;
+		const TILE_SIZE = PLAY_AREA / GRID_SIZE;
+		const HALF = (GRID_SIZE - 1) / 2 * TILE_SIZE;
+		const GAP = 0.06;
+		const FLAT_Y = 0.01;
+
+		function gridToWorld(row, col) {
+			return { x: (col * TILE_SIZE) - HALF, z: (row * TILE_SIZE) - HALF };
+		}
+
+		function stackTokensOnTile(row, col){
+			const sameTileTokens = tokens.filter(t =>
+				t.userData.row === row &&
+				t.userData.col === col
+				// t.userData.state !== "HOME"
+			);
+
+			sameTileTokens.forEach((t, i) => {
+				t.position.y = TOKEN_Y + i * 0.5;
+			});
+		}
+
+
+		function getTileType(row, col) {
+			if (row >= 5 && row <= 7 && col >= 5 && col <= 7)
+				return { mat: new THREE.MeshStandardMaterial({ color: 0x999999 }), gap: 0 };
+			if (row <= 4 && col <= 4) return { mat: materials.yellow, gap: 0 };
+			if (row <= 4 && col >= 8) return { mat: materials.blue, gap: 0 };
+			if (row >= 8 && col >= 8) return { mat: materials.red, gap: 0 };
+			if (row >= 8 && col <= 4) return { mat: materials.green, gap: 0 };
+
+			const pathMap = {
+				yellow: [[5, 1], [6, 1], [6, 2], [6, 3], [6, 4]],
+				blue: [[1, 7], [1, 6], [2, 6], [3, 6], [4, 6]],
+				red: [[7, 11], [6, 11], [6, 10], [6, 9], [6, 8]],
+				green: [[11, 5], [11, 6], [10, 6], [9, 6], [8, 6]]
+			};
+
+			for (const [color, coords] of Object.entries(pathMap)) {
+				if (coords.some(([r, c]) => r === row && c === col))
+					return { mat: materials[color], gap: GAP };
+			}
+
+			return { mat: new THREE.MeshStandardMaterial({ color: 0xffffff }), gap: GAP };
+		}
+
+		const tileGroup = new THREE.Group();
+		for (let row = 0; row < GRID_SIZE; row++) {
+			for (let col = 0; col < GRID_SIZE; col++) {
+				const { mat, gap } = getTileType(row, col);
+				const size = TILE_SIZE - gap;
+
+				const tile = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
+				tile.rotation.x = -Math.PI / 2;
+				const { x, z } = gridToWorld(row, col);
+				tile.position.set(x, FLAT_Y, z);
+				tile.userData = { row, col, isTile: true };
+				tile.raycast = () => { };
+				tileGroup.add(tile);
+			}
+		}
+		boardRoot.add(tileGroup);
+
+		/* =====================
+		PAWN TOKENS WITH BLACK SILHOUETTE
+		====================== */
+		const tokenMaterials = {
+			yellow: materials.yellow,
+			blue: materials.blue,
+			red: materials.red,
+			green: materials.green
+		};
+
+		const tokenStartPositions = {
+			yellow: [[1, 1], [1, 3], [3, 1], [3, 3]],
+			blue: [[1, 9], [1, 11], [3, 9], [3, 11]],
+			red: [[9, 9], [9, 11], [11, 9], [11, 11]],
+			green: [[9, 1], [9, 3], [11, 1], [11, 3]]
+		};
+        // Full movement paths for each color
+/*
+*/
+let userCount=0;
+let cpuCount=0;
+
+const paths = {
+
+  yellow: [
+    [5,1],[5,2],[5,3],[5,4],[4,5],[3,5],[2,5],[1,5],[0,5],[0,6],[0,7],[1,7],[2,7],
+	[3,7],[4,7],[5,8],[5,9],[5,10],[5,11],[5,12],[6,12],[7,12],[7,11],[7,10],[7,9],
+    [8,7],[9,7],[10,7],[11,7],[12,7],[12,6],[12,5],[11,5],[10,5],[9,5],[8,5],[7,4],
+	[7,3],[7,2],[7,1],[7,0],[6,0],[6,1],[6,2],[6,3],[6,4],[6,5]
+  ],
+  blue: [
+    [1,7],[2,7],[3,7],[4,7],[5,8],[5,9],[5,10],[5,11],[5,12],[6,12],[7,12],[7,11],
+	[7,10],[7,9],[7,8],[8,7],[9,7],[10,7],[11,7],[12,7],[12,6],[12,5],[11,5],[10,5],
+	[9,5],[7,4],[7,3],[7,2],[7,1],[7,0],[6,0],[5,0],[5,1],[5,2],[5,3],[5,4],[4,5],
+	[3,5],[2,5],[1,5],[0,5],[0,6],[1,6],[2,6],[3,6],[4,6],[5,6]
+  ],
+
+  red: [
+    [7,11],[7,10],[7,9],[7,8],[8,7],[9,7],[10,7],[11,7],[12,7],[12,6],[12,5],[11,5],
+	[10,5],[9,5],[8,5],[7,4],[7,3],[7,2],[7,1],[7,0],[6,0],[5,0],[5,1],[5,2],[5,3],
+    [4,5],[3,5],[2,5],[1,5],[0,5],[0,6],[0,7],[1,7],[2,7],[3,7],[4,7],[5,8],[5,9],
+	[5,10],[5,11],[5,12],[6,12],[6,11],[6,10],[6,9],[6,8],[6,7]
+  ],
+  green: [
+    [11,5],[10,5],[9,5],[8,5],[7,4],[7,3],[7,2],[7,1],[7,0],[6,0],[5,0],[5,1],[5,2],
+	[5,3],[5,4],[4,5],[3,5],[2,5],[1,5],[0,5],[0,6],[0,7],[1,7],[2,7],[3,7],[5,8],
+	[5,9],[5,10],[5,11],[5,12],[6,12],[7,12],[7,11],[7,10],[7,9],[7,8],[8,7],[9,7],
+	[10,7],[11,7],[12,7],[12,6],[11,6],[10,6],[9,6],[8,6],[7,6]
+  ]
+};
+
+const safeTiles = new Set([
+  "5,1","1,7","7,11","11,5", // entry tiles
+  "6,6" // center optional (keep or remove)
+]);
+
+		const TOKEN_Y = FLAT_Y;
+		const tokens = [];
+
+function createPawn(color, row, col) {
+	const group = new THREE.Group();
+
+	// Slightly taller body
+	const bodyHeight = TILE_SIZE * 0.45;
+	const bodyGeo = new THREE.CylinderGeometry(TILE_SIZE * 0.28, TILE_SIZE * 0.28, bodyHeight, 20);
+
+	// Clone material for individual emissive highlighting
+	const bodyMat = tokenMaterials[color].clone();
+	bodyMat.emissive = new THREE.Color(0x000000); // default black silhouette
+	bodyMat.emissiveIntensity = 0.3;
+	const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+	bodyMesh.position.y = bodyHeight / 2;
+	group.add(bodyMesh);
+
+	// Head
+	const headRadius = TILE_SIZE * 0.16;
+	const headGeo = new THREE.SphereGeometry(headRadius, 20, 20);
+	const headMat = tokenMaterials[color].clone();
+	headMat.emissive = new THREE.Color(0x000000); // silhouette
+	headMat.emissiveIntensity = 0.3;
+	const headMesh = new THREE.Mesh(headGeo, headMat);
+	headMesh.position.y = bodyHeight + headRadius;
+	group.add(headMesh);
+
+	//=== Add pathIndex tracking ===
+	group.userData = { player: color, row, col, state: "HOME", pathIndex: -1 };
+
+	const { x, z } = gridToWorld(row, col);
+	group.position.set(x, TOKEN_Y, z);
+
+	boardRoot.add(group);
+	tokens.push(group);
+}
+		for (const [player, positions] of Object.entries(tokenStartPositions)) {
+			positions.forEach(([row, col]) => createPawn(player, row, col));
+		}
+
+		/* =====================
+		TOKEN SELECTION
+		====================== */
+		function getPointer(event) {
+			const rect = renderer.domElement.getBoundingClientRect();
+			pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+			pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+		}
+
+		function highlightToken(token) {
+			token.children.forEach(c => c.material.emissive.setHex(0x886600));
+		}
+
+		function clearHighlight(token) {
+			token.children.forEach(c => c.material.emissive.setHex(0x000000));
+		}
+		function checkCapture(movedToken) {
+			
+			const { row, col, player } = movedToken.userData;
+			const key = `${row},${col}`;
+
+			if (safeTiles.has(key)) return;
+
+			tokens.forEach(t => {
+				if (
+					t !== movedToken &&
+					t.userData.state === "ACTIVE" &&
+					t.userData.player !== player &&
+					t.userData.row === row &&
+					t.userData.col === col
+				) {
+					// 1️⃣ SEND CAPTURED TOKEN BACK HOME
+					const homePos = tokenStartPositions[t.userData.player][0];
+					const [hr, hc] = homePos;
+					const homeWorld = gridToWorld(hr, hc);
+
+					t.position.set(homeWorld.x, TOKEN_Y, homeWorld.z);
+					t.userData.row = hr;
+					t.userData.col = hc;
+					t.userData.state = "HOME";
+					t.userData.pathIndex = -1;
+
+					// 2️⃣ MOVE CAPTURER TO CENTER (WINNING TILE)
+					const centerRow = 6;
+					const centerCol = 6;
+					const centerWorld = gridToWorld(centerRow, centerCol);
+
+					movedToken.position.set(centerWorld.x, TOKEN_Y, centerWorld.z);
+					movedToken.userData.row = centerRow;
+					movedToken.userData.col = centerCol;
+					movedToken.userData.state = "CAPTURED";
+					movedToken.userData.pathIndex = -1;
+
+					// 3️⃣ INCREMENT CAPTURER SCORE
+					if (player === "user") {
+						userCount++;
+						document.getElementById("usr-count").textContent = userCount;
+					} else {
+						cpuCount++;
+						document.getElementById("cpu-count").textContent = cpuCount;
+					}
+				}
+			});
+		}
+
+// TAUNT SYSTEM WITH FADE EFFECT
+let rollCount = 0; // consecutive rolls without 6
+const userTaunt = document.getElementById("usr-taunt");
+const taunts = [
+  "O God of Sikki, Where are you?",
+  "Ehen! Abi na so Ludo dey?",
+  "Kai! Somebody help me o!",
+  "I dey suffer here oo!",
+  "Abeg, make the dice hear me!"
+];
+
+function fadeTaunt(text) {
+  let opacity = 0;
+  userTaunt.style.opacity = 0;
+  userTaunt.innerText = text;
+
+  const fadeIn = setInterval(() => {
+    opacity += 0.05;
+    userTaunt.style.opacity = opacity;
+    if (opacity >= 1) clearInterval(fadeIn);
+  }, 20);
+
+  // Optional: fade out after 2 seconds
+  setTimeout(() => {
+    const fadeOut = setInterval(() => {
+      opacity -= 0.05;
+      userTaunt.style.opacity = opacity;
+      if (opacity <= 0) clearInterval(fadeOut);
+    }, 20);
+  }, 2000);
+}
+
+function handleTaunt(dice) {
+  if (dice === 6) {
+    rollCount = 0;
+    fadeTaunt("Wa sere!");
+  } else {
+    rollCount++;
+    if (rollCount >= 2) {
+      const index = Math.min(rollCount - 2, taunts.length - 1);
+      fadeTaunt(taunts[index]);
+    }
+  }
+}
+
+/* =====================
+DICE ROLL + TOKEN MOVEMENT
+====================== */
+const rollButton = document.querySelector("#Optioner button.pop");
+let diceValue = 0;
+const normalButtonText = rollButton.innerText;
+
+// Mapping: home → entry tile positions (row, col)
+const homeEntry = {
+	yellow: [5, 1], // F2
+	blue: [1, 7],   // B8
+	red: [7, 11],   // H12
+	green: [11, 5]  // L6
+};
+
+// Roll dice
+function rollDice() {
+	if (selectedToken) {
+		clearHighlight(selectedToken);
+		selectedToken = null;
+	}
+	diceValue = Math.floor(Math.random() * 6) + 1;
+	rollButton.innerText = diceValue === 6 ? "Roll again" : normalButtonText;
+    pseudoDice(diceValue);
+	// alert(`Dice rolled: ${diceValue}`);
+}
+
+function pseudoDice(finalNumber) {
+  rollButton.style.pointerEvents = "none";
+  rollButton.style.opacity = 0.7;
+  const div = document.getElementById("Gutter");
+  const numbers = [1, 2, 3, 4, 5, 6];
+  let index = 0;
+  let loopCount = 0;
+  const totalLoops = 2;
+  const intervalTime = 100;
+
+  const interval = setInterval(() => {
+    div.innerText = numbers[index];
+    index++;
+
+    if (index >= numbers.length) {
+      index = 0;
+      loopCount++;
+    }
+
+    if (loopCount >= totalLoops) {
+      clearInterval(interval);
+      setTimeout(() => {
+        div.innerText = finalNumber;
+		handleTaunt(finalNumber);
+		if(finalNumber === 6){alert("select a piece")}
+		rollButton.style.pointerEvents = "all";
+		rollButton.style.opacity = 1;
+		
+      }, 300);
+    }
+  }, intervalTime);
+}
+
+rollButton.addEventListener("click", rollDice);
+
+renderer.domElement.addEventListener("pointerdown", (event) => {
+	getPointer(event);
+	raycaster.setFromCamera(pointer, camera);
+
+	const hits = raycaster.intersectObjects(tokens, true);
+	if (!hits.length) return;
+
+	const token = hits[0].object.parent;
+
+	// Only allow player tokens
+	if (token.userData.player !== "yellow" && token.userData.player !== "blue") {
+		alert("You can't move your opponent's tokens!");
+		return;
+	}
+	// Must have rolled a dice
+	if (diceValue === 0) {
+		alert("You need to roll a die first to move a piece!");
+		return;
+	}
+
+	// Clear previous selection
+	if (selectedToken && selectedToken !== token) clearHighlight(selectedToken);
+	selectedToken = token;
+	highlightToken(token);
+
+	const color = token.userData.player;
+
+	// Token in HOME
+	if (token.userData.state === "HOME") {
+		if (diceValue === 6) {
+			const [row, col] = homeEntry[color];
+			const { x, z } = gridToWorld(row, col);
+			token.position.set(x, TOKEN_Y, z);
+			token.userData.row = row;
+			token.userData.col = col;
+			token.userData.state = "ACTIVE";
+
+			// 🔥 CRITICAL FIX — sync with path
+			token.userData.pathIndex = paths[color].findIndex(
+				([r, c]) => r === row && c === col
+			);
+
+			clearHighlight(token);
+			selectedToken = null;
+			diceValue = 0;
+		} else {
+			alert("You need a 6 to move a token out of HOME!");
+		}
+		return;
+	}
+	// Token already ACTIVE → move along path
+	if (token.userData.state === "ACTIVE") {
+		let startIndex = token.userData.pathIndex;
+		let endIndex = startIndex + diceValue;
+		if (endIndex >= paths[color].length) {
+			endIndex = paths[color].length - 1;
+		}
+		const movePath = paths[color].slice(startIndex + 1, endIndex + 1);
+		let step = 0;
+		function animateMove() {
+			if (step >= movePath.length) {
+				const [r, c] = movePath[movePath.length - 1];
+				token.userData.row = r;
+				token.userData.col = c;
+				token.userData.pathIndex = endIndex;
+				checkCapture(token);
+				stackTokensOnTile(r, c);
+
+				clearHighlight(token);
+				selectedToken = null;
+				diceValue = 0;
+				// WIN DETECTION
+				if (token.userData.pathIndex === paths[color].length - 1) {
+					alert(`${color.toUpperCase()}, Way To Go!`);
+					token.userData.state = "FINISHED";
+				}
+				return;
+			}
+			const [row, col] = movePath[step];
+			const { x, z } = gridToWorld(row, col);
+			token.position.set(x, TOKEN_Y, z);
+			step++;
+			setTimeout(animateMove, 200);
+		}
+		animateMove();
+	}
+});
+	rollButton.addEventListener("click", rollDice);
+	/* =====================
+	RENDER LOOP
+	====================== */
+	function animate() {
+		requestAnimationFrame(animate);
+		renderer.render(scene, camera);
+	}
+	animate();
+</script>	
+	</body>
+</html>

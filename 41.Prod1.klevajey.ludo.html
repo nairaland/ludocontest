@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple 3D Ludo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            height: 100vh;
+        }
+        #container {
+            width: 100%;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #status {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 20px;
+            display: inline-block;
+        }
+        #dice {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+        #dice:hover {
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+        #dice.rolling {
+            animation: rollAnim 0.5s ease-in-out;
+        }
+        @keyframes rollAnim {
+            0%, 100% { transform: translateX(-50%) rotate(0deg); }
+            25% { transform: translateX(-50%) rotate(90deg) scale(1.1); }
+            50% { transform: translateX(-50%) rotate(180deg) scale(1.15); }
+            75% { transform: translateX(-50%) rotate(270deg) scale(1.1); }
+        }
+        #winner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        #winner.show {
+            display: flex;
+        }
+        .winner-box {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+        }
+        .winner-box h1 {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .winner-box button:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+        .player-card {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+        }
+        .player-card.active {
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.6);
+            transform: scale(1.05);
+        }
+        .player-red { bottom: 100px; left: 20px; border-left: 4px solid #e74c3c; }
+        .player-green { top: 100px; left: 20px; border-left: 4px solid #2ecc71; }
+        .player-blue { top: 100px; right: 20px; border-left: 4px solid #3498db; }
+        .player-yellow { bottom: 100px; right: 20px; border-left: 4px solid #f39c12; }
+        @media (min-width: 1400px) {
+            .player-red { left: 5%; }
+            .player-green { left: 5%; }
+            .player-blue { right: 5%; }
+            .player-yellow { right: 5%; }
+        }
+        @media (min-width: 1800px) {
+            .player-red { left: 10%; }
+            .player-green { left: 10%; }
+            .player-blue { right: 10%; }
+            .player-yellow { right: 10%; }
+        }
+        .player-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .player-card .pos {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="ui">
+        <div id="status">Turn: <span id="player">RED</span></div>
+    </div>
+    <div class="player-card player-red active">
+        <h3>🔴 Red</h3>
+        <div class="pos">Position: <span id="pos-0">Start</span></div>
+    </div>
+    <div class="player-card player-green">
+        <h3>🟢 Green</h3>
+        <div class="pos">Position: <span id="pos-2">Start</span></div>
+    </div>
+    <div class="player-card player-blue">
+        <h3>🔵 Blue</h3>
+        <div class="pos">Position: <span id="pos-1">Start</span></div>
+    </div>
+    <div class="player-card player-yellow">
+        <h3>🟡 Yellow</h3>
+        <div class="pos">Position: <span id="pos-3">Start</span></div>
+    </div>
+    <div id="dice">🎲</div>
+    <div id="winner">
+        <div class="winner-box">
+            <h1 id="winner-text">🎉 RED WINS! 🎉</h1>
+            <button onclick="location.reload()">Play Again</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Simple game state
+        const game = {
+            player: 0, // 0=red, 1=blue, 2=green, 3=yellow
+            dice: 0,
+            rolled: false,
+            moving: false
+        };
+
+        // Player order: Red, Blue, Green, Yellow
+        const colors = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12];
+        const names = ['RED', 'BLUE', 'GREEN', 'YELLOW'];
+        
+        // Corner positions: Red(BL), Blue(TR), Green(TL), Yellow(BR)
+        const cornerPositions = [
+            [-10, 0.3, 10],   // 0: Red - bottom left
+            [10, 0.3, -10],   // 1: Blue - top right
+            [10, 0.3, 10],    // 2: Green - top left
+            [-10, 0.3, -10]   // 3: Yellow - bottom right
+        ];
+        
+        // Token home positions match corners
+        const tokenHomePositions = [
+            [-10, 0.8, 10],   // 0: Red - bottom left
+            [10, 0.8, -10],   // 1: Blue - top right
+            [10, 0.8, 10],    // 2: Green - top left
+            [-10, 0.8, -10]   // 3: Yellow - bottom right
+        ];
+        
+        // Path start positions
+        const pathStartPositions = [0, 13, 26, 39]; // Red, Blue, Green, Yellow
+
+        // Setup Three.js
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 30, 30);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const light = new THREE.DirectionalLight(0xffffff, 0.5);
+        light.position.set(10, 20, 10);
+        light.castShadow = true;
+        light.shadow.mapSize.width = 2048;
+        light.shadow.mapSize.height = 2048;
+        light.shadow.camera.left = -20;
+        light.shadow.camera.right = 20;
+        light.shadow.camera.top = 20;
+        light.shadow.camera.bottom = -20;
+        scene.add(light);
+
+        // Create simple board - just a cross shape
+        const boardSize = 15;
+        
+        // Main board
+        const board = new THREE.Mesh(
+            new THREE.BoxGeometry(boardSize * 2, 0.5, boardSize * 2),
+            new THREE.MeshStandardMaterial({ color: 0xffffff })
+        );
+        board.receiveShadow = true;
+        scene.add(board);
+
+        // 4 colored corners
+        const cornerSize = 6;
+        
+        cornerPositions.forEach((pos, i) => {
+            const corner = new THREE.Mesh(
+                new THREE.BoxGeometry(cornerSize, 0.3, cornerSize),
+                new THREE.MeshStandardMaterial({ color: colors[i], transparent: true, opacity: 0.7 })
+            );
+            corner.position.set(pos[0], pos[1], pos[2]);
+            scene.add(corner);
+        });
+
+        // Simple path - 52 squares around the board
+        const path = [];
+        const sq = 2; // square size
+
+        // Bottom left going up (Red start)
+        for (let i = 5; i >= 0; i--) path.push([-sq, 0.26, (i - 6) * sq]);
+        path.push([0, 0.26, -6 * sq]);
+        path.push([sq, 0.26, -6 * sq]);
+        for (let i = -5; i <= -1; i++) path.push([sq, 0.26, i * sq]);
+
+        // Top going right (Green area)
+        for (let i = 2; i <= 6; i++) path.push([i * sq, 0.26, -sq]);
+        path.push([6 * sq, 0.26, 0]);
+        path.push([6 * sq, 0.26, sq]);
+        for (let i = 5; i >= 1; i--) path.push([i * sq, 0.26, sq]);
+
+        // Right going down (Blue area)
+        for (let i = 2; i <= 6; i++) path.push([sq, 0.26, i * sq]);
+        path.push([0, 0.26, 6 * sq]);
+        path.push([-sq, 0.26, 6 * sq]);
+        for (let i = 5; i >= 1; i--) path.push([-sq, 0.26, i * sq]);
+
+        // Bottom going left (Yellow area)
+        for (let i = -2; i >= -6; i--) path.push([i * sq, 0.26, sq]);
+        path.push([-6 * sq, 0.26, 0]);
+        path.push([-6 * sq, 0.26, -sq]);
+        for (let i = -5; i <= -1; i++) path.push([i * sq, 0.26, -sq]);
+
+        // Draw path squares with colored sections
+        path.forEach((pos, i) => {
+            let cellColor = 0xeeeeee; // default white
+            
+            // Red section (0-12)
+            if (i >= 0 && i <= 12) cellColor = 0xffcdd2;
+            // Blue section (13-25)
+            else if (i >= 13 && i <= 25) cellColor = 0xbbdefb;
+            // Yellow section (26-38)
+            else if (i >= 26 && i <= 38) cellColor = 0xfff9c4;
+            // Green section (39-51)
+            else if (i >= 39 && i <= 51) cellColor = 0xc8e6c9;
+            
+            // Highlight start positions
+            if ([0, 13, 26, 39].includes(i)) cellColor = 0xffeb3b;
+            
+            const cell = new THREE.Mesh(
+                new THREE.BoxGeometry(sq * 0.85, 0.2, sq * 0.85),
+                new THREE.MeshStandardMaterial({ color: cellColor })
+            );
+            cell.position.set(pos[0], pos[1], pos[2]);
+            scene.add(cell);
+        });
+
+        // Create 4 tokens (1 per player for simplicity)
+        const tokens = [];
+        const homePos = [
+            [-10, 0.8, 10],   // Red - bottom left
+            [10, 0.8, -10],   // Blue - top right
+            [10, 0.8, 10],    // Green - top left
+            [-10, 0.8, -10]   // Yellow - bottom right
+        ];
+
+        for (let i = 0; i < 4; i++) {
+            const token = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.7, 0.7, 0.8, 16),
+                new THREE.MeshStandardMaterial({ color: colors[i] })
+            );
+            token.position.set(homePos[i][0], homePos[i][1], homePos[i][2]);
+            token.userData = { player: i, pos: -1 };
+            token.castShadow = true;
+            scene.add(token);
+            tokens.push(token);
+        }
+
+        // Roll dice
+        document.getElementById('dice').addEventListener('click', () => {
+            if (game.rolled || game.moving) return;
+            
+            const diceEl = document.getElementById('dice');
+            diceEl.classList.add('rolling');
+            
+            setTimeout(() => {
+                game.dice = Math.floor(Math.random() * 6) + 1;
+                game.rolled = true;
+                diceEl.textContent = game.dice;
+                diceEl.classList.remove('rolling');
+                
+                // Auto move for current player
+                setTimeout(() => moveToken(), 500);
+            }, 500);
+        });
+
+        // Move token
+        function moveToken() {
+            const token = tokens[game.player];
+            const startPos = pathStartPositions[game.player];
+            
+            // Start token if rolled 6 and not started
+            if (token.userData.pos === -1) {
+                if (game.dice === 6) {
+                    token.userData.pos = 0;
+                    updatePositions();
+                    animateMove(token, startPos);
+                } else {
+                    nextTurn();
+                }
+                return;
+            }
+            
+            // Move token forward
+            const newPos = token.userData.pos + game.dice;
+            if (newPos < 52) {
+                token.userData.pos = newPos;
+                updatePositions();
+                const pathIdx = (startPos + newPos) % 52;
+                animateMove(token, pathIdx);
+            } else if (newPos === 52) {
+                // Winner!
+                token.userData.pos = 52;
+                updatePositions();
+                document.getElementById('winner-text').textContent = 
+                    `🎉 ${names[game.player]} WINS! 🎉`;
+                document.getElementById('winner').classList.add('show');
+            } else {
+                nextTurn();
+            }
+        }
+        
+        // Update position display
+        function updatePositions() {
+            tokens.forEach((token, i) => {
+                const pos = token.userData.pos;
+                const display = pos === -1 ? 'Start' : pos === 52 ? 'Finished!' : `${pos}/52`;
+                document.getElementById(`pos-${i}`).textContent = display;
+            });
+        }
+
+        // Animate token movement
+        function animateMove(token, pathIdx) {
+            game.moving = true;
+            const target = path[pathIdx];
+            const start = { x: token.position.x, z: token.position.z };
+            let t = 0;
+            
+            function animate() {
+                t += 0.05;
+                if (t >= 1) {
+                    token.position.set(target[0], target[1] + 0.54, target[2]);
+                    game.moving = false;
+                    
+                    if (game.dice === 6) {
+                        game.rolled = false;
+                    } else {
+                        nextTurn();
+                    }
+                    return;
+                }
+                
+                const arc = Math.sin(t * Math.PI) * 2;
+                token.position.x = start.x + (target[0] - start.x) * t;
+                token.position.y = target[1] + 0.54 + arc;
+                token.position.z = start.z + (target[2] - start.z) * t;
+                
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+
+        // Next turn
+        function nextTurn() {
+            document.querySelectorAll('.player-card').forEach(c => c.classList.remove('active'));
+            
+            game.player = (game.player + 1) % 4;
+            game.rolled = false;
+            game.dice = 0;
+            document.getElementById('dice').textContent = '🎲';
+            document.getElementById('player').textContent = names[game.player];
+            
+            const cards = ['.player-red', '.player-blue', '.player-green', '.player-yellow'];
+            document.querySelector(cards[game.player]).classList.add('active');
+        }
+
+        // Render loop
+        function render() {
+            requestAnimationFrame(render);
+            renderer.render(scene, camera);
+        }
+        render();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

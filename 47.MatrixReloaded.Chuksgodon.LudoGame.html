@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ludo - Single File</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #222; }
+        #game-ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        #info-panel {
+            background: rgba(0, 0, 0, 0.7); color: white; padding: 15px; text-align: center;
+            pointer-events: auto; user-select: none;
+        }
+        #dice-container {
+            position: absolute; bottom: 30px; right: 30px; pointer-events: auto;
+            text-align: center;
+        }
+        #dice-btn {
+            width: 80px; height: 80px; background: white; border-radius: 10px;
+            font-size: 40px; font-weight: bold; border: 4px solid #333; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.1s;
+        }
+        #dice-btn:active { transform: scale(0.95); }
+        #turn-indicator {
+            font-size: 24px; font-weight: bold; margin-bottom: 5px;
+            text-shadow: 1px 1px 2px black;
+        }
+        #status-msg { font-size: 14px; color: #ddd; }
+        
+        /* Player Colors for UI */
+        .p-red { color: #ff4d4d; }
+        .p-green { color: #4dff4d; }
+        .p-yellow { color: #ffff4d; }
+        .p-blue { color: #4d4dff; }
+    </style>
+    <!-- Import Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="game-ui">
+        <div id="info-panel">
+            <div id="turn-indicator">Player: <span id="current-player-name" class="p-red">RED</span></div>
+            <div id="status-msg">Click the dice to roll</div>
+        </div>
+        <div id="dice-container">
+            <button id="dice-btn" onclick="game.rollDice()">🎲</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * 3D LUDO GAME ENGINE
+ * Developed as a single-file solution.
+ */
+
+// --- CONFIGURATION ---
+const TILE_SIZE = 10;
+const BOARD_SIZE = 15;
+const COLORS = {
+    RED: 0xff3333,
+    GREEN: 0x33ff33,
+    YELLOW: 0xffff33,
+    BLUE: 0x3333ff,
+    WHITE: 0xffffff,
+    GREY: 0xaaaaaa,
+    SAFE: 0x888888
+};
+
+// Players Data
+const PLAYERS = [
+    { id: 'red', name: 'RED', color: COLORS.RED, startPos: {x:1, z:1}, pathStart: 0 },
+    { id: 'green', name: 'GREEN', color: COLORS.GREEN, startPos: {x:10, z:1}, pathStart: 13 },
+    { id: 'yellow', name: 'YELLOW', color: COLORS.YELLOW, startPos: {x:10, z:10}, pathStart: 26 },
+    { id: 'blue', name: 'BLUE', color: COLORS.BLUE, startPos: {x:1, z:10}, pathStart: 39 }
+];
+
+// The Standard Ludo Path (Coordinates relative to 15x15 grid, 0-14)
+// This is the main outer loop.
+const MAIN_PATH = [
+    {x:6,z:1}, {x:6,z:2}, {x:6,z:3}, {x:6,z:4}, {x:6,z:5}, // Red approach
+    {x:5,z:6}, {x:4,z:6}, {x:3,z:6}, {x:2,z:6}, {x:1,z:6}, {x:0,z:6}, // Left arm top
+    {x:0,z:7}, {x:0,z:8}, // Left end
+    {x:1,z:8}, {x:2,z:8}, {x:3,z:8}, {x:4,z:8}, {x:5,z:8}, // Left arm bottom
+    {x:6,z:9}, {x:6,z:10}, {x:6,z:11}, {x:6,z:12}, {x:6,z:13}, {x:6,z:14}, // Bottom approach
+    {x:7,z:14}, {x:8,z:14}, // Bottom end
+    {x:8,z:13}, {x:8,z:12}, {x:8,z:11}, {x:8,z:10}, {x:8,z:9}, // Bottom right
+    {x:9,z:8}, {x:10,z:8}, {x:11,z:8}, {x:12,z:8}, {x:13,z:8}, {x:14,z:8}, // Right arm bottom
+    {x:14,z:7}, {x:14,z:6}, // Right end
+    {x:13,z:6}, {x:12,z:6}, {x:11,z:6}, {x:10,z:6}, {x:9,z:6}, // Right arm top
+    {x:8,z:5}, {x:8,z:4}, {x:8,z:3}, {x:8,z:2}, {x:8,z:1}, {x:8,z:0}, // Top right
+    {x:7,z:0}, {x:6,z:0} // Top end (leads back to start)
+];
+
+// Home Runs (Private paths to the center)
+const HOME_PATHS = {
+    red:    [{x:7,z:1}, {x:7,z:2}, {x:7,z:3}, {x:7,z:4}, {x:7,z:5}, {x:7,z:6}], // Top down
+    green:  [{x:13,z:7}, {x:12,z:7}, {x:11,z:7}, {x:10,z:7}, {x:9,z:7}, {x:8,z:7}], // Right left
+    yellow: [{x:7,z:13}, {x:7,z:12}, {x:7,z:11}, {x:7,z:10}, {x:7,z:9}, {x:7,z:8}], // Bottom up
+    blue:   [{x:1,z:7}, {x:2,z:7}, {x:3,z:7}, {x:4,z:7}, {x:5,z:7}, {x:6,z:7}] // Left right
+};
+
+// --- GAME CLASS ---
+
+class LudoGame {
+    constructor() {
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+        
+        this.tokens = []; // Stores Three.js objects
+        this.currentPlayerIndex = 0;
+        this.diceValue = 0;
+        this.state = 'WAITING_FOR_ROLL'; // WAITING_FOR_ROLL, WAITING_FOR_MOVE, ANIMATING
+        
+        this.initThree();
+        this.createBoard();
+        this.createTokens();
+        this.setupInteraction();
+        this.animate();
+        
+        this.updateUI();
+    }
+
+    initThree() {
+        // Scene
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x222222);
+
+        // Camera (Isometric-ish)
+        const aspect = window.innerWidth / window.innerHeight;
+        const d = 100;
+        this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+        this.camera.position.set(100, 100, 100);
+        this.camera.lookAt(0, 0, 0);
+
+        // Renderer
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.shadowMap.enabled = true;
+        document.body.appendChild(this.renderer.domElement);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        this.scene.add(dirLight);
+    }
+
+    createBoard() {
+        const boardGroup = new THREE.Group();
+        
+        // Base geometry for tiles
+        const geometry = new THREE.BoxGeometry(TILE_SIZE * 0.95, 2, TILE_SIZE * 0.95);
+        
+        // Helper to add tile
+        const addTile = (x, z, color) => {
+            const mat = new THREE.MeshLambertMaterial({ color: color });
+            const tile = new THREE.Mesh(geometry, mat);
+            tile.position.set((x - 7) * TILE_SIZE, 0, (z - 7) * TILE_SIZE);
+            tile.receiveShadow = true;
+            boardGroup.add(tile);
+        };
+
+        // Draw Cross Shape
+        for(let x=0; x<15; x++) {
+            for(let z=0; z<15; z++) {
+                // Determine if this x,z is part of the cross
+                let isPath = false;
+                // Center
+                if(x >= 6 && x <= 8 && z >= 6 && z <= 8) isPath = true; 
+                // Arms
+                if((x >= 6 && x <= 8) || (z >= 6 && z <= 8)) isPath = true;
+
+                if(isPath) {
+                    let col = COLORS.WHITE;
+                    // Visualize Start points
+                    if(x===6 && z===1) col = COLORS.RED;
+                    if(x===1 && z===8) col = COLORS.BLUE; // Adjusted visual
+                    if(x===8 && z===13) col = COLORS.YELLOW;
+                    if(x===13 && z===6) col = COLORS.GREEN;
+
+                    // Visualize Home Paths
+                    if(x===7 && z > 0 && z < 6) col = COLORS.RED;
+                    if(z===7 && x > 0 && x < 6) col = COLORS.BLUE;
+                    if(x===7 && z > 8 && z < 14) col = COLORS.YELLOW;
+                    if(z===7 && x > 8 && x < 14) col = COLORS.GREEN;
+
+                    // Center Home
+                    if(x>=6 && x<=8 && z>=6 && z<=8) {
+                        // Triangles area (simplified as grey box)
+                        col = COLORS.GREY; 
+                    }
+
+                    addTile(x, z, col);
+                }
+            }
+        }
+
+        // Draw Bases (Yards)
+        const baseGeo = new THREE.BoxGeometry(TILE_SIZE * 5, 4, TILE_SIZE * 5);
+        const createBase = (x, z, color) => {
+            const mesh = new THREE.Mesh(baseGeo, new THREE.MeshLambertMaterial({ color: color }));
+            mesh.position.set((x - 7) * TILE_SIZE, 1, (z - 7) * TILE_SIZE);
+            mesh.receiveShadow = true;
+            boardGroup.add(mesh);
+        };
+
+        createBase(2.5, 2.5, COLORS.RED);
+        createBase(11.5, 2.5, COLORS.GREEN);
+        createBase(11.5, 11.5, COLORS.YELLOW);
+        createBase(2.5, 11.5, COLORS.BLUE);
+
+        this.scene.add(boardGroup);
+    }
+
+    createTokens() {
+        const geo = new THREE.CylinderGeometry(2, 2, 8, 16);
+        
+        PLAYERS.forEach((p, pIndex) => {
+            for(let i=0; i<4; i++) {
+                const mat = new THREE.MeshPhongMaterial({ color: p.color });
+                const token = new THREE.Mesh(geo, mat);
+                token.castShadow = true;
+                
+                // Metadata
+                token.userData = {
+                    playerIndex: pIndex,
+                    id: i,
+                    position: -1, // -1 = Yard, 0-51 = Main Path, 100+ = Home Path
+                    isHome: false,
+                    startPos: { 
+                        x: (p.startPos.x + (i%2)) * TILE_SIZE, 
+                        z: (p.startPos.z + (Math.floor(i/2))) * TILE_SIZE 
+                    } // simplified yard positions
+                };
+
+                // Place visually in yard
+                this.placeTokenVisual(token, -1);
+                
+                this.scene.add(token);
+                this.tokens.push(token);
+            }
+        });
+    }
+
+    // Convert logical board position to 3D world coords
+    getCoordinates(playerIndex, logicPos) {
+        const p = PLAYERS[playerIndex];
+        
+        // Yard
+        if (logicPos === -1) {
+            // Recalculate yard pos specific to token ID? 
+            // For simplicity, returning a generic yard area. 
+            // In move logic we use the stored userData.startPos, here we return center of base
+            return { x: (p.startPos.x - 7) * TILE_SIZE, z: (p.startPos.z - 7) * TILE_SIZE };
+        }
+
+        // Home Path (100+)
+        if (logicPos >= 100) {
+            const step = logicPos - 100;
+            const homePath = HOME_PATHS[p.id];
+            if (step >= homePath.length) return {x:0, z:0}; // Should be center
+            const coords = homePath[step];
+            return { x: (coords.x - 7) * TILE_SIZE, z: (coords.z - 7) * TILE_SIZE };
+        }
+
+        // Main Path
+        // Offset logicPos by player start
+        let index = (p.pathStart + logicPos) % MAIN_PATH.length;
+        const coords = MAIN_PATH[index];
+        return { x: (coords.x - 7) * TILE_SIZE, z: (coords.z - 7) * TILE_SIZE };
+    }
+
+    placeTokenVisual(token, logicPos) {
+        if(logicPos === -1) {
+            // Yard offset logic
+            const p = PLAYERS[token.userData.playerIndex];
+            const i = token.userData.id;
+            // 2x2 grid in yard
+            const offX = (i % 2 === 0 ? -1 : 1) * (TILE_SIZE);
+            const offZ = (i < 2 ? -1 : 1) * (TILE_SIZE);
+            // Base center
+            const baseX = (p.startPos.x === 1 ? 2.5 : 11.5);
+            const baseZ = (p.startPos.z === 1 ? 2.5 : 11.5);
+            
+            token.position.set( (baseX - 7) * TILE_SIZE + offX/2, 5, (baseZ - 7) * TILE_SIZE + offZ/2 );
+        } else {
+            const coords = this.getCoordinates(token.userData.playerIndex, logicPos);
+            token.position.set(coords.x, 5, coords.z);
+        }
+    }
+
+    setupInteraction() {
+        window.addEventListener('resize', () => {
+            const aspect = window.innerWidth / window.innerHeight;
+            const d = 100;
+            this.camera.left = -d * aspect;
+            this.camera.right = d * aspect;
+            this.camera.top = d;
+            this.camera.bottom = -d;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('click', (event) => {
+            if(this.state !== 'WAITING_FOR_MOVE') return;
+
+            // Calculate mouse position in normalized device coordinates
+            this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+            const intersects = this.raycaster.intersectObjects(this.tokens);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                if(object.userData.playerIndex === this.currentPlayerIndex) {
+                    this.attemptMove(object);
+                }
+            }
+        });
+    }
+
+    rollDice() {
+        if(this.state !== 'WAITING_FOR_ROLL') return;
+
+        // Animation / delay
+        const diceBtn = document.getElementById('dice-btn');
+        diceBtn.innerText = '...';
+        
+        setTimeout(() => {
+            this.diceValue = Math.floor(Math.random() * 6) + 1;
+            diceBtn.innerText = this.diceValue;
+            
+            // Check if moves are possible
+            if(this.hasValidMoves()) {
+                this.state = 'WAITING_FOR_MOVE';
+                this.setStatus("Select a token to move.");
+                
+                // Auto move if only 1 move (optional, skipped for now)
+            } else {
+                this.setStatus(`Rolled ${this.diceValue}. No moves!`);
+                setTimeout(() => this.nextTurn(), 1000);
+            }
+        }, 500);
+    }
+
+    hasValidMoves() {
+        const playerTokens = this.tokens.filter(t => t.userData.playerIndex === this.currentPlayerIndex);
+        for(let t of playerTokens) {
+            if(this.canMove(t)) return true;
+        }
+        return false;
+    }
+
+    canMove(token) {
+        const pos = token.userData.position;
+        // Rules:
+        // 1. If in yard (-1), need 6 to exit.
+        if (pos === -1) return this.diceValue === 6;
+        
+        // 2. If moving implies going past home end.
+        // Path length is 51 steps. 52-57 are home column.
+        if (pos >= 100) {
+            // Already in home stretch
+            return (pos + this.diceValue) <= 105; // 100 + 5 steps
+        }
+        
+        // Check if entering home stretch
+        // Standard path is 0-50 (51 tiles).
+        if (pos + this.diceValue > 50) {
+            const excess = (pos + this.diceValue) - 51;
+            return excess < 6;
+        }
+
+        return true;
+    }
+
+    attemptMove(token) {
+        if(!this.canMove(token)) {
+            this.setStatus("Cannot move that token!");
+            return;
+        }
+
+        const data = token.userData;
+        
+        // Logic Update
+        if (data.position === -1) {
+            data.position = 0; // Move to start
+        } else {
+            // Standard move
+            data.position += this.diceValue;
+            
+            // Enter Home Stretch Logic
+            if(data.position > 50 && data.position < 100) {
+                data.position = 100 + (data.position - 51);
+            }
+        }
+
+        // Collision Logic (Capture)
+        this.checkCollision(token);
+
+        // Visual Update
+        this.placeTokenVisual(token, data.position);
+        
+        // Check Win Condition (All home)
+        // ... (Skipped for brevity)
+
+        // Reset state
+        if (this.diceValue === 6) {
+            this.setStatus("Rolled a 6! Roll again.");
+            this.state = 'WAITING_FOR_ROLL';
+            document.getElementById('dice-btn').innerText = '🎲';
+        } else {
+            this.nextTurn();
+        }
+    }
+
+    checkCollision(movedToken) {
+        // Can only collide on Main Path
+        if(movedToken.userData.position >= 100) return;
+
+        const myAbsPos = this.getAbsolutePosition(movedToken);
+        
+        // Check all other tokens
+        this.tokens.forEach(other => {
+            if(other === movedToken) return;
+            if(other.userData.playerIndex === movedToken.userData.playerIndex) return; // Ignore self
+            if(other.userData.position === -1 || other.userData.position >= 100) return; // Ignore yard/home
+
+            const otherAbsPos = this.getAbsolutePosition(other);
+            
+            if(myAbsPos === otherAbsPos) {
+                // CAPTURE!
+                console.log("Capture!");
+                other.userData.position = -1; // Send back to yard
+                this.placeTokenVisual(other, -1);
+            }
+        });
+    }
+
+    // Helper to compare real board positions regardless of relative path index
+    getAbsolutePosition(token) {
+        const p = PLAYERS[token.userData.playerIndex];
+        return (p.pathStart + token.userData.position) % MAIN_PATH.length;
+    }
+
+    nextTurn() {
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 4;
+        this.state = 'WAITING_FOR_ROLL';
+        this.updateUI();
+        document.getElementById('dice-btn').innerText = '🎲';
+        this.setStatus("Click to roll");
+    }
+
+    updateUI() {
+        const p = PLAYERS[this.currentPlayerIndex];
+        const nameSpan = document.getElementById('current-player-name');
+        nameSpan.innerText = p.name;
+        nameSpan.className = `p-${p.id}`;
+    }
+
+    setStatus(msg) {
+        document.getElementById('status-msg').innerText = msg;
+    }
+
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        // Simple bobbing animation for active player tokens
+        const time = Date.now() * 0.005;
+        this.tokens.forEach(t => {
+            if(t.userData.playerIndex === this.currentPlayerIndex && this.state === 'WAITING_FOR_MOVE') {
+               // t.scale.setScalar(1 + Math.sin(time)*0.1);
+            } else {
+               // t.scale.setScalar(1);
+            }
+        });
+        
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
+// Start Game
+const game = new LudoGame();
+
+</script>
+</body>
+</html>

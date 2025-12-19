@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NairaLudo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;600;800&display=swap');
+        
+        :root {
+            --accent: #00FF88;
+            --glass-dark: rgba(10, 15, 20, 0.9);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --danger: #FF3B30;
+            --gold: #FFD700;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; outline: none; }
+        body { font-family: 'Inter', sans-serif; overflow: hidden; background: #000; color: var(--text-main); height: 100vh; width: 100vw; }
+
+        /* --- UI Layer --- */
+        #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; }
+
+        /* Top Bar */
+        .top-bar {
+            pointer-events: auto; display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; background: linear-gradient(180deg, rgba(0,0,0,0.9), transparent);
+        }
+        .brand-group { display: flex; flex-direction: column; }
+        .brand { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.5rem; color: var(--accent); display: flex; align-items: center; gap: 8px; text-shadow: 0 0 10px var(--accent); }
+        .currency-badge { font-size: 0.8rem; color: var(--gold); font-weight: 700; display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 10px; border: 1px solid rgba(255, 215, 0, 0.3); margin-top: 5px; width: fit-content;}
+
+        .top-actions { display: flex; gap: 10px; }
+        .icon-btn {
+            background: var(--glass-dark); border: 1px solid var(--glass-border); color: white;
+            width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
+            cursor: pointer; backdrop-filter: blur(10px); transition: all 0.2s; font-size: 1.2rem;
+        }
+        .icon-btn:hover, .icon-btn.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 15px var(--accent); }
+        .shop-btn { border-color: var(--gold); color: var(--gold); }
+        .shop-btn:hover { box-shadow: 0 0 15px var(--gold); }
+
+        /* Floating Cam (PIP) */
+        #userCamContainer {
+            position: absolute; top: 90px; right: 20px; width: 100px; height: 100px;
+            border-radius: 20px; overflow: hidden; border: 2px solid var(--accent);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            display: none; pointer-events: auto; z-index: 20; background: #000;
+        }
+        #userCam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+        /* Score & Avatar */
+        .score-container { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); pointer-events: none; transition: all 0.3s; }
+        .score-card {
+            background: var(--glass-dark); backdrop-filter: blur(15px); padding: 8px 25px 8px 10px;
+            border-radius: 50px; border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: border-color 0.3s;
+        }
+        .avatar-frame { width: 45px; height: 45px; border-radius: 50%; border: 2px solid white; overflow: hidden; position: relative; }
+        .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+        .turn-info h2 { font-family: 'Rajdhani'; font-weight: 700; font-size: 1.1rem; line-height: 1; transition: color 0.3s; white-space: nowrap;}
+        .turn-info p { font-size: 0.65rem; color: #888; text-transform: uppercase; margin-top: 2px; letter-spacing: 1px; }
+
+        /* --- CREATIVE CHAT SYSTEM --- */
+        .chat-container {
+            position: absolute; bottom: 160px; left: 20px; width: 260px; 
+            pointer-events: auto; display: flex; flex-direction: column;
+            background: rgba(10, 15, 20, 0.85); backdrop-filter: blur(12px);
+            border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden; height: 220px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .chat-container.collapsed {
+            height: 44px; width: 130px;
+            background: rgba(0,0,0,0.6);
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .chat-header {
+            height: 44px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 15px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.02);
+        }
+        .chat-label { font-size: 0.75rem; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; }
+        .chat-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+        .chat-toggle-icon { color: #888; font-size: 0.7rem; transition: transform 0.3s; }
+        .chat-container.collapsed .chat-toggle-icon { transform: rotate(180deg); }
+        .chat-container.collapsed .chat-header { border-bottom: none; }
+
+        .chat-content-wrapper {
+            flex: 1; display: flex; flex-direction: column; padding: 10px;
+            transition: opacity 0.2s; opacity: 1;
+        }
+        .chat-container.collapsed .chat-content-wrapper { opacity: 0; pointer-events: none; }
+
+        .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; font-size: 0.8rem; scrollbar-width: none; }
+        .chat-msg { color: #ccc; word-wrap: break-word; line-height: 1.3; font-size: 0.75rem; animation: slideIn 0.2s ease-out; }
+        .chat-msg b { color: white; margin-right: 4px; }
+        
+        .chat-input-area { display: flex; gap: 5px; }
+        .chat-input {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; flex: 1; 
+            padding: 8px; font-size: 0.75rem; border-radius: 8px;
+        }
+        .send-btn {
+            background: var(--accent); color: black; border: none; width: 32px; 
+            border-radius: 8px; font-weight: bold; cursor: pointer; display: grid; place-items: center;
+        }
+
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; box-shadow: 0 0 5px var(--accent); } 100% { opacity: 0.5; } }
+        @keyframes slideIn { from { transform: translateX(-10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Toast */
+        .toast {
+            position: absolute; top: 150px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.95); padding: 10px 25px; border-radius: 20px;
+            border: 1px solid var(--accent); color: var(--accent); font-size: 0.85rem;
+            font-weight: 700; text-transform: uppercase; opacity: 0; transition: 0.3s;
+            text-align: center; white-space: nowrap; box-shadow: 0 0 20px rgba(0,255,136,0.2); z-index: 50;
+        }
+        .toast.show { opacity: 1; top: 160px; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            pointer-events: auto; display: flex; justify-content: center; align-items: flex-end; gap: 20px;
+            padding: 20px; padding-bottom: 40px; background: linear-gradient(0deg, rgba(0,0,0,1), transparent);
+        }
+        #rollBtn {
+            background: linear-gradient(135deg, var(--accent), #00C6FF); color: #000; border: none;
+            width: 85px; height: 85px; border-radius: 50%; font-size: 1.3rem; font-weight: 800;
+            font-family: 'Rajdhani'; cursor: pointer; box-shadow: 0 0 40px rgba(0, 255, 136, 0.4);
+            transition: transform 0.1s; position: relative; z-index: 5;
+        }
+        #rollBtn:active { transform: scale(0.95); }
+        #rollBtn:disabled { background: #333; color: #666; box-shadow: none; cursor: not-allowed; }
+
+        .nav-group { display: flex; gap: 10px; }
+        .nav-btn {
+            background: transparent; border: none; color: #8892b0; font-size: 0.65rem;
+            text-transform: uppercase; font-weight: 600; display: flex; flex-direction: column;
+            align-items: center; gap: 4px; cursor: pointer; transition: 0.2s;
+        }
+        .nav-btn span { font-size: 1.3rem; background: var(--glass-dark); width: 45px; height: 45px; border-radius: 14px; display: grid; place-items: center; border: 1px solid var(--glass-border); }
+        .nav-btn:hover span { border-color: var(--accent); color: var(--accent); }
+
+        /* Modals & Shop */
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.85); backdrop-filter: blur(15px);
+            display: none; justify-content: center; align-items: center; pointer-events: auto;
+        }
+        .modal-card {
+            background: #111; border: 1px solid #333; padding: 25px; border-radius: 20px;
+            width: 90%; max-width: 400px; text-align: center; max-height: 80vh; overflow-y: auto;
+        }
+        .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+        .shop-item {
+            background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 15px;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+        .shop-item img { width: 50px; height: 50px; border-radius: 50%; background: #333; }
+        .shop-item h3 { font-size: 0.9rem; color: white; }
+        .price-tag { color: var(--gold); font-size: 0.8rem; font-weight: bold; }
+        .buy-btn {
+            background: #333; color: white; border: none; padding: 6px 12px; border-radius: 6px;
+            font-size: 0.7rem; cursor: pointer; width: 100%;
+        }
+        .buy-btn.owned { background: #222; color: #666; cursor: default; }
+        .buy-btn.can-buy { background: var(--gold); color: black; }
+
+        .dice-visual {
+            position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
+            width: 50px; height: 50px; background: rgba(0,0,0,0.6); border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.2); display: grid; place-items: center;
+            backdrop-filter: blur(10px); opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        .dice-visual.show { opacity: 1; }
+        .dice-grid { display: grid; grid-template-columns: repeat(3, 6px); gap: 4px; }
+        .dot { background: #fff; width: 6px; height: 6px; border-radius: 50%; opacity: 0; }
+        .dot.active { opacity: 1; box-shadow: 0 0 5px white; }
+        
+        /* Settings Buttons */
+        .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .option-btn { background: #222; border: 1px solid #444; color: white; padding: 15px; border-radius: 10px; cursor: pointer; }
+        .option-btn.selected { background: var(--accent); color: black; border-color: var(--accent); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <div id="container"></div>
+
+    <div id="ui-layer">
+        
+        <div class="top-bar">
+            <div class="brand-group">
+                <div class="brand"><span>₦</span> NairaLudo</div>
+                <div class="currency-badge"><span id="coinDisplay">1000</span> ₦</div>
+            </div>
+            
+            <div id="userCamContainer">
+                <video id="userCam" autoplay muted playsinline></video>
+            </div>
+
+           <div class="top-actions">
+    <button class="icon-btn" onclick="toggleTheme()" title="Theme">💡</button>
+    
+    <button class="icon-btn" onclick="toggleMusic()" title="Music">🎵</button>
+    <button class="icon-btn shop-btn" onclick="openShop()" title="Shop">🛒</button>
+    <button class="icon-btn" onclick="openModal('customModal')" title="Settings">⚙️</button>
+</div>
+        </div>
+
+        <div class="score-container">
+            <div class="score-card" id="scoreCard">
+                <div class="avatar-frame">
+                    <img src="https://ui-avatars.com/api/?name=Red&background=FF3B30&color=fff" id="pAvatar" class="avatar-img">
+                </div>
+                <div class="turn-info">
+                    <h2 id="pName">RED PLAYER</h2>
+                    <p id="pStatus">Your Turn</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="toast" id="toast">MULTIPLAYER SYSTEM ACTIVE</div>
+
+        <div class="dice-visual" id="diceVisual">
+            <div class="dice-grid" id="diceGrid"></div>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-header" onclick="toggleChat()">
+                <div class="chat-label"><div class="chat-dot"></div> Live Chat</div>
+                <div class="chat-toggle-icon">▼</div>
+            </div>
+            <div class="chat-content-wrapper">
+                <div class="chat-messages" id="chatList">
+                    <div class="chat-msg"><b>System:</b> Welcome!</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatInput" class="chat-input" placeholder="Say hi..." maxlength="30">
+                    <button class="send-btn" onclick="sendChat()">></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-group">
+                <button class="nav-btn" onclick="toggleRecording()" id="streamBtn">
+                    <span>📹</span> Stream
+                </button>
+                <button class="nav-btn" onclick="copyLink()">
+                    <span>🔗</span> Invite
+                </button>
+            </div>
+
+            <button id="rollBtn">ROLL</button>
+
+            <div class="nav-group">
+                <button class="nav-btn" onclick="toggleAI()">
+                    <span id="aiIcon">🤖</span> AI: <b id="aiStatus">OFF</b>
+                </button>
+                <button class="nav-btn" onclick="openModal('rulesModal')">
+                    <span>?</span> Rules
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="shopModal">
+        <div class="modal-card">
+            <h2 style="color:var(--gold)">Game Shop</h2>
+            <p style="color:#888; font-size:0.8rem">Spend your Naira Coins (₦)</p>
+            <div class="shop-grid" id="shopGrid"></div>
+            <button class="action-btn" style="background:#333; color:white; margin-top:10px; border:none; padding:10px; border-radius:8px; width:100%;" onclick="closeModal('shopModal')">Close Shop</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="customModal">
+        <div class="modal-card">
+            <h2>Settings</h2>
+            <p style="color:#888; margin-bottom:10px; font-size:0.8rem;">TOKEN STYLE</p>
+            <div class="option-grid">
+                <div class="option-btn selected" onclick="setTokenShape('cylinder', this)">Classic</div>
+                <div class="option-btn" onclick="setTokenShape('cone', this)">Modern</div>
+            </div>
+            <p style="color:#888; margin-bottom:10px; font-size:0.8rem;">BOARD MATERIAL</p>
+            <div class="option-grid">
+                <div class="option-btn selected" onclick="setBoardMat('glass', this)">Glass</div>
+                <div class="option-btn" onclick="setBoardMat('wood', this)">Matte</div>
+            </div>
+            
+            <button class="action-btn" style="background:var(--accent); border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold; cursor:pointer; margin-bottom:10px;" onclick="closeModal('customModal')">Resume</button>
+            <button class="action-btn" style="background:var(--danger); border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold; cursor:pointer; color:white;" onclick="resetGame()">RESET GAME</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="rulesModal">
+        <div class="modal-card">
+            <h2>How to Play</h2>
+            <div style="text-align:left; color:#aaa; font-size:0.9rem; line-height:1.6; margin-bottom:20px;">
+                1. Tap <b>ROLL</b> to throw dice.<br>
+                2. Roll a <b>6</b> to leave base.<br>
+                3. Earn <b>₦ Coins</b> by rolling 6s.<br>
+                4. Use Coins to buy Avatars in Shop.<br>
+                5. Reach the center Naira to win!
+            </div>
+            <button class="action-btn" style="background:var(--accent); border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="closeModal('rulesModal')">Let's Play</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        const COLORS = [0xFF3B30, 0x0A84FF, 0xFFD60A, 0x30D158]; // Red, Blue, Yellow, Green
+        const NAMES = ['RED', 'BLUE', 'YELLOW', 'GREEN'];
+        const START_OFFSETS = [0, 13, 26, 39]; 
+        
+        let state = {
+            turn: 0,
+            phase: 'ROLL',
+            diceVal: 1,
+            tokens: [[-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1]],
+            ai: [false, false, false, false],
+            tokenShape: 'cylinder',
+            coins: 1000,
+            ownedItems: ['avatar_default'],
+            currentAvatar: 'https://ui-avatars.com/api/?name=Red&background=FF3B30&color=fff',
+            isRecording: false,
+            isMusicPlaying: false,
+            isLightMode: false,
+            isChatCollapsed: false
+        };
+
+        const SHOP_ITEMS = [
+            { id: 'av_king', name: 'King Avatar', price: 500, type: 'avatar', img: 'https://ui-avatars.com/api/?name=Kg&background=FFD700&color=000' },
+            { id: 'av_cyber', name: 'Cyber Punk', price: 800, type: 'avatar', img: 'https://ui-avatars.com/api/?name=Cy&background=00FF88&color=000' },
+            { id: 'av_ninja', name: 'Ninja', price: 1200, type: 'avatar', img: 'https://ui-avatars.com/api/?name=Nj&background=333&color=fff' },
+            { id: 'tk_gold', name: 'Gold Token', price: 2000, type: 'style', img: 'https://ui-avatars.com/api/?name=Gd&background=FFD700&rounded=true' }
+        ];
+
+        // Three.js Globals
+        let scene, camera, renderer, controls;
+        let tokenMeshes = [[],[],[],[]];
+        let clickHitboxes = [];
+        let particles = [];
+        let pathVectors = []; 
+        let homeVectors = [[],[],[],[]]; 
+        let homeStretchVectors = [[],[],[],[]];
+        let plateMesh, baseMeshes = [];
+        
+        // Illumination Objects
+        let activeRing;
+        let activeLight;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let musicInterval;
+
+        // --- 2. INIT ---
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.FogExp2(0x050505, 0.015);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 60, 35);
+            camera.lookAt(0,0,0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.maxPolarAngle = Math.PI/2.1;
+            controls.minDistance = 20;
+            controls.maxDistance = 80;
+
+            setupLighting();
+            generateLudoPath();
+            createBoard();
+            createTokens();
+            initDiceGrid();
+            createTurnIndicators();
+
+            window.addEventListener('resize', onResize);
+            document.getElementById('rollBtn').addEventListener('click', rollDice);
+            renderer.domElement.addEventListener('pointerdown', onBoardClick);
+            
+            // Chat Input Listener
+            document.getElementById('chatInput').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') sendChat();
+            });
+
+            updateUI();
+            updateShopUI();
+            updateTurnIndicator(0); // Init light
+            log("MULTIPLAYER SYSTEM ACTIVE");
+            animate();
+        }
+
+        function setupLighting() {
+            scene.remove(...scene.children.filter(o => o.isLight));
+            const ambient = new THREE.AmbientLight(0xffffff, state.isLightMode ? 0.6 : 0.2);
+            scene.add(ambient);
+            const spot = new THREE.SpotLight(0xffffff, 1.5);
+            spot.position.set(0, 80, 0);
+            spot.castShadow = true;
+            scene.add(spot);
+            if(!state.isLightMode) {
+                const rim1 = new THREE.PointLight(0x00FF88, 0.8, 60);
+                rim1.position.set(-40, 10, -40);
+                scene.add(rim1);
+                const rim2 = new THREE.PointLight(0xFF0055, 0.8, 60);
+                rim2.position.set(40, 10, 40);
+                scene.add(rim2);
+            }
+        }
+
+        function createTurnIndicators() {
+            // 1. Glowing Ring that sits on the base
+            const ringGeo = new THREE.RingGeometry(6, 7, 32);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+            activeRing = new THREE.Mesh(ringGeo, ringMat);
+            activeRing.rotation.x = -Math.PI / 2;
+            activeRing.position.y = 0.3;
+            scene.add(activeRing);
+
+            // 2. Spotlight
+            activeLight = new THREE.PointLight(0xffffff, 3, 40);
+            activeLight.position.set(0, 10, 0);
+            scene.add(activeLight);
+        }
+
+        function updateTurnIndicator(turnIndex) {
+            const bx=(turnIndex===0||turnIndex===1)?11:-11; 
+            const bz=(turnIndex===0||turnIndex===3)?11:-11;
+            
+            // Animate Ring Position
+            activeRing.position.set(bx, 0.3, bz);
+            activeRing.material.color.setHex(COLORS[turnIndex]);
+
+            // Animate Light
+            activeLight.color.setHex(COLORS[turnIndex]);
+            activeLight.userData.target = new THREE.Vector3(bx, 10, bz);
+        }
+
+        // --- 3. GENERATION LOGIC ---
+        function generateLudoPath() {
+            const add = (x, z) => pathVectors.push(new THREE.Vector3(x*2.5, 0.2, z*2.5));
+            // Red Arm (Bottom)
+            add(1,6); add(1,5); add(1,4); add(1,3); add(1,2); 
+            add(2,1); add(3,1); add(4,1); add(5,1); add(6,1); add(7,1); add(7,0);
+            add(7,-1); add(6,-1); add(5,-1); add(4,-1); add(3,-1); add(2,-1);
+            add(1,-2); add(1,-3); add(1,-4); add(1,-5); add(1,-6); add(1,-7); add(0,-7);
+            add(-1,-7); add(-1,-6); add(-1,-5); add(-1,-4); add(-1,-3); add(-1,-2);
+            add(-2,-1); add(-3,-1); add(-4,-1); add(-5,-1); add(-6,-1); add(-7,-1); add(-7,0);
+            add(-7,1); add(-6,1); add(-5,1); add(-4,1); add(-3,1); add(-2,1);
+            add(-1,2); add(-1,3); add(-1,4); add(-1,5); add(-1,6); add(-1,7); add(0,7); add(1,7);
+
+            for(let p=0; p<4; p++) {
+                let arr = [];
+                for(let i=1; i<=5; i++) {
+                    if(p===0) arr.push(new THREE.Vector3(0, 0.2, (7-i)*2.5));
+                    if(p===1) arr.push(new THREE.Vector3((7-i)*2.5, 0.2, 0));
+                    if(p===2) arr.push(new THREE.Vector3(0, 0.2, -(7-i)*2.5));
+                    if(p===3) arr.push(new THREE.Vector3(-(7-i)*2.5, 0.2, 0));
+                }
+                arr.push(new THREE.Vector3(0,0.5,0)); 
+                homeStretchVectors[p] = arr;
+
+                homeVectors[p] = [];
+                const bx=(p===0||p===1)?11:-11; const bz=(p===0||p===3)?11:-11;
+                [[-2,-2],[2,-2],[-2,2],[2,2]].forEach(o => homeVectors[p].push(new THREE.Vector3(bx+o[0], 0.2, bz+o[1])));
+            }
+        }
+
+        function createBoard() {
+            // Main Plate
+            const plateGeo = new THREE.BoxGeometry(45, 1, 45);
+            const plateMat = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.5, clearcoat: 1.0 });
+            plateMesh = new THREE.Mesh(plateGeo, plateMat);
+            plateMesh.position.y = -0.6; plateMesh.receiveShadow = true;
+            scene.add(plateMesh);
+
+            const sqGeo = new THREE.BoxGeometry(2.4, 0.1, 2.4);
+            pathVectors.forEach((v, i) => {
+                let col = 0x333333; 
+                if(i===0) col=COLORS[0]; if(i===13) col=COLORS[1];
+                if(i===26) col=COLORS[2]; if(i===39) col=COLORS[3];
+                const safe = [0,8,13,21,26,34,39,47].includes(i);
+                if(safe && col===0x333333) col=0x666666;
+                const m = new THREE.Mesh(sqGeo, new THREE.MeshStandardMaterial({color:col}));
+                m.position.copy(v); m.receiveShadow=true; scene.add(m);
+                if(safe) {
+                    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.3), new THREE.MeshBasicMaterial({color:0xffffff}));
+                    star.position.copy(v); star.position.y=0.2; scene.add(star);
+                }
+            });
+
+            // Bases
+            baseMeshes = [];
+            for(let p=0; p<4; p++) {
+                const cvs = document.createElement('canvas');
+                cvs.width = 128; cvs.height = 128;
+                const ctx = cvs.getContext('2d');
+                ctx.fillStyle = '#' + COLORS[p].toString(16); ctx.fillRect(0,0,128,128);
+                ctx.strokeStyle = 'white'; ctx.lineWidth = 5; ctx.strokeRect(5,5,118,118);
+                const tex = new THREE.CanvasTexture(cvs);
+                
+                const b = new THREE.Mesh(new THREE.BoxGeometry(10, 0.2, 10), new THREE.MeshStandardMaterial({ map: tex }));
+                const bx=(p===0||p===1)?11:-11; const bz=(p===0||p===3)?11:-11;
+                b.position.set(bx, 0.1, bz); b.receiveShadow=true;
+                scene.add(b);
+                baseMeshes.push(b);
+            }
+        }
+
+        function createTokens() {
+            tokenMeshes.flat().forEach(m => scene.remove(m));
+            clickHitboxes.forEach(m => scene.remove(m));
+            tokenMeshes = [[],[],[],[]];
+            clickHitboxes = [];
+
+            let geo = state.tokenShape === 'cylinder' ? new THREE.CylinderGeometry(0.7, 0.9, 1.2, 32) : new THREE.ConeGeometry(0.9, 1.5, 32);
+            const hitGeo = new THREE.SphereGeometry(2, 16, 16); 
+
+            for(let p=0; p<4; p++) {
+                const mat = new THREE.MeshPhysicalMaterial({
+                    color: COLORS[p], metalness: 0.3, roughness: 0.1,
+                    emissive: COLORS[p], emissiveIntensity: 0.2
+                });
+                for(let i=0; i<4; i++) {
+                    const m = new THREE.Mesh(geo, mat);
+                    m.position.copy(homeVectors[p][i]);
+                    m.castShadow = true; m.userData = {p,i};
+                    if(state.tokenShape === 'cylinder') {
+                        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({color:0xffffff}));
+                        cap.position.y = 0.6; m.add(cap);
+                    }
+                    tokenMeshes[p].push(m); scene.add(m);
+
+                    const hit = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({visible: false}));
+                    hit.position.copy(m.position);
+                    hit.userData = {p, i, isHitbox: true};
+                    clickHitboxes.push(hit); scene.add(hit);
+                }
+            }
+        }
+
+        // --- 4. GAME LOGIC ---
+        function rollDice() {
+            if(state.phase !== 'ROLL') return;
+            state.phase = 'ANIMATING';
+            document.getElementById('rollBtn').disabled = true;
+            document.getElementById('diceVisual').classList.add('show');
+            playSfx('roll');
+
+            let c = 0;
+            const iv = setInterval(() => {
+                const r = Math.floor(Math.random()*6)+1;
+                updateDiceGrid(r);
+                c++;
+                if(c > 12) {
+                    clearInterval(iv);
+                    state.diceVal = Math.floor(Math.random()*6)+1;
+                    updateDiceGrid(state.diceVal);
+                    log(`${NAMES[state.turn]} rolled ${state.diceVal}`);
+                    
+                    if(state.diceVal === 6) {
+                        spawnParticles(0, 5, 0, COLORS[state.turn]);
+                        if(state.turn === 0) { // Only player 1 earns coins
+                            addCoins(50);
+                            log("Bonus ₦50!");
+                        }
+                    }
+                    checkMoves();
+                }
+            }, 50);
+        }
+
+        function checkMoves() {
+            const moves = [];
+            state.tokens[state.turn].forEach((pos, i) => {
+                if(pos === -1) { if(state.diceVal === 6) moves.push(i); }
+                else if(pos + state.diceVal <= 56) moves.push(i);
+            });
+
+            if(moves.length === 0) {
+                setTimeout(nextTurn, 1000);
+            } 
+            else if(state.ai[state.turn]) {
+                setTimeout(() => moveToken(moves[Math.floor(Math.random() * moves.length)]), 800);
+            } 
+            else if(moves.length === 1) {
+                setTimeout(() => moveToken(moves[0]), 500);
+            } 
+            else {
+                state.phase = 'SELECT';
+                log("Select a Token");
+                moves.forEach(i => {
+                    const m = tokenMeshes[state.turn][i];
+                    m.position.y += 0.8; 
+                    m.material.emissiveIntensity = 0.8;
+                    const hit = clickHitboxes.find(h => h.userData.p === state.turn && h.userData.i === i);
+                    if(hit) hit.position.y += 0.8;
+                });
+            }
+        }
+
+        function onBoardClick(e) {
+            if(state.phase !== 'SELECT') return;
+            const ray = new THREE.Raycaster();
+            const m = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+            ray.setFromCamera(m, camera);
+            const validHitboxes = clickHitboxes.filter(h => h.userData.p === state.turn);
+            const hits = ray.intersectObjects(validHitboxes);
+            
+            if(hits.length > 0) {
+                const idx = hits[0].object.userData.i;
+                const pos = state.tokens[state.turn][idx];
+                let valid = false;
+                if(pos === -1 && state.diceVal === 6) valid = true;
+                if(pos > -1 && pos + state.diceVal <= 56) valid = true;
+                if(valid) moveToken(idx);
+            }
+        }
+		
+		function toggleTheme() {
+    state.isLightMode = !state.isLightMode;
+    
+    // Change Background Color
+    const bgCol = state.isLightMode ? 0xdddddd : 0x050505;
+    scene.background = new THREE.Color(bgCol);
+    scene.fog.color.set(bgCol);
+    
+    // Update Lighting
+    setupLighting();
+    
+    // Feedback
+    log(state.isLightMode ? "Studio Mode" : "Dark Mode");
+}
+
+        function moveToken(idx) {
+            state.phase = 'ANIMATING';
+            playSfx('move');
+            resetHighlights();
+
+            const p = state.turn;
+            const currentPos = state.tokens[p][idx];
+            const nextPos = (currentPos === -1) ? 0 : currentPos + state.diceVal;
+            state.tokens[p][idx] = nextPos;
+
+            const mesh = tokenMeshes[p][idx];
+            const hit = clickHitboxes.find(h => h.userData.p === p && h.userData.i === idx);
+
+            let targetPos;
+            if(nextPos <= 50) {
+                const boardIndex = (nextPos + START_OFFSETS[p]) % 52;
+                targetPos = pathVectors[boardIndex];
+            } else {
+                targetPos = homeStretchVectors[p][Math.min(nextPos - 51, 5)];
+            }
+
+            const start = mesh.position.clone();
+            let t = 0;
+            const anim = setInterval(() => {
+                t += 0.08;
+                if(t >= 1) {
+                    clearInterval(anim);
+                    mesh.position.copy(targetPos);
+                    if(hit) hit.position.copy(targetPos);
+                    
+                    if(nextPos <= 50) {
+                        const myBoardIdx = (nextPos + START_OFFSETS[p]) % 52;
+                        for(let op=0; op<4; op++) {
+                            if(op !== p) {
+                                state.tokens[op].forEach((opos, oi) => {
+                                    if(opos !== -1 && opos <= 50) {
+                                        const opBoardIdx = (opos + START_OFFSETS[op]) % 52;
+                                        if(myBoardIdx === opBoardIdx) {
+                                            playSfx('win'); 
+                                            log("Enemy Captured!");
+                                            if(p === 0) addCoins(200); // Reward
+                                            state.tokens[op][oi] = -1;
+                                            tokenMeshes[op][oi].position.copy(homeVectors[op][oi]);
+                                            const ophit = clickHitboxes.find(h => h.userData.p === op && h.userData.i === oi);
+                                            if(ophit) ophit.position.copy(homeVectors[op][oi]);
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    if(nextPos === 56) {
+                        playSfx('win');
+                        spawnParticles(targetPos.x, targetPos.y, targetPos.z, COLORS[p]);
+                        log("TOKEN HOME!");
+                        if(p === 0) addCoins(500);
+                    }
+
+                    if(state.diceVal === 6 || nextPos === 56) {
+                        state.phase = 'ROLL';
+                        document.getElementById('rollBtn').disabled = false;
+                        log("Extra Turn!");
+                        if(state.ai[state.turn]) setTimeout(rollDice, 1500);
+                    } else {
+                        nextTurn();
+                    }
+                } else {
+                    mesh.position.lerpVectors(start, targetPos, t);
+                    mesh.position.y = 0.5 + Math.sin(t*Math.PI)*4;
+                    if(hit) hit.position.copy(mesh.position);
+                }
+            }, 16);
+        }
+
+        function nextTurn() {
+            document.getElementById('diceVisual').classList.remove('show');
+            state.turn = (state.turn + 1) % 4;
+            state.phase = 'ROLL';
+            
+            updateTurnIndicator(state.turn);
+            updateUI();
+            
+            if(state.ai[state.turn]) {
+                document.getElementById('rollBtn').disabled = true;
+                setTimeout(rollDice, 1500);
+            } else {
+                document.getElementById('rollBtn').disabled = false;
+            }
+        }
+
+        // --- 5. CHAT SYSTEM ---
+        function toggleChat() {
+            const chat = document.getElementById('chatContainer');
+            state.isChatCollapsed = !state.isChatCollapsed;
+            if(state.isChatCollapsed) {
+                chat.classList.add('collapsed');
+            } else {
+                chat.classList.remove('collapsed');
+            }
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const txt = input.value.trim();
+            if(!txt) return;
+
+            addChatMessage('You', txt, '#fff');
+            input.value = '';
+            
+            // Sim Bot Reply
+            setTimeout(() => {
+                const msgs = ["Nice move!", "Wait for my turn...", "Almost there!", "Unlucky roll lol", "Good luck"];
+                const rName = NAMES[(state.turn + 1) % 4];
+                const rMsg = msgs[Math.floor(Math.random()*msgs.length)];
+                addChatMessage(rName, rMsg, '#' + COLORS[(state.turn+1)%4].toString(16));
+            }, 2000);
+        }
+
+        function addChatMessage(user, text, color) {
+            const list = document.getElementById('chatList');
+            const d = document.createElement('div');
+            d.className = 'chat-msg';
+            d.innerHTML = `<b style="color:${color}">${user}:</b> ${text}`;
+            list.appendChild(d);
+            // Auto scroll
+            list.scrollTop = list.scrollHeight;
+            if(list.children.length > 8) list.removeChild(list.firstChild);
+        }
+
+        // --- 6. SHOP SYSTEM ---
+        function openShop() {
+            const grid = document.getElementById('shopGrid');
+            grid.innerHTML = '';
+            
+            SHOP_ITEMS.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'shop-item';
+                const owned = state.ownedItems.includes(item.id);
+                
+                el.innerHTML = `
+                    <img src="${item.img}">
+                    <h3>${item.name}</h3>
+                    <div class="price-tag">${owned ? 'OWNED' : item.price + ' ₦'}</div>
+                    <button class="buy-btn ${owned ? 'owned' : 'can-buy'}" 
+                        onclick="buyItem('${item.id}')">${owned ? 'Equip' : 'Buy'}</button>
+                `;
+                grid.appendChild(el);
+            });
+            openModal('shopModal');
+        }
+
+        function buyItem(id) {
+            const item = SHOP_ITEMS.find(i => i.id === id);
+            if(state.ownedItems.includes(id)) {
+                // Equip
+                if(item.type === 'avatar') {
+                    state.currentAvatar = item.img;
+                    updateUI();
+                    log("Avatar Equipped");
+                }
+                closeModal('shopModal');
+                return;
+            }
+
+            if(state.coins >= item.price) {
+                state.coins -= item.price;
+                state.ownedItems.push(id);
+                addCoins(0); // Update UI
+                playSfx('win');
+                openShop(); // Refresh UI
+                log("Item Purchased!");
+            } else {
+                log("Insufficient Funds!");
+                playSfx('move'); // Error sound
+            }
+        }
+
+        function addCoins(amount) {
+            state.coins += amount;
+            document.getElementById('coinDisplay').innerText = state.coins;
+        }
+
+        function updateShopUI() {
+            document.getElementById('coinDisplay').innerText = state.coins;
+        }
+
+        // --- 7. UTILS & UI & RESET ---
+        function resetGame() {
+            state.turn = 0;
+            state.tokens = [[-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1]];
+            state.phase = 'ROLL';
+            createTokens();
+            updateUI();
+            updateTurnIndicator(0);
+            log("Game Reset!");
+            closeModal('customModal');
+        }
+
+        function resetHighlights() {
+            tokenMeshes.flat().forEach(m => { m.position.y = 0.2; m.material.emissiveIntensity = 0.2; });
+            clickHitboxes.forEach(h => {
+                if(state.tokens[h.userData.p][h.userData.i] === -1) h.position.copy(homeVectors[h.userData.p][h.userData.i]);
+            });
+        }
+
+        function spawnParticles(x, y, z, color) {
+            const geo = new THREE.BufferGeometry();
+            const pos = []; for(let i=0; i<50; i++) pos.push(x, y, z);
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({color: color, size: 0.5, transparent: true});
+            const pts = new THREE.Points(geo, mat); scene.add(pts);
+            const vels = []; for(let i=0; i<50; i++) vels.push({x:(Math.random()-0.5), y:Math.random(), z:(Math.random()-0.5)});
+            particles.push({mesh: pts, vels: vels, life: 1.0});
+        }
+
+        function updateParticles() {
+            for(let i=particles.length-1; i>=0; i--) {
+                const p = particles[i]; p.life -= 0.02;
+                const pos = p.mesh.geometry.attributes.position.array;
+                for(let j=0; j<50; j++) {
+                    pos[j*3] += p.vels[j].x; pos[j*3+1] += p.vels[j].y; pos[j*3+2] += p.vels[j].z;
+                    p.vels[j].y -= 0.02; 
+                }
+                p.mesh.geometry.attributes.position.needsUpdate = true;
+                p.mesh.material.opacity = p.life;
+                if(p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+            }
+        }
+
+        function toggleMusic() {
+            state.isMusicPlaying = !state.isMusicPlaying;
+            if(state.isMusicPlaying) {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                startMelody(); log("Music ON");
+            } else { stopMelody(); log("Music OFF"); }
+        }
+
+        function startMelody() {
+            const notes = [261.63, 293.66, 329.63, 392.00, 440.00];
+            let step = 0;
+            musicInterval = setInterval(() => {
+                if(!state.isMusicPlaying) return;
+                if(Math.random() > 0.4) playTone(notes[Math.floor(Math.random()*notes.length)], 'sine', 0.5, 0.05);
+                if(step % 4 === 0) playTone(130.81, 'triangle', 0.8, 0.1);
+                step++;
+            }, 300);
+        }
+        function stopMelody() { clearInterval(musicInterval); }
+
+        function playTone(freq, type, dur, vol=0.1) {
+            const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+            o.type = type; o.frequency.value = freq;
+            o.connect(g); g.connect(audioCtx.destination);
+            g.gain.setValueAtTime(0, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+            o.start(); o.stop(audioCtx.currentTime + dur);
+        }
+
+        function playSfx(type) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            if(type === 'roll') playTone(400, 'triangle', 0.2);
+            if(type === 'move') playTone(600, 'sine', 0.1);
+            if(type === 'win') { playTone(440, 'square', 0.2); setTimeout(()=>playTone(554, 'square', 0.4), 150); }
+        }
+
+        async function toggleRecording() {
+            const cam = document.getElementById('userCamContainer');
+            const video = document.getElementById('userCam');
+            if(!state.isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    video.srcObject = stream; cam.style.display = 'block'; state.isRecording = true; log("You are Live!");
+                } catch(e) { alert("Camera denied"); }
+            } else {
+                video.srcObject.getTracks().forEach(t => t.stop());
+                cam.style.display = 'none'; state.isRecording = false; log("Stream Ended");
+            }
+        }
+
+        function toggleAI() {
+            state.ai[state.turn] = !state.ai[state.turn];
+            document.getElementById('aiStatus').innerText = state.ai[state.turn] ? "ON" : "OFF";
+            if(state.ai[state.turn] && state.phase === 'ROLL') rollDice();
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function setTokenShape(shape, el) {
+            state.tokenShape = shape;
+            document.querySelectorAll('#customModal .option-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected'); createTokens();
+        }
+        
+        function setBoardMat(mat, el) {
+            el.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+            
+            if(mat === 'glass') {
+                plateMesh.material = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.5, clearcoat: 1.0 });
+                baseMeshes.forEach(b => b.material = new THREE.MeshStandardMaterial({ map: b.material.map }));
+            } else {
+                // Matte / Wood style
+                plateMesh.material = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.9, metalness: 0.1 });
+                baseMeshes.forEach(b => b.material = new THREE.MeshStandardMaterial({ map: b.material.map, roughness: 0.9 }));
+            }
+            log("Style Applied");
+        }
+        
+        function copyLink() { navigator.clipboard.writeText("nairaludo.com/join/7721"); log("Link Copied!"); }
+
+        function updateUI() {
+            const c = COLORS[state.turn];
+            document.getElementById('scoreCard').style.borderColor = '#' + c.toString(16);
+            document.getElementById('pName').innerText = NAMES[state.turn];
+            document.getElementById('pName').style.color = '#' + c.toString(16);
+            
+            // Avatar Update Logic
+            const avImg = document.getElementById('pAvatar');
+            if(state.turn === 0) avImg.src = state.currentAvatar; 
+            else {
+                // Bots/Other players get generated avatars
+                const hex = COLORS[state.turn].toString(16);
+                avImg.src = `https://ui-avatars.com/api/?name=${NAMES[state.turn]}&background=${hex}&color=fff`;
+            }
+            document.querySelector('.avatar-frame').style.borderColor = '#' + c.toString(16);
+        }
+
+        function initDiceGrid() {
+            const g = document.getElementById('diceGrid'); g.innerHTML='';
+            for(let i=0;i<9;i++) { const d=document.createElement('div'); d.className='dot'; g.appendChild(d); }
+        }
+        function updateDiceGrid(v) {
+            const ds = document.querySelectorAll('.dot'); ds.forEach(d=>d.classList.remove('active'));
+            const m = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+            if(m[v]) m[v].forEach(i=>ds[i].classList.add('active'));
+        }
+
+        function log(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        function animate() { 
+            requestAnimationFrame(animate); 
+            controls.update(); 
+            updateParticles();
+            // Smoothly move the turn light
+            if(activeLight && activeLight.userData.target) {
+                activeLight.position.lerp(activeLight.userData.target, 0.05);
+            }
+            renderer.render(scene, camera); 
+        }
+
+        init();
+    </script>
+</body>
+</html>

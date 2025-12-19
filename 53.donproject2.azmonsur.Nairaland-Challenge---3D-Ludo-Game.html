@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tech Ludo 3D - Battle Destruction Edition</title>
+    <style>
+      :root {
+        --glass: rgba(10, 10, 10, 0.96);
+        --accent: #00ffcc;
+        --danger: #ff4444;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: "Segoe UI", sans-serif;
+        color: white;
+      }
+
+      #ui-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 100;
+      }
+      .overlay {
+        pointer-events: auto;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        width: 380px;
+      }
+
+      input {
+        width: 100%;
+        padding: 12px;
+        background: #222;
+        border: 1px solid #444;
+        color: white;
+        border-radius: 6px;
+        box-sizing: border-box;
+        margin-bottom: 12px;
+      }
+      .btn {
+        background: white;
+        color: black;
+        border: none;
+        padding: 14px;
+        margin: 6px 0;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        width: 100%;
+        transition: 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .btn:hover {
+        background: var(--accent);
+        transform: translateY(-2px);
+      }
+      .btn-small {
+        width: auto;
+        padding: 8px 12px;
+        font-size: 0.7rem;
+      }
+      .btn-danger {
+        background: var(--danger);
+        color: white;
+      }
+
+      #hud {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: var(--glass);
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 4px solid var(--accent);
+        pointer-events: auto;
+        width: 240px;
+      }
+
+      #scoreboard {
+        margin: 15px 0;
+        border-top: 1px solid #333;
+        padding-top: 15px;
+      }
+      .score-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        color: #888;
+        transition: 0.3s;
+      }
+      .score-row.active {
+        color: var(--accent);
+        transform: scale(1.05);
+        font-weight: bold;
+      }
+      .token-count {
+        background: #222;
+        padding: 2px 10px;
+        border-radius: 12px;
+        color: white;
+        border: 1px solid #444;
+      }
+
+      #die-inventory {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        justify-content: center;
+      }
+      .die-chip {
+        background: var(--accent);
+        color: black;
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 1rem;
+        box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 15px;
+      }
+      .hidden {
+        display: none !important;
+      }
+      label {
+        display: block;
+        text-align: left;
+        font-size: 0.75rem;
+        color: var(--accent);
+        margin-bottom: 5px;
+        text-transform: uppercase;
+      }
+
+      .rules-content {
+        text-align: left;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 20px;
+        padding-right: 10px;
+        color: #ccc;
+      }
+      .rules-content::-webkit-scrollbar {
+        width: 5px;
+      }
+      .rules-content::-webkit-scrollbar-track {
+        background: #111;
+      }
+      .rules-content::-webkit-scrollbar-thumb {
+        background: var(--accent);
+        border-radius: 10px;
+      }
+      .rules-content b {
+        color: var(--accent);
+      }
+
+      .board-preview {
+        width: 100px;
+        height: 100px;
+        margin: 10px auto;
+        border: 2px solid var(--accent);
+        background: repeating-conic-gradient(
+            from 0deg,
+            #222 0deg 90deg,
+            #111 90deg 180deg
+          )
+          0 0/20px 20px;
+      }
+
+      #victory-screen {
+        animation: victoryPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      @keyframes victoryPop {
+        from {
+          transform: translate(-50%, -50%) scale(0.5);
+          opacity: 0;
+        }
+        to {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ui-layer">
+      <div id="main-menu" class="overlay">
+        <h1
+          style="
+            margin: 0 0 20px 0;
+            color: var(--accent);
+            letter-spacing: 3px;
+            font-size: 1.5rem;
+          "
+        >
+          NAIRALAND LUDO <br />BATTLE OF THE TITANS
+        </h1>
+        <p style="font-size: 0.8rem; color: #888; margin-bottom: 20px">
+          Strategic Board Logic
+        </p>
+        <button class="btn" onclick="startCVC()">Computer vs Computer</button>
+        <button class="btn" onclick="showNaming('PVC')">
+          Player vs Computer
+        </button>
+        <button class="btn" onclick="showNaming('PVP')">
+          Player vs Player
+        </button>
+        <button
+          class="btn"
+          style="background: #444; color: white"
+          onclick="toggleRules(true)"
+        >
+          How to Play
+        </button>
+      </div>
+
+      <div id="rules-menu" class="overlay hidden">
+        <h2 style="color: var(--accent); font-size: 1.2rem">
+          BATTLE PROTOCOLS
+        </h2>
+        <div class="rules-content">
+          <p>
+            <b>1. DEPLOYMENT</b><br />Tokens start in your Yard. Roll a
+            <b>6</b> to deploy to the board. Double 6's also grants a bonus
+            roll.
+          </p>
+          <p>
+            <b>2. MOVEMENT</b><br />Roll two dice per turn. Move all 8 tokens to
+            the center or capture opponent's tokens to achieve total domination.
+            Then you win.
+          </p>
+          <p>
+            <b>3. DESTRUCTION</b><br />Landing on an opponent destroys them and
+            sends them to their yard. Stacks require equal or greater numbers to
+            capture.
+          </p>
+          <p>
+            <b>4. SAFETY LOGIC</b><br />AI commanders prioritize safe squares
+            and will avoid moving into range of an opponent if possible.
+          </p>
+          <p>
+            <b>5. VICTORY BUCKETS</b><br />Finished tokens are placed in
+            specialized zones outside the board near your yard.
+          </p>
+          <p>
+            <b>6. REPLAY</b><br />Use "Replay Last Move" for a cinematic view of
+            the previous turn.
+          </p>
+          <p><br />Enjoy the battle and may the best commander win!</p>
+        </div>
+        <button class="btn" onclick="toggleRules(false)">UNDERSTOOD</button>
+      </div>
+
+      <div id="naming-menu" class="overlay hidden">
+        <h2 style="margin-top: 0; font-size: 1.1rem; letter-spacing: 1px">
+          ASSIGN COMMANDERS
+        </h2>
+        <div id="input-container">
+          <label>TOP COMMANDER (RED/GREEN)</label>
+          <input type="text" id="p0-name" placeholder="Enter Name" />
+          <label id="l1">BOTTOM COMMANDER (BLUE/YELLOW)</label>
+          <input type="text" id="p1-name" placeholder="Enter Name" />
+        </div>
+        <button
+          class="btn"
+          style="background: var(--accent)"
+          onclick="submitNames()"
+        >
+          BATTLE START
+        </button>
+        <button
+          class="btn"
+          style="background: #333; color: white"
+          onclick="backToMenu()"
+        >
+          BACK
+        </button>
+      </div>
+
+      <div id="victory-screen" class="overlay hidden">
+        <h1 style="color: gold; font-size: 3rem; margin: 0">VICTORY!</h1>
+        <p id="winner-text" style="font-size: 1.5rem; margin: 10px 0"></p>
+        <button
+          class="btn"
+          style="background: var(--accent)"
+          onclick="restartGame()"
+        >
+          PLAY AGAIN
+        </button>
+        <button
+          class="btn"
+          style="background: #333; color: white"
+          onclick="backToMenu()"
+        >
+          MAIN MENU
+        </button>
+      </div>
+
+      <div id="hud" class="hidden">
+        <div style="font-size: 0.6rem; color: #666; letter-spacing: 2px">
+          CURRENT TURN
+        </div>
+        <div id="turn-display" style="font-size: 1.4rem; font-weight: bold">
+          -
+        </div>
+        <div
+          id="status"
+          style="
+            margin-top: 4px;
+            font-size: 0.8rem;
+            color: #aaa;
+            min-height: 1.2em;
+          "
+        >
+          ...
+        </div>
+        <div id="die-inventory"></div>
+        <button
+          id="manual-roll"
+          class="btn hidden"
+          style="margin-top: 15px; background: var(--accent)"
+          onclick="handleManualRoll()"
+        >
+          ROLL DICE
+        </button>
+        <div id="scoreboard">
+          <div
+            style="
+              font-size: 0.6rem;
+              color: #666;
+              margin-bottom: 12px;
+              letter-spacing: 1px;
+            "
+          >
+            TEAM PROGRESS
+          </div>
+          <div id="score-list"></div>
+        </div>
+        <div class="controls">
+          <button id="pause-btn" class="btn btn-small" onclick="togglePause()">
+            PAUSE
+          </button>
+          <button class="btn btn-small" onclick="restartGame()">RESET</button>
+          <button
+            id="replay-btn"
+            class="btn btn-small"
+            onclick="replayLastMove()"
+            style="
+              background: #00ffa2;
+              color: black;
+              grid-column: span 2;
+              display: none;
+            "
+          >
+            REPLAY LAST MOVE
+          </button>
+          <button
+            class="btn btn-small btn-danger"
+            onclick="backToMenu()"
+            style="grid-column: span 2"
+          >
+            EXIT
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+    <script>
+      const SQUARE_SIZE = 1.1;
+      const MAX_STEPS = 57;
+      const COLORS = {
+        RED: 0xe74c3c,
+        GREEN: 0x2ecc71,
+        BLUE: 0x3498db,
+        YELLOW: 0xf1c40f,
+        DARK: 0x111111,
+        BORDER: 0x222222,
+        WHITE: 0xdddddd,
+      };
+      const LOGOS = {
+        HTML5:
+          "https://upload.wikimedia.org/wikipedia/commons/6/61/HTML5_logo_and_wordmark.svg",
+        CSS3: "https://upload.wikimedia.org/wikipedia/commons/d/d5/CSS3_logo_and_wordmark.svg",
+        JS: "https://upload.wikimedia.org/wikipedia/commons/6/6a/JavaScript-logo.png",
+        THREE:
+          "https://upload.wikimedia.org/wikipedia/commons/3/3f/Three.js_Icon.svg",
+      };
+
+      let scene,
+        camera,
+        renderer,
+        dice1,
+        dice2,
+        raycaster,
+        mouse,
+        audioListener,
+        moveSound,
+        rollSound;
+      let isRolling = false,
+        isPaused = false,
+        canMove = false,
+        activeMode = "",
+        players = [],
+        currentTurnIdx = 0,
+        tokens = [];
+      let lastRoll = { d1: 0, d2: 0, activeDice: [] },
+        isBonusTurn = false;
+      let lastActionState = null;
+      let nameLabels = [];
+      let confetti = [];
+
+      function toggleRules(show) {
+        document.getElementById("main-menu").classList.toggle("hidden", show);
+        document.getElementById("rules-menu").classList.toggle("hidden", !show);
+      }
+
+      function showNaming(mode) {
+        activeMode = mode;
+        document.getElementById("main-menu").classList.add("hidden");
+        document.getElementById("naming-menu").classList.remove("hidden");
+        const p0 = document.getElementById("p0-name");
+        const p1 = document.getElementById("p1-name");
+        if (mode === "PVC") {
+          p0.placeholder = "Guru";
+          p1.placeholder = "Player 1";
+        } else if (mode === "PVP") {
+          p0.placeholder = "Player 1";
+          p1.placeholder = "Player 2";
+        }
+      }
+
+      function backToMenu() {
+        location.reload();
+      }
+      function startCVC() {
+        activeMode = "CVC";
+        setupPlayers();
+        initGame();
+      }
+      function submitNames() {
+        setupPlayers();
+        initGame();
+      }
+
+      function setupPlayers() {
+        let n0 = document.getElementById("p0-name").value.trim();
+        let n1 = document.getElementById("p1-name").value.trim();
+        if (activeMode === "CVC") {
+          n0 = "Guru 1";
+          n1 = "Guru 2";
+        } else if (activeMode === "PVC") {
+          n0 = n0 || "Guru";
+          n1 = n1 || "Player 1";
+        } else {
+          n0 = n0 || "Player 1";
+          n1 = n1 || "Player 2";
+        }
+        players = [
+          {
+            name: n0,
+            isAI: activeMode === "CVC" || activeMode === "PVC",
+            score: 0,
+            color: "#ff4444",
+            teamID: 0,
+            labelPos: { x: 0, z: -9.5 },
+          },
+          {
+            name: n1,
+            isAI: activeMode === "CVC",
+            score: 0,
+            color: "#3498db",
+            teamID: 1,
+            labelPos: { x: 0, z: 8.8 },
+          },
+        ];
+      }
+
+      function initGame() {
+        document
+          .querySelectorAll(".overlay")
+          .forEach((el) => el.classList.add("hidden"));
+        document.getElementById("hud").classList.remove("hidden");
+        updateScoreboard();
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        camera = new THREE.PerspectiveCamera(
+          45,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          100
+        );
+        camera.position.set(0, 20, 15);
+        camera.lookAt(0, -1, 0);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+        audioListener = new THREE.AudioListener();
+        camera.add(audioListener);
+        moveSound = new THREE.Audio(audioListener);
+        rollSound = new THREE.Audio(audioListener);
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load(
+          "https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3",
+          (b) => moveSound.setBuffer(b)
+        );
+        audioLoader.load(
+          "https://assets.mixkit.co/active_storage/sfx/2006/2006-preview.mp3",
+          (b) => rollSound.setBuffer(b)
+        );
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 15, 5);
+        light.castShadow = true;
+        scene.add(light, new THREE.AmbientLight(0xffffff, 0.4));
+        createBattleBoard();
+        createDice();
+        createPlayerLabels();
+        window.addEventListener("mousedown", onPointerDown);
+        animate();
+        gameLoop();
+      }
+
+      function createPlayerLabels() {
+        players.forEach((p, i) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 512;
+          canvas.height = 128;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = p.color;
+          ctx.font = "bold 48px Segoe UI";
+          ctx.textAlign = "center";
+          ctx.fillText(p.name, 256, 80);
+          const texture = new THREE.CanvasTexture(canvas);
+          const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+          });
+          const geometry = new THREE.PlaneGeometry(6, 1.5);
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(p.labelPos.x, 0.1, p.labelPos.z);
+          mesh.rotation.x = -Math.PI / 2;
+          scene.add(mesh);
+          nameLabels.push(mesh);
+        });
+      }
+
+      function createBattleBoard() {
+        const board = new THREE.Group();
+        const base = new THREE.Mesh(
+          new THREE.BoxGeometry(18, 0.5, 18),
+          new THREE.MeshStandardMaterial({ color: COLORS.DARK })
+        );
+        base.position.y = -0.3;
+        board.add(base);
+        const sqGeo = new THREE.PlaneGeometry(
+          SQUARE_SIZE * 0.94,
+          SQUARE_SIZE * 0.94
+        );
+        sqGeo.rotateX(-Math.PI / 2);
+        for (let x = 0; x < 15; x++) {
+          for (let z = 0; z < 15; z++) {
+            if (!((x >= 6 && x <= 8) || (z >= 6 && z <= 8))) continue;
+            if (x >= 6 && x <= 8 && z >= 6 && z <= 8) continue;
+            let color = COLORS.WHITE;
+            if (x === 7 && z < 6) color = COLORS.RED;
+            if (x === 6 && z === 1) color = COLORS.RED;
+            if (x === 7 && z === 0) color = COLORS.WHITE;
+            if (z === 7 && x < 6) color = COLORS.BLUE;
+            if (x === 1 && z === 8) color = COLORS.BLUE;
+            if (x === 0 && z === 7) color = COLORS.WHITE;
+            if (x === 7 && z > 8) color = COLORS.YELLOW;
+            if (x === 8 && z === 13) color = COLORS.YELLOW;
+            if (x === 7 && z === 14) color = COLORS.WHITE;
+            if (z === 7 && x > 8) color = COLORS.GREEN;
+            if (x === 13 && z === 6) color = COLORS.GREEN;
+            if (x === 14 && z === 7) color = COLORS.WHITE;
+            const sq = new THREE.Mesh(
+              sqGeo,
+              new THREE.MeshStandardMaterial({ color: color })
+            );
+            sq.position.set((x - 7) * SQUARE_SIZE, 0, (z - 7) * SQUARE_SIZE);
+            board.add(sq);
+          }
+        }
+        const finish = new THREE.Mesh(
+          new THREE.BoxGeometry(SQUARE_SIZE * 3, 0.1, SQUARE_SIZE * 3),
+          new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
+        );
+        board.add(finish);
+        createYard(board, -4.5, -4.5, COLORS.RED, LOGOS.HTML5, 0);
+        createYard(board, -4.5, 4.5, COLORS.BLUE, LOGOS.THREE, 1);
+        createYard(board, 4.5, 4.5, COLORS.YELLOW, LOGOS.JS, 1);
+        createYard(board, 4.5, -4.5, COLORS.GREEN, LOGOS.CSS3, 0);
+        scene.add(board);
+      }
+
+      const BOARD_PATH = [
+        [6, 1],
+        [6, 2],
+        [6, 3],
+        [6, 4],
+        [6, 5],
+        [5, 6],
+        [4, 6],
+        [3, 6],
+        [2, 6],
+        [1, 6],
+        [0, 6],
+        [0, 7],
+        [0, 8],
+        [1, 8],
+        [2, 8],
+        [3, 8],
+        [4, 8],
+        [5, 8],
+        [6, 9],
+        [6, 10],
+        [6, 11],
+        [6, 12],
+        [6, 13],
+        [6, 14],
+        [7, 14],
+        [8, 14],
+        [8, 13],
+        [8, 12],
+        [8, 11],
+        [8, 10],
+        [8, 9],
+        [9, 8],
+        [10, 8],
+        [11, 8],
+        [12, 8],
+        [13, 8],
+        [14, 8],
+        [14, 7],
+        [14, 6],
+        [13, 6],
+        [12, 6],
+        [11, 6],
+        [10, 6],
+        [9, 6],
+        [8, 5],
+        [8, 4],
+        [8, 3],
+        [8, 2],
+        [8, 1],
+        [8, 0],
+        [7, 0],
+        [6, 0],
+      ];
+      const HOME_LANES = {
+        [COLORS.RED]: [
+          [7, 1],
+          [7, 2],
+          [7, 3],
+          [7, 4],
+          [7, 5],
+        ],
+        [COLORS.BLUE]: [
+          [1, 7],
+          [2, 7],
+          [3, 7],
+          [4, 7],
+          [5, 7],
+        ],
+        [COLORS.YELLOW]: [
+          [7, 13],
+          [7, 12],
+          [7, 11],
+          [7, 10],
+          [7, 9],
+        ],
+        [COLORS.GREEN]: [
+          [13, 7],
+          [12, 7],
+          [11, 7],
+          [10, 7],
+          [9, 7],
+        ],
+      };
+      const ENTRY_POINTS = {
+        [COLORS.RED]: 0,
+        [COLORS.BLUE]: 13,
+        [COLORS.YELLOW]: 26,
+        [COLORS.GREEN]: 39,
+      };
+
+      function createYard(parent, x, z, color, logoUrl, teamID) {
+        const g = new THREE.Group();
+        const size = SQUARE_SIZE * 6;
+        const border = new THREE.Mesh(
+          new THREE.BoxGeometry(size, 0.4, size),
+          new THREE.MeshStandardMaterial({ color: COLORS.BORDER })
+        );
+        g.add(border);
+        const floor = new THREE.Mesh(
+          new THREE.PlaneGeometry(size * 0.85, size * 0.85),
+          new THREE.MeshStandardMaterial({ color: color })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0.21;
+        g.add(floor);
+        const logo = new THREE.Mesh(
+          new THREE.PlaneGeometry(size * 0.5, size * 0.5),
+          new THREE.MeshStandardMaterial({
+            map: new THREE.TextureLoader().load(logoUrl),
+            transparent: true,
+          })
+        );
+        logo.rotation.x = -Math.PI / 2;
+        logo.position.y = 0.22;
+        g.add(logo);
+        g.position.set(x * SQUARE_SIZE, 0, z * SQUARE_SIZE);
+        parent.add(g);
+        const tokenGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.4, 32);
+        for (let i = 0; i < 4; i++) {
+          const token = new THREE.Mesh(
+            tokenGeo,
+            new THREE.MeshStandardMaterial({ color: color })
+          );
+          const row = Math.floor(i / 2),
+            col = i % 2;
+          const homePos = new THREE.Vector3(
+            x * SQUARE_SIZE + (col - 0.5) * 1.5,
+            0.5,
+            z * SQUARE_SIZE + (row - 0.5) * 1.5
+          );
+          token.position.copy(homePos);
+          token.userData = {
+            teamID,
+            colorValue: color,
+            inYard: true,
+            finished: false,
+            stepsTaken: 0,
+            homePos,
+            pathIdx: -1,
+          };
+          scene.add(token);
+          tokens.push(token);
+        }
+      }
+
+      function createDice() {
+        const mats = [];
+        const order = [3, 4, 1, 6, 2, 5];
+        for (let i = 0; i < 6; i++)
+          mats.push(
+            new THREE.MeshStandardMaterial({
+              map: generateDiceTexture(order[i]),
+            })
+          );
+        dice1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), mats);
+        dice2 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), mats);
+        dice1.position.set(-0.5, 0.5, 0);
+        dice2.position.set(0.5, 0.5, 0);
+        scene.add(dice1, dice2);
+      }
+
+      function generateDiceTexture(num) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, 256, 256);
+        ctx.fillStyle = "black";
+        const c = 128,
+          o = 65,
+          r = 25;
+        const dot = (x, y) => {
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        };
+        if (num % 2 !== 0) dot(c, c);
+        if (num > 1) {
+          dot(c - o, c - o);
+          dot(c + o, c + o);
+        }
+        if (num > 3) {
+          dot(c + o, c - o);
+          dot(c - o, c + o);
+        }
+        if (num === 6) {
+          dot(c - o, c);
+          dot(c + o, c);
+        }
+        return new THREE.CanvasTexture(canvas);
+      }
+
+      function updateDieInventory() {
+        const container = document.getElementById("die-inventory");
+        container.innerHTML = "";
+        lastRoll.activeDice.forEach((val) => {
+          const chip = document.createElement("div");
+          chip.className = "die-chip";
+          chip.innerText = val;
+          container.appendChild(chip);
+        });
+      }
+
+      async function gameLoop() {
+        if (isPaused) {
+          setTimeout(gameLoop, 500);
+          return;
+        }
+        updateScoreboard();
+        updateDieInventory();
+        const p = players[currentTurnIdx];
+        const replayBtn = document.getElementById("replay-btn");
+        const rollBtn = document.getElementById("manual-roll");
+
+        document.getElementById("turn-display").innerText = p.name;
+        document.getElementById("turn-display").style.color = p.color;
+        nameLabels.forEach((label, idx) => {
+          label.scale.setScalar(idx === currentTurnIdx ? 1.2 : 1.0);
+        });
+
+        if (p.isAI) {
+          replayBtn.style.display = "none";
+          if (lastRoll.activeDice.length === 0) {
+            rollBtn.classList.add("hidden");
+            document.getElementById("status").innerText = "AI Thinking...";
+            await new Promise((r) => setTimeout(r, 1200));
+            rollDice();
+          } else {
+            checkAvailableMoves();
+          }
+        } else {
+          if (lastRoll.activeDice.length === 0) {
+            document.getElementById("status").innerText = isBonusTurn
+              ? "DOUBLE 6! Roll Again."
+              : "Waiting for Roll...";
+            rollBtn.classList.remove("hidden");
+            if (lastActionState) replayBtn.style.display = "block";
+            else replayBtn.style.display = "none";
+          } else {
+            document.getElementById(
+              "status"
+            ).innerText = `Use remaining moves:`;
+            rollBtn.classList.add("hidden");
+            replayBtn.style.display = "none";
+            checkAvailableMoves();
+          }
+        }
+      }
+
+      function rollDice() {
+        if (isRolling || isPaused) return;
+        isRolling = true;
+        document.getElementById("manual-roll").classList.add("hidden");
+        document.getElementById("replay-btn").style.display = "none";
+        const d1 = Math.floor(Math.random() * 6) + 1,
+          d2 = Math.floor(Math.random() * 6) + 1;
+        lastRoll = { d1, d2, activeDice: [d1, d2] };
+        isBonusTurn = d1 === 6 && d2 === 6;
+        rollSound.play();
+        const DICE_ROTATIONS = {
+          1: { x: 0, y: 0, z: 0 },
+          2: { x: -Math.PI / 2, y: 0, z: 0 },
+          3: { x: 0, y: 0, z: Math.PI / 2 },
+          4: { x: 0, y: 0, z: -Math.PI / 2 },
+          5: { x: Math.PI / 2, y: 0, z: 0 },
+          6: { x: Math.PI, y: 0, z: 0 },
+        };
+        new TWEEN.Tween(dice1.rotation)
+          .to(
+            {
+              x: DICE_ROTATIONS[d1].x + Math.PI * 4,
+              y: DICE_ROTATIONS[d1].y + Math.PI * 4,
+              z: DICE_ROTATIONS[d1].z,
+            },
+            800
+          )
+          .start();
+        new TWEEN.Tween(dice2.rotation)
+          .to(
+            {
+              x: DICE_ROTATIONS[d2].x + Math.PI * 4,
+              y: DICE_ROTATIONS[d2].y + Math.PI * 4,
+              z: DICE_ROTATIONS[d2].z,
+            },
+            800
+          )
+          .start();
+        setTimeout(() => {
+          isRolling = false;
+          gameLoop();
+        }, 900);
+      }
+
+      function scoreMove(token, dieValue) {
+        if (token.userData.inYard && dieValue !== 6) return -1000;
+        let futureSteps =
+          token.userData.stepsTaken + (token.userData.inYard ? 1 : dieValue);
+        if (futureSteps > MAX_STEPS) return -1000;
+        let score = 10,
+          futurePathIdx = -1;
+
+        if (token.userData.inYard) {
+          futurePathIdx = ENTRY_POINTS[token.userData.colorValue];
+          score +=
+            tokens.filter(
+              (t) =>
+                t.userData.inYard &&
+                t.userData.colorValue === token.userData.colorValue
+            ).length * 15;
+        } else if (futureSteps <= 51) {
+          futurePathIdx =
+            (token.userData.pathIdx + dieValue) % BOARD_PATH.length;
+        }
+
+        if (futurePathIdx !== -1) {
+          const victims = tokens.filter(
+            (t) =>
+              !t.userData.finished &&
+              !t.userData.inYard &&
+              t.userData.stepsTaken <= 51 &&
+              t.userData.pathIdx === futurePathIdx &&
+              t.userData.teamID !== token.userData.teamID
+          );
+          if (victims.length > 0) score += 500;
+
+          const isThreatened = tokens.some((enemy) => {
+            if (
+              enemy.userData.teamID === token.userData.teamID ||
+              enemy.userData.inYard ||
+              enemy.userData.finished ||
+              enemy.userData.stepsTaken > 51
+            )
+              return false;
+            let dist =
+              (futurePathIdx - enemy.userData.pathIdx + BOARD_PATH.length) %
+              BOARD_PATH.length;
+            return dist >= 1 && dist <= 6;
+          });
+          if (isThreatened) score -= 400;
+          else score += 100;
+          if (
+            Object.values(ENTRY_POINTS)
+              .filter((pt) => pt !== ENTRY_POINTS[token.userData.colorValue])
+              .includes(futurePathIdx)
+          )
+            score -= 300;
+        }
+        if (futureSteps === MAX_STEPS) score += 600;
+        return score;
+      }
+
+      function checkAvailableMoves() {
+        const teamTokens = tokens.filter(
+          (t) =>
+            t.userData.teamID === players[currentTurnIdx].teamID &&
+            !t.userData.finished
+        );
+        const movable = teamTokens.filter((t) =>
+          lastRoll.activeDice.some((die) =>
+            t.userData.inYard
+              ? die === 6
+              : t.userData.stepsTaken + die <= MAX_STEPS
+          )
+        );
+        if (movable.length === 0 && lastRoll.activeDice.length > 0) {
+          lastRoll.activeDice = [];
+          setTimeout(nextTurn, 1000);
+          return;
+        }
+
+        if (players[currentTurnIdx].isAI) {
+          setTimeout(() => {
+            let bestMove = { token: null, die: -1, score: -Infinity };
+            movable.forEach((t) => {
+              lastRoll.activeDice.forEach((d) => {
+                let s = scoreMove(t, d);
+                if (s > bestMove.score)
+                  bestMove = { token: t, die: d, score: s };
+              });
+            });
+            if (bestMove.token) handleMove(bestMove.token, bestMove.die);
+            else if (lastRoll.activeDice.length > 0) nextTurn();
+          }, 800);
+        } else canMove = true;
+      }
+
+      function onPointerDown(event) {
+        if (!canMove || players[currentTurnIdx].isAI) return;
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(tokens);
+        for (let i = 0; i < intersects.length; i++) {
+          const t = intersects[i].object;
+          if (
+            t.userData.teamID === players[currentTurnIdx].teamID &&
+            !t.userData.finished
+          ) {
+            let dieToUse = t.userData.inYard
+              ? lastRoll.activeDice.includes(6)
+                ? 6
+                : undefined
+              : lastRoll.activeDice.find(
+                  (d) => t.userData.stepsTaken + d <= MAX_STEPS
+                );
+            if (dieToUse !== undefined) {
+              handleMove(t, dieToUse);
+              return;
+            }
+          }
+        }
+      }
+
+      function handleMove(token, dieValue) {
+        canMove = false;
+        moveSound.play();
+        lastActionState = {
+          token: token,
+          endPos: new THREE.Vector3(),
+          startPos: token.position.clone(),
+        };
+        lastRoll.activeDice.splice(lastRoll.activeDice.indexOf(dieValue), 1);
+        updateDieInventory();
+        if (token.userData.inYard) {
+          token.userData.inYard = false;
+          token.userData.stepsTaken = 1;
+          token.userData.pathIdx = ENTRY_POINTS[token.userData.colorValue];
+          animateToCoord(token, BOARD_PATH[token.userData.pathIdx]);
+        } else {
+          token.userData.stepsTaken += dieValue;
+          if (token.userData.stepsTaken === MAX_STEPS) animateToCenter(token);
+          else if (token.userData.stepsTaken > 51)
+            animateToCoord(
+              token,
+              HOME_LANES[token.userData.colorValue][
+                token.userData.stepsTaken - 52
+              ]
+            );
+          else {
+            token.userData.pathIdx =
+              (token.userData.pathIdx + dieValue) % BOARD_PATH.length;
+            animateToCoord(token, BOARD_PATH[token.userData.pathIdx]);
+          }
+        }
+      }
+
+      function animateToCoord(token, coords) {
+        const tx = (coords[0] - 7) * SQUARE_SIZE,
+          tz = (coords[1] - 7) * SQUARE_SIZE;
+        new TWEEN.Tween(token.position)
+          .to({ x: tx, z: tz, y: 0.8 }, 500)
+          .easing(TWEEN.Easing.Quadratic.Out)
+          .onComplete(() => {
+            new TWEEN.Tween(token.position)
+              .to({ y: 0.5 }, 200)
+              .start()
+              .onComplete(() => {
+                if (lastActionState && lastActionState.token === token)
+                  lastActionState.endPos.copy(token.position);
+                checkCollisions(token);
+                checkTurnContinuity();
+              });
+          })
+          .start();
+      }
+
+      function animateToCenter(token) {
+        const isTeam0 = token.userData.teamID === 0;
+        const bucketX = (isTeam0 ? -10.5 : 10.5) + (Math.random() - 0.5) * 1.5;
+        const bucketZ = (isTeam0 ? -6 : 6) + (Math.random() - 0.5) * 1.5;
+
+        new TWEEN.Tween(token.position)
+          .to({ x: 0, z: 0, y: 2.0 }, 500)
+          .easing(TWEEN.Easing.Quadratic.Out)
+          .onComplete(() => {
+            new TWEEN.Tween(token.position)
+              .to({ x: bucketX, z: bucketZ, y: 0.5 }, 1000)
+              .easing(TWEEN.Easing.Quartic.Out)
+              .onComplete(() => {
+                if (lastActionState && lastActionState.token === token)
+                  lastActionState.endPos.set(bucketX, 0.5, bucketZ);
+                token.userData.finished = true;
+                updateScoreboard();
+                if (!checkWinCondition()) checkTurnContinuity();
+              })
+              .start();
+          })
+          .start();
+      }
+
+      function replayLastMove() {
+        if (!lastActionState || isRolling) return;
+        const { token, startPos, endPos } = lastActionState;
+        document.getElementById("replay-btn").style.display = "none";
+        const originalCamPos = camera.position.clone();
+        new TWEEN.Tween(camera.position)
+          .to(new THREE.Vector3(endPos.x, 6, endPos.z + 4), 1200)
+          .easing(TWEEN.Easing.Quadratic.InOut)
+          .start();
+        token.position.copy(startPos);
+        new TWEEN.Tween(token.position)
+          .to({ x: endPos.x, z: endPos.z, y: 1.8 }, 2500)
+          .easing(TWEEN.Easing.Cubic.InOut)
+          .onComplete(() => {
+            new TWEEN.Tween(token.position).to({ y: 0.5 }, 600).start();
+            setTimeout(
+              () =>
+                new TWEEN.Tween(camera.position)
+                  .to(originalCamPos, 1200)
+                  .easing(TWEEN.Easing.Quadratic.InOut)
+                  .onComplete(() => gameLoop())
+                  .start(),
+              800
+            );
+          })
+          .start();
+      }
+
+      function checkTurnContinuity() {
+        if (lastRoll.activeDice.length > 0) gameLoop();
+        else nextTurn();
+      }
+
+      function checkCollisions(attacker) {
+        if (attacker.userData.stepsTaken > 51) return;
+        const victims = tokens.filter(
+          (t) =>
+            t !== attacker &&
+            !t.userData.finished &&
+            !t.userData.inYard &&
+            t.userData.stepsTaken <= 51 &&
+            t.userData.pathIdx === attacker.userData.pathIdx &&
+            t.userData.teamID !== attacker.userData.teamID
+        );
+        if (victims.length > 0) {
+          const attackersAtSpot = tokens.filter(
+            (t) =>
+              !t.userData.finished &&
+              !t.userData.inYard &&
+              t.userData.pathIdx === attacker.userData.pathIdx &&
+              t.userData.teamID === attacker.userData.teamID
+          ).length;
+          if (attackersAtSpot >= victims.length) {
+            victims.forEach((v) => {
+              new TWEEN.Tween(v.position)
+                .to(
+                  { x: v.userData.homePos.x, z: v.userData.homePos.z, y: 0.5 },
+                  600
+                )
+                .easing(TWEEN.Easing.Exponential.Out)
+                .start();
+              v.userData.inYard = true;
+              v.userData.stepsTaken = 0;
+              v.userData.pathIdx = -1;
+            });
+            animateToCenter(attacker);
+          }
+        }
+      }
+
+      function checkWinCondition() {
+        if (
+          tokens.filter(
+            (t) =>
+              t.userData.teamID === players[currentTurnIdx].teamID &&
+              !t.userData.finished
+          ).length === 0
+        ) {
+          triggerCelebration(players[currentTurnIdx]);
+          return true;
+        }
+        return false;
+      }
+
+      function triggerCelebration(winner) {
+        isPaused = true;
+        document.getElementById("victory-screen").classList.remove("hidden");
+        document.getElementById(
+          "winner-text"
+        ).innerText = `${winner.name} Dominates!`;
+        document.getElementById("winner-text").style.color = winner.color;
+        for (let i = 0; i < 150; i++) {
+          const particle = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.15, 0.15),
+            new THREE.MeshBasicMaterial({
+              color: Math.random() * 0xffffff,
+              side: THREE.DoubleSide,
+            })
+          );
+          confetti.push({
+            mesh: particle,
+            velocity: new THREE.Vector3(
+              (Math.random() - 0.5) * 0.5,
+              Math.random() * 0.8,
+              (Math.random() - 0.5) * 0.5
+            ),
+          });
+          scene.add(particle);
+        }
+      }
+
+      function nextTurn() {
+        if (!isBonusTurn) currentTurnIdx = (currentTurnIdx + 1) % 2;
+        lastRoll.activeDice = [];
+        isBonusTurn = false;
+        gameLoop();
+      }
+
+      function updateScoreboard() {
+        const list = document.getElementById("score-list");
+        list.innerHTML = "";
+        players.forEach((p, i) => {
+          p.score = tokens.filter(
+            (t) => t.userData.teamID === p.teamID && t.userData.finished
+          ).length;
+          const row = document.createElement("div");
+          row.className = `score-row ${currentTurnIdx === i ? "active" : ""}`;
+          row.innerHTML = `<span>${p.name}</span><span class="token-count">${p.score}/8</span>`;
+          list.appendChild(row);
+        });
+      }
+
+      function togglePause() {
+        isPaused = !isPaused;
+        document.getElementById("pause-btn").innerText = isPaused
+          ? "RESUME"
+          : "PAUSE";
+      }
+      function restartGame() {
+        location.reload();
+      }
+      function handleManualRoll() {
+        rollDice();
+      }
+
+      function animate(time) {
+        requestAnimationFrame(animate);
+        TWEEN.update(time);
+        confetti.forEach((p, i) => {
+          p.mesh.position.add(p.velocity);
+          p.velocity.y -= 0.01;
+          if (p.mesh.position.y < -5) {
+            scene.remove(p.mesh);
+            confetti.splice(i, 1);
+          }
+        });
+        renderer.render(scene, camera);
+      }
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>

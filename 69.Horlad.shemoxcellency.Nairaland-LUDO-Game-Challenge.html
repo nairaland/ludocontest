@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIGERIAN LUDO 3D - Ultimate Board Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --red:#E53935; --red-glow:#ff6659; --green:#43A047; --green-glow:#76d275; --yellow:#FDD835; --yellow-glow:#ffff6b; --blue:#1E88E5; --blue-glow:#6ab7ff; --bg-dark:#0a0a0f; --bg-panel:rgba(15,15,25,0.95); --text-primary:#fff; --text-secondary:#a0a0b0; --gold:#FFD700; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Rajdhani',sans-serif; background:var(--bg-dark); color:var(--text-primary); overflow:hidden; user-select:none; }
+        #game-container { width:100vw; height:100vh; position:relative; }
+        canvas { display:block; }
+        #main-menu { position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,#0a0a0f 0%,#1a1a2e 50%,#0a0a0f 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; overflow-y:auto; padding:1rem; }
+        .menu-title { font-family:'Orbitron',sans-serif; font-size:clamp(2rem,7vw,4rem); font-weight:900; background:linear-gradient(135deg,var(--gold) 0%,#fff 50%,var(--gold) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:titlePulse 2s ease-in-out infinite; text-align:center; }
+        @keyframes titlePulse { 0%,100%{filter:brightness(1);} 50%{filter:brightness(1.2);} }
+        .menu-subtitle { font-family:'Orbitron',sans-serif; font-size:clamp(0.7rem,1.8vw,1rem); color:var(--text-secondary); letter-spacing:0.5em; margin-bottom:1.5rem; }
+        .menu-section { background:var(--bg-panel); border:1px solid rgba(255,215,0,0.2); border-radius:20px; padding:1.5rem; margin:0.8rem; width:min(95%,500px); }
+        .section-title { font-family:'Orbitron',sans-serif; font-size:1rem; color:var(--gold); margin-bottom:1rem; text-align:center; letter-spacing:0.1em; }
+        .player-config { display:flex; flex-direction:column; gap:0.8rem; }
+        .player-row { display:flex; align-items:center; gap:0.8rem; padding:0.6rem; background:rgba(255,255,255,0.03); border-radius:10px; flex-wrap:wrap; }
+        .player-color { width:24px; height:24px; border-radius:50%; box-shadow:0 0 10px currentColor; flex-shrink:0; }
+        .player-color.red { background:var(--red); color:var(--red); }
+        .player-color.green { background:var(--green); color:var(--green); }
+        .player-color.yellow { background:var(--yellow); color:var(--yellow); }
+        .player-color.blue { background:var(--blue); color:var(--blue); }
+        .player-name-input { flex:1; min-width:100px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.5rem 0.8rem; color:var(--text-primary); font-family:'Rajdhani',sans-serif; font-size:0.9rem; }
+        .player-name-input:focus { outline:none; border-color:var(--gold); }
+        .player-type-select { background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.5rem; color:var(--text-primary); font-family:'Rajdhani',sans-serif; font-size:0.85rem; cursor:pointer; }
+        .start-btn { font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; padding:0.8rem 2.5rem; margin-top:1rem; background:linear-gradient(135deg,var(--gold) 0%,#b8860b 100%); color:#000; border:none; border-radius:50px; cursor:pointer; transition:all 0.3s ease; text-transform:uppercase; letter-spacing:0.2em; box-shadow:0 5px 30px rgba(255,215,0,0.4); }
+        .start-btn:hover { transform:translateY(-3px) scale(1.05); box-shadow:0 10px 40px rgba(255,215,0,0.6); }
+        #hud { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:100; }
+        #hud > * { pointer-events:auto; }
+        .top-bar { display:flex; justify-content:space-between; align-items:flex-start; padding:1rem; }
+        .game-title-small { font-family:'Orbitron',sans-serif; font-size:0.9rem; font-weight:700; color:var(--gold); text-shadow:0 0 20px rgba(255,215,0,0.5); }
+        .control-buttons { display:flex; gap:0.5rem; }
+        .icon-btn { width:36px; height:36px; background:var(--bg-panel); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:var(--text-primary); cursor:pointer; transition:all 0.3s ease; display:flex; align-items:center; justify-content:center; font-size:1rem; }
+        .icon-btn:hover { background:rgba(255,215,0,0.2); border-color:var(--gold); transform:scale(1.1); }
+        .turn-indicator { position:fixed; top:50%; left:0.8rem; transform:translateY(-50%); background:var(--bg-panel); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:0.8rem; min-width:140px; }
+        .turn-label { font-size:0.65rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:0.3rem; }
+        .current-player { font-family:'Orbitron',sans-serif; font-size:0.95rem; font-weight:700; display:flex; align-items:center; gap:0.4rem; }
+        .player-indicator { width:10px; height:10px; border-radius:50%; animation:indicatorPulse 1s ease-in-out infinite; }
+        @keyframes indicatorPulse { 0%,100%{transform:scale(1);opacity:1;} 50%{transform:scale(1.3);opacity:0.7;} }
+        .dice-container { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:0.8rem; }
+        .dice-3d-wrapper { width:80px; height:80px; perspective:500px; cursor:pointer; }
+        .dice-3d { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform 0.1s ease-out; }
+        .dice-3d.rolling { animation:diceRoll 0.6s ease-out; }
+        @keyframes diceRoll { 0%{transform:rotateX(0deg) rotateY(0deg);} 100%{transform:rotateX(720deg) rotateY(720deg);} }
+        .dice-face { position:absolute; width:80px; height:80px; background:linear-gradient(145deg,#fff 0%,#e8e8e8 100%); border:2px solid #bbb; border-radius:12px; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; padding:12px; gap:6px; }
+        .dice-dot { width:14px; height:14px; background:radial-gradient(circle at 30% 30%,#333,#000); border-radius:50%; }
+        .dice-face-1 { transform:rotateY(0deg) translateZ(40px); }
+        .dice-face-2 { transform:rotateY(180deg) translateZ(40px); }
+        .dice-face-3 { transform:rotateY(90deg) translateZ(40px); }
+        .dice-face-4 { transform:rotateY(-90deg) translateZ(40px); }
+        .dice-face-5 { transform:rotateX(90deg) translateZ(40px); }
+        .dice-face-6 { transform:rotateX(-90deg) translateZ(40px); }
+        .roll-btn { font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; padding:0.6rem 1.5rem; background:linear-gradient(135deg,var(--gold) 0%,#b8860b 100%); color:#000; border:none; border-radius:25px; cursor:pointer; transition:all 0.3s ease; text-transform:uppercase; letter-spacing:0.1em; }
+        .roll-btn:hover:not(:disabled) { transform:scale(1.05); }
+        .roll-btn:disabled { background:#444; cursor:not-allowed; }
+        .dice-result { font-family:'Orbitron',sans-serif; font-size:2rem; font-weight:900; color:var(--gold); text-shadow:0 0 15px rgba(255,215,0,0.8); }
+        .scores-panel { position:fixed; top:50%; right:0.8rem; transform:translateY(-50%); background:var(--bg-panel); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:0.8rem; min-width:130px; }
+        .scores-title { font-family:'Orbitron',sans-serif; font-size:0.7rem; color:var(--gold); text-align:center; margin-bottom:0.8rem; letter-spacing:0.1em; }
+        .score-row { display:flex; align-items:center; gap:0.4rem; padding:0.4rem; margin-bottom:0.2rem; border-radius:6px; transition:all 0.3s ease; }
+        .score-row.active { background:rgba(255,255,255,0.1); }
+        .score-color { width:8px; height:8px; border-radius:50%; }
+        .score-name { flex:1; font-size:0.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .score-value { font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700; }
+        .message-display { position:fixed; bottom:140px; left:50%; transform:translateX(-50%); background:var(--bg-panel); border:1px solid rgba(255,215,0,0.3); border-radius:8px; padding:0.6rem 1.2rem; font-size:0.85rem; text-align:center; max-width:90%; opacity:0; transition:opacity 0.3s ease; }
+        .message-display.show { opacity:1; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:2000; padding:1rem; }
+        .modal-overlay.show { display:flex; }
+        .modal-content { background:var(--bg-panel); border:1px solid rgba(255,215,0,0.3); border-radius:20px; padding:1.5rem; max-width:min(95%,600px); max-height:85vh; overflow-y:auto; }
+        .modal-title { font-family:'Orbitron',sans-serif; font-size:1.3rem; color:var(--gold); text-align:center; margin-bottom:1rem; }
+        .rules-section { margin-bottom:1rem; }
+        .rules-heading { font-family:'Orbitron',sans-serif; font-size:0.9rem; color:var(--gold); margin-bottom:0.3rem; }
+        .rules-text { font-size:0.85rem; color:var(--text-secondary); line-height:1.5; }
+        .rules-list { list-style:none; padding-left:0; }
+        .rules-list li { padding:0.2rem 0; padding-left:1.2rem; position:relative; font-size:0.85rem; color:var(--text-secondary); }
+        .rules-list li::before { content:'▸'; position:absolute; left:0; color:var(--gold); }
+        .rules-list li strong { color:var(--text-primary); }
+        .close-modal-btn { display:block; margin:1rem auto 0; font-family:'Orbitron',sans-serif; font-size:0.85rem; padding:0.6rem 1.5rem; background:linear-gradient(135deg,var(--gold) 0%,#b8860b 100%); color:#000; border:none; border-radius:20px; cursor:pointer; }
+        #winner-screen { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:3000; padding:1rem; }
+        #winner-screen.show { display:flex; }
+        .winner-crown { font-size:4rem; animation:crownBounce 1s ease-in-out infinite; }
+        @keyframes crownBounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-15px);} }
+        .winner-text { font-family:'Orbitron',sans-serif; font-size:clamp(1.8rem,5vw,3rem); font-weight:900; margin:0.5rem 0; }
+        .winner-name { font-family:'Orbitron',sans-serif; font-size:clamp(1.2rem,3vw,2rem); margin-bottom:1.5rem; }
+        .rankings { background:var(--bg-panel); border-radius:12px; padding:1rem 1.5rem; margin-bottom:1.5rem; max-width:90%; }
+        .ranking-row { display:flex; align-items:center; gap:0.8rem; padding:0.4rem 0; font-size:1rem; }
+        .rank-medal { font-size:1.3rem; }
+        .play-again-btn { font-family:'Orbitron',sans-serif; font-size:1rem; padding:0.8rem 2rem; background:linear-gradient(135deg,var(--gold) 0%,#b8860b 100%); color:#000; border:none; border-radius:25px; cursor:pointer; }
+        .particle { position:fixed; pointer-events:none; z-index:999; animation:particleFall 3s ease-out forwards; }
+        @keyframes particleFall { 0%{transform:translateY(0) rotate(0deg);opacity:1;} 100%{transform:translateY(100vh) rotate(720deg);opacity:0;} }
+        #loading { position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-dark); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:5000; }
+        .loading-spinner { width:50px; height:50px; border:3px solid rgba(255,215,0,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 1s linear infinite; }
+        @keyframes spin { to{transform:rotate(360deg);} }
+        .loading-text { margin-top:1rem; font-family:'Orbitron',sans-serif; color:var(--gold); letter-spacing:0.2em; font-size:0.9rem; }
+        .camera-hint { position:fixed; bottom:0.8rem; right:0.8rem; font-size:0.65rem; color:var(--text-secondary); background:var(--bg-panel); padding:0.4rem 0.8rem; border-radius:15px; opacity:0.6; }
+        @media (max-width:768px) { .turn-indicator{top:70px;left:0.5rem;min-width:110px;padding:0.5rem;} .scores-panel{top:70px;right:0.5rem;min-width:100px;padding:0.5rem;} .dice-container{bottom:1rem;} .dice-3d-wrapper{width:60px;height:60px;} .dice-face{width:60px;height:60px;padding:8px;gap:4px;border-radius:8px;} .dice-dot{width:10px;height:10px;} .dice-face-1{transform:rotateY(0deg) translateZ(30px);} .dice-face-2{transform:rotateY(180deg) translateZ(30px);} .dice-face-3{transform:rotateY(90deg) translateZ(30px);} .dice-face-4{transform:rotateY(-90deg) translateZ(30px);} .dice-face-5{transform:rotateX(90deg) translateZ(30px);} .dice-face-6{transform:rotateX(-90deg) translateZ(30px);} .message-display{bottom:120px;font-size:0.75rem;} .camera-hint{display:none;} }
+    </style>
+</head>
+<body>
+    <div id="loading"><div class="loading-spinner"></div><div class="loading-text">LOADING...</div></div>
+    <div id="main-menu" style="display:none;">
+        <h1 class="menu-title">🎲 NIGERIAN LUDO</h1>
+        <p class="menu-subtitle">3D EDITION</p>
+        <div class="menu-section">
+            <h2 class="section-title">⚔️ SELECT PLAYERS</h2>
+            <div class="player-config">
+                <div class="player-row"><div class="player-color red"></div><input type="text" class="player-name-input" id="player-red-name" value="Player 1" maxlength="12"><select class="player-type-select" id="player-red-type"><option value="human">👤 Human</option><option value="ai-easy">🤖 AI Easy</option><option value="ai-hard">🧠 AI Hard</option><option value="none">❌ None</option></select></div>
+                <div class="player-row"><div class="player-color green"></div><input type="text" class="player-name-input" id="player-green-name" value="Player 2" maxlength="12"><select class="player-type-select" id="player-green-type"><option value="human">👤 Human</option><option value="ai-easy">🤖 AI Easy</option><option value="ai-hard" selected>🧠 AI Hard</option><option value="none">❌ None</option></select></div>
+                <div class="player-row"><div class="player-color yellow"></div><input type="text" class="player-name-input" id="player-yellow-name" value="Player 3" maxlength="12"><select class="player-type-select" id="player-yellow-type"><option value="human">👤 Human</option><option value="ai-easy" selected>🤖 AI Easy</option><option value="ai-hard">🧠 AI Hard</option><option value="none">❌ None</option></select></div>
+                <div class="player-row"><div class="player-color blue"></div><input type="text" class="player-name-input" id="player-blue-name" value="Player 4" maxlength="12"><select class="player-type-select" id="player-blue-type"><option value="human">👤 Human</option><option value="ai-easy">🤖 AI Easy</option><option value="ai-hard">🧠 AI Hard</option><option value="none" selected>❌ None</option></select></div>
+            </div>
+        </div>
+        <button class="start-btn" id="start-game-btn">🎮 START GAME</button>
+        <button class="start-btn" id="rules-btn" style="background:transparent;border:2px solid var(--gold);color:var(--gold);margin-top:0.8rem;font-size:0.8rem;padding:0.6rem 1.5rem;">📜 VIEW RULES</button>
+    </div>
+    <div id="game-container"></div>
+    <div id="hud" style="display:none;">
+        <div class="top-bar"><div class="game-title-small">🎲 NIGERIAN LUDO 3D</div><div class="control-buttons"><button class="icon-btn" id="rules-btn-game" title="Rules">📜</button><button class="icon-btn" id="sound-btn" title="Sound">🔊</button><button class="icon-btn" id="reset-camera-btn" title="Reset Camera">🎥</button><button class="icon-btn" id="menu-btn" title="Main Menu">🏠</button></div></div>
+        <div class="turn-indicator"><div class="turn-label">Current Turn</div><div class="current-player"><div class="player-indicator" id="turn-indicator-dot"></div><span id="current-player-name">-</span></div><div id="turn-info" style="font-size:0.7rem;color:var(--text-secondary);margin-top:0.3rem;"></div></div>
+        <div class="scores-panel"><div class="scores-title">🏆 COMPLETED</div><div id="scores-list"></div></div>
+        <div class="dice-container">
+            <div class="dice-result" id="dice-result">-</div>
+            <div class="dice-3d-wrapper" id="dice-wrapper"><div class="dice-3d" id="dice-3d"><div class="dice-face dice-face-1"><div class="dice-dot"></div></div><div class="dice-face dice-face-2"><div class="dice-dot"></div><div style="width:14px"></div><div style="width:14px"></div><div style="width:14px"></div><div style="width:14px"></div><div class="dice-dot"></div></div><div class="dice-face dice-face-3"><div class="dice-dot"></div><div style="width:14px"></div><div style="width:14px"></div><div class="dice-dot"></div><div style="width:14px"></div><div style="width:14px"></div><div class="dice-dot"></div></div><div class="dice-face dice-face-4"><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div></div><div class="dice-face dice-face-5"><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div></div><div class="dice-face dice-face-6"><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div><div class="dice-dot"></div><div style="width:14px"></div><div class="dice-dot"></div></div></div></div>
+            <button class="roll-btn" id="roll-btn">🎲 ROLL DICE</button>
+        </div>
+        <div class="message-display" id="message-display"></div>
+        <div class="camera-hint">🖱️ Drag to rotate • Scroll to zoom</div>
+    </div>
+    <div class="modal-overlay" id="rules-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">📜 NIGERIAN LUDO RULES</h2>
+            <div class="rules-section"><h3 class="rules-heading">🎯 Objective</h3><p class="rules-text">Be the first player to complete all 4 tokens by either moving them into the final home, or by capturing opponent tokens!</p></div>
+            <div class="rules-section"><h3 class="rules-heading">🎲 Rolling the Dice</h3><ul class="rules-list"><li>The game uses <strong>one die</strong>. Click ROLL DICE or the die to roll.</li><li>You must roll a <strong>6</strong> to move a token out of base.</li><li>Rolling a <strong>6</strong> gives you a bonus roll!</li><li>If you roll <strong>three 6s in a row</strong>, your turn is lost! 😱</li><li>If you have no valid move, your turn passes automatically.</li></ul></div>
+            <div class="rules-section"><h3 class="rules-heading">🚀 Movement Rules</h3><ul class="rules-list"><li>Tokens move <strong>clockwise</strong> around the board.</li><li>Click highlighted tokens to select your move.</li><li><strong>Stacking allowed:</strong> You may land on your own tokens!</li><li>You must roll the <strong>exact number</strong> needed to reach final home.</li><li>Overshooting does <strong>NOT</strong> send the token back - move is just invalid.</li></ul></div>
+            <div class="rules-section"><h3 class="rules-heading">⚔️ Capturing Opponents</h3><ul class="rules-list"><li>Land on an opponent's token to <strong>capture</strong> it!</li><li>The captured token is sent back to their base.</li><li><strong>IMPORTANT:</strong> The capturing token is <strong>completed</strong> and removed! 🏆</li><li>Capturing gives you a <strong>bonus roll!</strong></li><li>Safe squares (⭐) <strong>cannot</strong> be captured.</li></ul></div>
+            <div class="rules-section"><h3 class="rules-heading">🛡️ Safe Squares</h3><ul class="rules-list"><li>Safe squares are marked with a <strong>⭐ star</strong>.</li><li>Tokens on safe squares <strong>cannot be captured</strong>.</li><li>Multiple tokens can stack on safe squares.</li></ul></div>
+            <div class="rules-section"><h3 class="rules-heading">🏁 Winning the Game</h3><ul class="rules-list"><li>A player wins by <strong>completing all 4 tokens</strong>.</li><li>Tokens complete by: reaching final home <strong>OR</strong> capturing opponents!</li><li>The game ends when the first player completes all 4 tokens.</li></ul></div>
+            <div class="rules-section"><h3 class="rules-heading">🤖 AI Players</h3><ul class="rules-list"><li><strong>Easy AI:</strong> Plays random valid moves.</li><li><strong>Hard AI:</strong> Prioritizes captures, safety, and completing tokens.</li></ul></div>
+            <button class="close-modal-btn" id="close-rules-btn">GOT IT! 👍</button>
+        </div>
+    </div>
+    <div id="winner-screen"><div class="winner-crown">👑</div><div class="winner-text">🎉 VICTORY! 🎉</div><div class="winner-name" id="winner-name">-</div><div class="rankings" id="rankings"></div><button class="play-again-btn" id="play-again-btn">🎮 PLAY AGAIN</button></div>
+
+    <script>
+    const CONFIG = {
+        BOARD_SIZE: 15, CELL_SIZE: 1, TOKENS_PER_PLAYER: 4, PATH_LENGTH: 52, HOME_STRETCH_LENGTH: 6,
+        SAFE_POSITIONS: [0, 8, 13, 21, 26, 34, 39, 47],
+        COLORS: { red:{main:0xE53935,glow:0xff6659,css:'#E53935'}, green:{main:0x43A047,glow:0x76d275,css:'#43A047'}, yellow:{main:0xFDD835,glow:0xffff6b,css:'#FDD835'}, blue:{main:0x1E88E5,glow:0x6ab7ff,css:'#1E88E5'} },
+        PLAYER_ORDER: ['red','green','yellow','blue'],
+        START_POSITIONS: {red:0,green:13,yellow:26,blue:39}
+    };
+
+    class SoundManager {
+        constructor() { this.enabled = true; this.ctx = null; }
+        init() { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+        play(type) {
+            if (!this.enabled || !this.ctx) return;
+            const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            const t = this.ctx.currentTime;
+            if (type === 'roll') { osc.frequency.value = 200; gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2); osc.start(); osc.stop(t + 0.2); }
+            else if (type === 'move') { osc.frequency.value = 440; gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1); osc.start(); osc.stop(t + 0.1); }
+            else if (type === 'capture') { osc.type = 'sawtooth'; osc.frequency.value = 300; gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3); osc.start(); osc.stop(t + 0.3); }
+            else if (type === 'home') { osc.frequency.value = 523; gain.gain.setValueAtTime(0.1, t); osc.start(); setTimeout(() => osc.frequency.value = 659, 100); setTimeout(() => osc.frequency.value = 784, 200); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4); osc.stop(t + 0.4); }
+            else if (type === 'win') { [523, 659, 784, 1047].forEach((f, i) => { setTimeout(() => { const o = this.ctx.createOscillator(), g = this.ctx.createGain(); o.connect(g); g.connect(this.ctx.destination); o.frequency.value = f; g.gain.setValueAtTime(0.1, this.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3); o.start(); o.stop(this.ctx.currentTime + 0.3); }, i * 150); }); }
+            else if (type === 'error') { osc.type = 'square'; osc.frequency.value = 150; gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2); osc.start(); osc.stop(t + 0.2); }
+        }
+        toggle() { this.enabled = !this.enabled; return this.enabled; }
+    }
+
+    class GameState {
+        constructor() { this.reset(); }
+        reset() { this.players = {}; this.currentPlayerIndex = 0; this.diceValue = 0; this.phase = 'waiting'; this.consecutiveSixes = 0; this.rankings = []; this.gameOver = false; this.bonusRoll = false; }
+        init(configs) {
+            this.reset();
+            CONFIG.PLAYER_ORDER.forEach(color => {
+                const cfg = configs[color];
+                if (cfg.type !== 'none') {
+                    this.players[color] = { name: cfg.name, type: cfg.type, color, tokens: Array(4).fill(null).map((_, i) => ({ id: `${color}-${i}`, position: -1, homePosition: -1, isCompleted: false })), tokensCompleted: 0 };
+                }
+            });
+            while (!this.players[CONFIG.PLAYER_ORDER[this.currentPlayerIndex]]) this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 4;
+        }
+        getCurrentPlayer() { return this.players[CONFIG.PLAYER_ORDER[this.currentPlayerIndex]]; }
+        getCurrentColor() { return CONFIG.PLAYER_ORDER[this.currentPlayerIndex]; }
+        nextTurn() {
+            if (this.bonusRoll) { this.bonusRoll = false; return; }
+            if (this.diceValue === 6 && this.consecutiveSixes < 3) return;
+            this.consecutiveSixes = 0;
+            do { this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 4; } while (!this.players[CONFIG.PLAYER_ORDER[this.currentPlayerIndex]] && !this.gameOver);
+        }
+        getValidMoves() {
+            const player = this.getCurrentPlayer(); if (!player) return [];
+            const moves = [], dice = this.diceValue;
+            player.tokens.forEach((token, idx) => {
+                if (token.isCompleted) return;
+                if (token.position === -1 && token.homePosition === -1) { if (dice === 6) moves.push({ tokenIndex: idx, type: 'exit' }); return; }
+                if (token.homePosition === -1) {
+                    const startPos = CONFIG.START_POSITIONS[player.color];
+                    let dist = token.position - startPos; if (dist < 0) dist += CONFIG.PATH_LENGTH;
+                    const newDist = dist + dice;
+                    if (newDist >= CONFIG.PATH_LENGTH && newDist < CONFIG.PATH_LENGTH + CONFIG.HOME_STRETCH_LENGTH) {
+                        moves.push({ tokenIndex: idx, type: 'enterHome', homePosition: newDist - CONFIG.PATH_LENGTH });
+                    } else if (newDist === CONFIG.PATH_LENGTH + CONFIG.HOME_STRETCH_LENGTH - 1) {
+                        moves.push({ tokenIndex: idx, type: 'reachHome' });
+                    } else if (newDist < CONFIG.PATH_LENGTH) {
+                        moves.push({ tokenIndex: idx, type: 'move', newPosition: (token.position + dice) % CONFIG.PATH_LENGTH });
+                    }
+                } else {
+                    const newHp = token.homePosition + dice;
+                    if (newHp < CONFIG.HOME_STRETCH_LENGTH - 1) moves.push({ tokenIndex: idx, type: 'moveHome', homePosition: newHp });
+                    else if (newHp === CONFIG.HOME_STRETCH_LENGTH - 1) moves.push({ tokenIndex: idx, type: 'reachHome' });
+                }
+            });
+            return moves;
+        }
+        executeMove(move, callbacks = {}) {
+            const player = this.getCurrentPlayer(), token = player.tokens[move.tokenIndex];
+            if (move.type === 'exit') { token.position = CONFIG.START_POSITIONS[player.color]; token.homePosition = -1; }
+            else if (move.type === 'move') { token.position = move.newPosition; this.checkCapture(token, player.color, move.tokenIndex, callbacks); }
+            else if (move.type === 'enterHome') { token.position = -1; token.homePosition = move.homePosition; }
+            else if (move.type === 'moveHome') { token.homePosition = move.homePosition; }
+            else if (move.type === 'reachHome') {
+                token.isCompleted = true; token.position = -1; token.homePosition = CONFIG.HOME_STRETCH_LENGTH; player.tokensCompleted++;
+                if (callbacks.onHome) callbacks.onHome(player, move.tokenIndex);
+                if (player.tokensCompleted >= CONFIG.TOKENS_PER_PLAYER) { this.rankings.push(player); this.gameOver = true; }
+            }
+        }
+        checkCapture(token, playerColor, tokenIndex, callbacks) {
+            if (CONFIG.SAFE_POSITIONS.includes(token.position)) return false;
+            for (const [color, player] of Object.entries(this.players)) {
+                if (color === playerColor) continue;
+                for (let i = 0; i < player.tokens.length; i++) {
+                    const ot = player.tokens[i];
+                    if (ot.position === token.position && !ot.isCompleted && ot.homePosition === -1 && ot.position !== -1) {
+                        ot.position = -1; ot.homePosition = -1;
+                        const captor = this.players[playerColor], captorToken = captor.tokens[tokenIndex];
+                        captorToken.isCompleted = true; captorToken.position = -1; captorToken.homePosition = CONFIG.HOME_STRETCH_LENGTH; captor.tokensCompleted++;
+                        this.bonusRoll = true;
+                        if (callbacks.onCapture) callbacks.onCapture(color, i, playerColor, tokenIndex);
+                        if (captor.tokensCompleted >= CONFIG.TOKENS_PER_PLAYER) { this.rankings.push(captor); this.gameOver = true; }
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        checkWinner() {
+            if (this.gameOver) { const remaining = Object.values(this.players).filter(p => !this.rankings.includes(p)).sort((a, b) => b.tokensCompleted - a.tokensCompleted); remaining.forEach(p => this.rankings.push(p)); return this.rankings; }
+            return null;
+        }
+    }
+
+    class GameRenderer {
+        constructor(container) {
+            this.container = container; this.tokens = {}; this.highlights = [];
+            this.raycaster = new THREE.Raycaster(); this.mouse = new THREE.Vector2();
+            this.isDragging = false; this.prevMouse = { x: 0, y: 0 };
+            this.camAngle = { theta: Math.PI / 4, phi: Math.PI / 3 }; this.camDist = 20;
+            this.targetAngle = { ...this.camAngle }; this.targetDist = this.camDist;
+            this.init();
+        }
+        init() {
+            this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0a0a0f);
+            this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            this.updateCameraPosition();
+            this.renderer = new THREE.WebGLRenderer({ antialias: true });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            this.renderer.shadowMap.enabled = true;
+            this.container.appendChild(this.renderer.domElement);
+            this.setupLighting(); this.createBoard(); this.setupEvents(); this.animate();
+        }
+        setupLighting() {
+            this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const main = new THREE.DirectionalLight(0xffffff, 0.8); main.position.set(10, 20, 10); main.castShadow = true; main.shadow.mapSize.width = 2048; main.shadow.mapSize.height = 2048; this.scene.add(main);
+            this.scene.add(new THREE.DirectionalLight(0x4488ff, 0.3).translateX(-10).translateY(10).translateZ(-10));
+            const redL = new THREE.PointLight(0xE53935, 0.3, 15); redL.position.set(-5, 3, 5); this.scene.add(redL);
+            const blueL = new THREE.PointLight(0x1E88E5, 0.3, 15); blueL.position.set(5, 3, -5); this.scene.add(blueL);
+        }
+        createBoard() {
+            const g = new THREE.Group(), cs = CONFIG.CELL_SIZE, bs = CONFIG.BOARD_SIZE, hb = (bs * cs) / 2;
+            const base = new THREE.Mesh(new THREE.BoxGeometry(bs * cs + 1, 0.5, bs * cs + 1), new THREE.MeshStandardMaterial({ color: 0x1a1a2e, metalness: 0.3, roughness: 0.7 }));
+            base.position.y = -0.25; base.receiveShadow = true; g.add(base);
+            this.cellPositions = {}; this.homePositions = {}; this.basePositions = {};
+            const createCell = (x, z, color, isSafe = false) => {
+                const cell = new THREE.Mesh(new THREE.BoxGeometry(cs * 0.95, 0.15, cs * 0.95), new THREE.MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.8 }));
+                cell.position.set(x - hb + cs/2, 0.075, z - hb + cs/2); cell.receiveShadow = true; g.add(cell);
+                if (isSafe) { const star = new THREE.Mesh(new THREE.CircleGeometry(cs * 0.25, 5), new THREE.MeshBasicMaterial({ color: 0xFFD700 })); star.rotation.x = -Math.PI / 2; star.rotation.z = Math.PI / 10; star.position.set(x - hb + cs/2, 0.16, z - hb + cs/2); g.add(star); }
+                return cell.position.clone();
+            };
+            const pathCoords = [{x:0,z:6},{x:1,z:6},{x:2,z:6},{x:3,z:6},{x:4,z:6},{x:5,z:6},{x:6,z:5},{x:6,z:4},{x:6,z:3},{x:6,z:2},{x:6,z:1},{x:6,z:0},{x:7,z:0},{x:8,z:0},{x:8,z:1},{x:8,z:2},{x:8,z:3},{x:8,z:4},{x:8,z:5},{x:9,z:6},{x:10,z:6},{x:11,z:6},{x:12,z:6},{x:13,z:6},{x:14,z:6},{x:14,z:7},{x:14,z:8},{x:13,z:8},{x:12,z:8},{x:11,z:8},{x:10,z:8},{x:9,z:8},{x:8,z:9},{x:8,z:10},{x:8,z:11},{x:8,z:12},{x:8,z:13},{x:8,z:14},{x:7,z:14},{x:6,z:14},{x:6,z:13},{x:6,z:12},{x:6,z:11},{x:6,z:10},{x:6,z:9},{x:5,z:8},{x:4,z:8},{x:3,z:8},{x:2,z:8},{x:1,z:8},{x:0,z:8},{x:0,z:7}];
+            pathCoords.forEach((c, i) => { let col = 0xf5f5f5; if (i === 0) col = CONFIG.COLORS.red.main; else if (i === 13) col = CONFIG.COLORS.green.main; else if (i === 26) col = CONFIG.COLORS.yellow.main; else if (i === 39) col = CONFIG.COLORS.blue.main; this.cellPositions[i] = createCell(c.x * cs, c.z * cs, col, CONFIG.SAFE_POSITIONS.includes(i)); });
+            const homeCoords = { red:[{x:1,z:7},{x:2,z:7},{x:3,z:7},{x:4,z:7},{x:5,z:7},{x:6,z:7}], green:[{x:7,z:1},{x:7,z:2},{x:7,z:3},{x:7,z:4},{x:7,z:5},{x:7,z:6}], yellow:[{x:13,z:7},{x:12,z:7},{x:11,z:7},{x:10,z:7},{x:9,z:7},{x:8,z:7}], blue:[{x:7,z:13},{x:7,z:12},{x:7,z:11},{x:7,z:10},{x:7,z:9},{x:7,z:8}] };
+            Object.entries(homeCoords).forEach(([c, coords]) => { this.homePositions[c] = coords.map(co => createCell(co.x * cs, co.z * cs, CONFIG.COLORS[c].main)); });
+            const baseCoords = { red:{x:0,z:9,positions:[[1,10],[3,10],[1,12],[3,12]]}, green:{x:0,z:0,positions:[[1,1],[3,1],[1,3],[3,3]]}, yellow:{x:9,z:0,positions:[[10,1],[12,1],[10,3],[12,3]]}, blue:{x:9,z:9,positions:[[10,10],[12,10],[10,12],[12,12]]} };
+            Object.entries(baseCoords).forEach(([c, d]) => {
+                const bsz = 6 * cs;
+                const outer = new THREE.Mesh(new THREE.BoxGeometry(bsz, 0.1, bsz), new THREE.MeshStandardMaterial({ color: CONFIG.COLORS[c].main, metalness: 0.2, roughness: 0.8 })); outer.position.set(d.x * cs + bsz/2 - hb, 0.05, d.z * cs + bsz/2 - hb); outer.receiveShadow = true; g.add(outer);
+                const inner = new THREE.Mesh(new THREE.BoxGeometry(4*cs, 0.15, 4*cs), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.9 })); inner.position.set(d.x * cs + bsz/2 - hb, 0.075, d.z * cs + bsz/2 - hb); inner.receiveShadow = true; g.add(inner);
+                this.basePositions[c] = d.positions.map(p => new THREE.Vector3(p[0] * cs - hb + cs/2, 0.2, p[1] * cs - hb + cs/2));
+                d.positions.forEach(p => { const spot = new THREE.Mesh(new THREE.CircleGeometry(cs * 0.35, 32), new THREE.MeshBasicMaterial({ color: CONFIG.COLORS[c].main })); spot.rotation.x = -Math.PI / 2; spot.position.set(p[0] * cs - hb + cs/2, 0.16, p[1] * cs - hb + cs/2); g.add(spot); });
+            });
+            const center = new THREE.Mesh(new THREE.BoxGeometry(3*cs, 0.2, 3*cs), new THREE.MeshStandardMaterial({ color: 0x2a2a4e, metalness: 0.3, roughness: 0.6 })); center.position.set(0, 0.1, 0); g.add(center);
+            ['red','green','yellow','blue'].forEach((c, i) => { const angle = (i * Math.PI / 2) - Math.PI / 4, sz = 1.3; const verts = new Float32Array([0,0.21,0, Math.cos(angle-Math.PI/4)*sz,0.21,Math.sin(angle-Math.PI/4)*sz, Math.cos(angle+Math.PI/4)*sz,0.21,Math.sin(angle+Math.PI/4)*sz]); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(verts, 3)); g.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: CONFIG.COLORS[c].main, side: THREE.DoubleSide }))); });
+            const cDeco = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.3, 32), new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.8, roughness: 0.2 })); cDeco.position.y = 0.35; g.add(cDeco);
+            this.scene.add(g);
+        }
+        createToken(color, index) {
+            const g = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.6, 16), new THREE.MeshStandardMaterial({ color: CONFIG.COLORS[color].main, metalness: 0.4, roughness: 0.3, emissive: CONFIG.COLORS[color].main, emissiveIntensity: 0.1 })); body.position.y = 0.3; body.castShadow = true; g.add(body);
+            const top = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), new THREE.MeshStandardMaterial({ color: CONFIG.COLORS[color].glow, metalness: 0.5, roughness: 0.2 })); top.position.y = 0.7; top.castShadow = true; g.add(top);
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 8, 24), new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.8, roughness: 0.2 })); ring.position.y = 0.15; ring.rotation.x = Math.PI / 2; g.add(ring);
+            g.userData = { color, index, isToken: true }; body.userData = { color, index, isToken: true }; top.userData = { color, index, isToken: true };
+            return g;
+        }
+        initTokens(players) { Object.values(this.tokens).forEach(arr => arr.forEach(t => this.scene.remove(t))); this.tokens = {}; Object.keys(players).forEach(c => { this.tokens[c] = []; for (let i = 0; i < 4; i++) { const t = this.createToken(c, i); t.position.copy(this.basePositions[c][i]); this.scene.add(t); this.tokens[c].push(t); } }); }
+        updateTokenPosition(color, index, gameToken) {
+            const t = this.tokens[color]?.[index]; if (!t) return;
+            let target;
+            if (gameToken.isCompleted) { const angle = CONFIG.PLAYER_ORDER.indexOf(color) * Math.PI / 2; target = new THREE.Vector3(Math.cos(angle) * (0.5 + index * 0.25), 0.3 + index * 0.15, Math.sin(angle) * (0.5 + index * 0.25)); t.scale.set(0.7, 0.7, 0.7); }
+            else if (gameToken.position === -1 && gameToken.homePosition === -1) { target = this.basePositions[color][index].clone(); t.scale.set(1, 1, 1); }
+            else if (gameToken.homePosition >= 0 && gameToken.homePosition < CONFIG.HOME_STRETCH_LENGTH) { target = this.homePositions[color][gameToken.homePosition].clone(); target.y = 0.3; t.scale.set(1, 1, 1); }
+            else if (gameToken.position >= 0) { target = this.cellPositions[gameToken.position].clone(); target.y = 0.3; t.scale.set(1, 1, 1); }
+            if (target) this.animateToken(t, target);
+        }
+        animateToken(token, target) { const start = token.position.clone(), mid = start.clone().lerp(target, 0.5); mid.y += 1.5; const startTime = Date.now(); const anim = () => { const t = Math.min(1, (Date.now() - startTime) / 350), u = 1 - t; token.position.x = u*u*start.x + 2*u*t*mid.x + t*t*target.x; token.position.y = u*u*start.y + 2*u*t*mid.y + t*t*target.y; token.position.z = u*u*start.z + 2*u*t*mid.z + t*t*target.z; token.rotation.y = t * Math.PI * 2; if (t < 1) requestAnimationFrame(anim); else token.rotation.y = 0; }; anim(); }
+        highlightTokens(moves, color) { this.clearHighlights(); [...new Set(moves.map(m => m.tokenIndex))].forEach(idx => { const t = this.tokens[color]?.[idx]; if (!t) return; const ring = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.6, 32), new THREE.MeshBasicMaterial({ color: 0xFFD700, transparent: true, opacity: 0.8, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.copy(t.position); ring.position.y = 0.1; ring.userData.pulseTime = 0; this.scene.add(ring); this.highlights.push({ mesh: ring, tokenIndex: idx }); }); }
+        clearHighlights() { this.highlights.forEach(h => this.scene.remove(h.mesh)); this.highlights = []; }
+        getClickedToken(event) { const rect = this.renderer.domElement.getBoundingClientRect(); this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1; this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1; this.raycaster.setFromCamera(this.mouse, this.camera); const meshes = []; Object.entries(this.tokens).forEach(([c, arr]) => arr.forEach((t, i) => t.traverse(ch => { if (ch.isMesh) { ch.userData.color = c; ch.userData.index = i; meshes.push(ch); } }))); const hits = this.raycaster.intersectObjects(meshes); return hits.length > 0 ? { color: hits[0].object.userData.color, index: hits[0].object.userData.index } : null; }
+        setupEvents() {
+            const el = this.renderer.domElement;
+            el.addEventListener('mousedown', e => { if (e.button === 0) { this.isDragging = true; this.prevMouse = { x: e.clientX, y: e.clientY }; } });
+            window.addEventListener('mouseup', () => this.isDragging = false);
+            window.addEventListener('mousemove', e => { if (this.isDragging) { this.targetAngle.theta -= (e.clientX - this.prevMouse.x) * 0.005; this.targetAngle.phi = Math.max(0.2, Math.min(Math.PI/2 - 0.1, this.targetAngle.phi - (e.clientY - this.prevMouse.y) * 0.005)); this.prevMouse = { x: e.clientX, y: e.clientY }; } });
+            el.addEventListener('wheel', e => { e.preventDefault(); this.targetDist = Math.max(10, Math.min(40, this.targetDist + e.deltaY * 0.02)); });
+            let touchDist = 0;
+            el.addEventListener('touchstart', e => { if (e.touches.length === 1) { this.isDragging = true; this.prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) touchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); });
+            el.addEventListener('touchmove', e => { if (e.touches.length === 1 && this.isDragging) { this.targetAngle.theta -= (e.touches[0].clientX - this.prevMouse.x) * 0.005; this.targetAngle.phi = Math.max(0.2, Math.min(Math.PI/2 - 0.1, this.targetAngle.phi - (e.touches[0].clientY - this.prevMouse.y) * 0.005)); this.prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); this.targetDist = Math.max(10, Math.min(40, this.targetDist + (touchDist - d) * 0.05)); touchDist = d; } });
+            el.addEventListener('touchend', () => this.isDragging = false);
+            window.addEventListener('resize', () => { this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(window.innerWidth, window.innerHeight); });
+        }
+        updateCameraPosition() { this.camAngle.theta += (this.targetAngle.theta - this.camAngle.theta) * 0.1; this.camAngle.phi += (this.targetAngle.phi - this.camAngle.phi) * 0.1; this.camDist += (this.targetDist - this.camDist) * 0.1; this.camera.position.x = this.camDist * Math.sin(this.camAngle.phi) * Math.cos(this.camAngle.theta); this.camera.position.y = this.camDist * Math.cos(this.camAngle.phi); this.camera.position.z = this.camDist * Math.sin(this.camAngle.phi) * Math.sin(this.camAngle.theta); this.camera.lookAt(0, 0, 0); }
+        resetCamera() { this.targetAngle = { theta: Math.PI / 4, phi: Math.PI / 3 }; this.targetDist = 20; }
+        animate() { requestAnimationFrame(() => this.animate()); this.updateCameraPosition(); this.highlights.forEach(h => { h.mesh.userData.pulseTime += 0.05; const s = 1 + Math.sin(h.mesh.userData.pulseTime) * 0.2; h.mesh.scale.set(s, s, s); h.mesh.material.opacity = 0.5 + Math.sin(h.mesh.userData.pulseTime) * 0.3; }); this.renderer.render(this.scene, this.camera); }
+    }
+
+    class AIController {
+        constructor(gs) { this.gs = gs; }
+        selectMove(moves, diff, color) { if (moves.length === 0) return null; if (moves.length === 1) return moves[0]; if (diff === 'ai-easy') return moves[Math.floor(Math.random() * moves.length)]; const scored = moves.map(m => ({ move: m, score: this.eval(m, color) })); scored.sort((a, b) => b.score - a.score); return scored[0].move; }
+        eval(move, color) {
+            let s = 0; const p = this.gs.players[color], t = p.tokens[move.tokenIndex];
+            if (move.type === 'exit') s = 50;
+            else if (move.type === 'move') { if (this.wouldCapture(move.newPosition, color)) s += 200; if (CONFIG.SAFE_POSITIONS.includes(move.newPosition)) s += 40; if (this.inDanger(t.position, color)) s += 60; if (this.inDanger(move.newPosition, color)) s -= 30; let d = t.position - CONFIG.START_POSITIONS[color]; if (d < 0) d += CONFIG.PATH_LENGTH; s += d * 0.5; }
+            else if (move.type === 'enterHome') s = 100;
+            else if (move.type === 'moveHome') s = 80 + move.homePosition * 5;
+            else if (move.type === 'reachHome') s = 150;
+            return s;
+        }
+        wouldCapture(pos, color) { if (CONFIG.SAFE_POSITIONS.includes(pos)) return false; for (const [c, p] of Object.entries(this.gs.players)) { if (c === color) continue; for (const t of p.tokens) if (t.position === pos && !t.isCompleted && t.homePosition === -1 && t.position !== -1) return true; } return false; }
+        inDanger(pos, color) { if (pos === -1 || CONFIG.SAFE_POSITIONS.includes(pos)) return false; for (const [c, p] of Object.entries(this.gs.players)) { if (c === color) continue; for (const t of p.tokens) { if (t.position === -1 || t.isCompleted || t.homePosition >= 0) continue; for (let d = 1; d <= 6; d++) if ((t.position + d) % CONFIG.PATH_LENGTH === pos) return true; } } return false; }
+    }
+
+    class GameController {
+        constructor() { this.renderer = null; this.gameState = new GameState(); this.aiController = null; this.soundManager = new SoundManager(); this.validMoves = []; this.isAnimating = false; this.initUI(); }
+        initUI() {
+            this.mainMenu = document.getElementById('main-menu'); this.hud = document.getElementById('hud'); this.rollBtn = document.getElementById('roll-btn'); this.diceResult = document.getElementById('dice-result'); this.dice3d = document.getElementById('dice-3d'); this.diceWrapper = document.getElementById('dice-wrapper'); this.currentPlayerName = document.getElementById('current-player-name'); this.turnIndicatorDot = document.getElementById('turn-indicator-dot'); this.turnInfo = document.getElementById('turn-info'); this.scoresList = document.getElementById('scores-list'); this.messageDisplay = document.getElementById('message-display'); this.winnerScreen = document.getElementById('winner-screen'); this.loadingScreen = document.getElementById('loading'); this.rulesModal = document.getElementById('rules-modal');
+            document.getElementById('start-game-btn').addEventListener('click', () => this.startGame());
+            document.getElementById('rules-btn').addEventListener('click', () => this.rulesModal.classList.add('show'));
+            document.getElementById('rules-btn-game')?.addEventListener('click', () => this.rulesModal.classList.add('show'));
+            document.getElementById('close-rules-btn').addEventListener('click', () => this.rulesModal.classList.remove('show'));
+            this.rulesModal.addEventListener('click', e => { if (e.target === this.rulesModal) this.rulesModal.classList.remove('show'); });
+            this.rollBtn.addEventListener('click', () => this.rollDice()); this.diceWrapper.addEventListener('click', () => { if (!this.rollBtn.disabled) this.rollDice(); });
+            document.getElementById('sound-btn')?.addEventListener('click', () => { const en = this.soundManager.toggle(); document.getElementById('sound-btn').textContent = en ? '🔊' : '🔇'; });
+            document.getElementById('reset-camera-btn')?.addEventListener('click', () => this.renderer?.resetCamera());
+            document.getElementById('menu-btn')?.addEventListener('click', () => this.showMainMenu());
+            document.getElementById('play-again-btn')?.addEventListener('click', () => this.showMainMenu());
+            this.initGame();
+        }
+        initGame() { this.renderer = new GameRenderer(document.getElementById('game-container')); this.soundManager.init(); setTimeout(() => { this.loadingScreen.style.display = 'none'; this.mainMenu.style.display = 'flex'; }, 500); }
+        startGame() {
+            const configs = {}; CONFIG.PLAYER_ORDER.forEach(c => { configs[c] = { name: document.getElementById(`player-${c}-name`).value || `Player ${CONFIG.PLAYER_ORDER.indexOf(c) + 1}`, type: document.getElementById(`player-${c}-type`).value }; });
+            if (Object.values(configs).filter(p => p.type !== 'none').length < 2) { this.showMessage('At least 2 players required!', 2000); return; }
+            this.gameState.init(configs); this.aiController = new AIController(this.gameState); this.renderer.initTokens(this.gameState.players);
+            this.mainMenu.style.display = 'none'; this.hud.style.display = 'block'; this.winnerScreen.classList.remove('show');
+            this.updateScoresPanel(); this.updateTurnIndicator(); this.gameState.phase = 'waiting';
+            this.renderer.renderer.domElement.addEventListener('click', e => this.handleBoardClick(e));
+            this.startTurn();
+        }
+        showMainMenu() { this.hud.style.display = 'none'; this.winnerScreen.classList.remove('show'); this.mainMenu.style.display = 'flex'; this.renderer.clearHighlights(); }
+        updateTurnIndicator() { const p = this.gameState.getCurrentPlayer(); if (!p) return; this.currentPlayerName.textContent = p.name; this.turnIndicatorDot.style.backgroundColor = CONFIG.COLORS[p.color].css; this.turnInfo.textContent = this.gameState.consecutiveSixes > 0 ? `🎲 ${this.gameState.consecutiveSixes} six${this.gameState.consecutiveSixes > 1 ? 'es' : ''} in a row!` : this.gameState.bonusRoll ? '⚔️ Capture bonus!' : ''; }
+        updateScoresPanel() { const cur = this.gameState.getCurrentColor(); this.scoresList.innerHTML = Object.values(this.gameState.players).map(p => `<div class="score-row ${p.color === cur ? 'active' : ''}"><div class="score-color" style="background:${CONFIG.COLORS[p.color].css}"></div><span class="score-name">${p.name}</span><span class="score-value">${p.tokensCompleted}/4</span></div>`).join(''); }
+        showMessage(text, dur = 2000) { this.messageDisplay.textContent = text; this.messageDisplay.classList.add('show'); setTimeout(() => this.messageDisplay.classList.remove('show'), dur); }
+        startTurn() { const p = this.gameState.getCurrentPlayer(); if (!p) return; this.updateTurnIndicator(); this.updateScoresPanel(); this.gameState.phase = 'waiting'; this.rollBtn.disabled = false; this.diceResult.textContent = '-'; if (p.type.startsWith('ai-')) { this.rollBtn.disabled = true; setTimeout(() => this.rollDice(), 800); } }
+        rollDice() {
+            if (this.gameState.phase !== 'waiting' || this.isAnimating) return;
+            this.rollBtn.disabled = true; this.soundManager.play('roll'); this.dice3d.classList.add('rolling');
+            const result = Math.floor(Math.random() * 6) + 1; this.gameState.diceValue = result;
+            setTimeout(() => {
+                this.dice3d.classList.remove('rolling'); this.diceResult.textContent = result;
+                const rots = {1:'rotateY(0deg) rotateX(0deg)',2:'rotateY(180deg) rotateX(0deg)',3:'rotateY(90deg) rotateX(0deg)',4:'rotateY(-90deg) rotateX(0deg)',5:'rotateX(-90deg) rotateY(0deg)',6:'rotateX(90deg) rotateY(0deg)'}; this.dice3d.style.transform = rots[result];
+                if (result === 6) { this.gameState.consecutiveSixes++; if (this.gameState.consecutiveSixes >= 3) { this.showMessage('Three 6s in a row! Turn lost! 😱', 2000); this.soundManager.play('error'); this.gameState.consecutiveSixes = 0; setTimeout(() => { this.gameState.nextTurn(); this.startTurn(); }, 2000); return; } }
+                this.gameState.phase = 'rolled'; this.processRoll();
+            }, 600);
+        }
+        processRoll() { const p = this.gameState.getCurrentPlayer(); this.validMoves = this.gameState.getValidMoves(); if (this.validMoves.length === 0) { this.showMessage('No valid moves!', 1200); setTimeout(() => { this.gameState.nextTurn(); this.startTurn(); }, 1200); return; } this.renderer.highlightTokens(this.validMoves, p.color); if (p.type.startsWith('ai-')) { setTimeout(() => { const m = this.aiController.selectMove(this.validMoves, p.type, p.color); if (m) this.executeMove(m); }, 600); } else { this.gameState.phase = 'moving'; this.showMessage('Select a token to move', 1500); } }
+        handleBoardClick(e) { if (this.gameState.phase !== 'moving' || this.isAnimating) return; const clicked = this.renderer.getClickedToken(e); if (!clicked || clicked.color !== this.gameState.getCurrentColor()) return; const moves = this.validMoves.filter(m => m.tokenIndex === clicked.index); if (moves.length === 0) return; this.executeMove(moves[0]); }
+        executeMove(move) {
+            this.isAnimating = true; this.renderer.clearHighlights(); this.soundManager.play('move');
+            const player = this.gameState.getCurrentPlayer(), color = player.color;
+            this.gameState.executeMove(move, {
+                onCapture: (victimColor, victimIndex, captorColor, captorIndex) => {
+                    this.soundManager.play('capture'); this.showMessage(`${player.name} captured and completed! 💥🏆`, 2000);
+                    setTimeout(() => this.renderer.updateTokenPosition(victimColor, victimIndex, this.gameState.players[victimColor].tokens[victimIndex]), 100);
+                    setTimeout(() => this.renderer.updateTokenPosition(captorColor, captorIndex, this.gameState.players[captorColor].tokens[captorIndex]), 200);
+                    this.createParticles();
+                },
+                onHome: (p, idx) => { this.soundManager.play('home'); this.showMessage(`${p.name}'s token reached home! 🏠`, 1500); this.createParticles(); }
+            });
+            this.renderer.updateTokenPosition(color, move.tokenIndex, player.tokens[move.tokenIndex]);
+            setTimeout(() => {
+                const rankings = this.gameState.checkWinner();
+                if (rankings && this.gameState.gameOver) { this.endGame(rankings); return; }
+                this.isAnimating = false; this.gameState.phase = 'waiting'; this.updateScoresPanel();
+                if (this.gameState.bonusRoll || this.gameState.diceValue === 6) { const reason = this.gameState.bonusRoll ? 'Capture bonus roll! ⚔️' : 'Rolled 6! Roll again! 🎲'; this.showMessage(reason, 1200); this.gameState.bonusRoll = false; setTimeout(() => this.startTurn(), 800); }
+                else { this.gameState.nextTurn(); this.startTurn(); }
+            }, 500);
+        }
+        createParticles() { const cols = ['#FFD700','#E53935','#43A047','#1E88E5','#FDD835']; for (let i = 0; i < 25; i++) { const p = document.createElement('div'); p.className = 'particle'; p.style.left = Math.random() * 100 + 'vw'; p.style.top = '-20px'; p.style.width = p.style.height = Math.random() * 10 + 5 + 'px'; p.style.background = cols[Math.floor(Math.random() * cols.length)]; p.style.borderRadius = '50%'; p.style.animationDelay = Math.random() * 0.5 + 's'; document.body.appendChild(p); setTimeout(() => p.remove(), 3500); } }
+        endGame(rankings) { this.soundManager.play('win'); const winner = rankings[0]; document.getElementById('winner-name').textContent = winner.name; document.getElementById('winner-name').style.color = CONFIG.COLORS[winner.color].css; const medals = ['🥇','🥈','🥉','4️⃣']; document.getElementById('rankings').innerHTML = rankings.map((p, i) => `<div class="ranking-row"><span class="rank-medal">${medals[i] || ''}</span><span style="color:${CONFIG.COLORS[p.color].css}">${p.name}</span><span>${p.tokensCompleted}/4 completed</span></div>`).join(''); this.winnerScreen.classList.add('show'); for (let i = 0; i < 50; i++) setTimeout(() => this.createParticles(), i * 100); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => new GameController());
+    </script>
+</body>
+</html>

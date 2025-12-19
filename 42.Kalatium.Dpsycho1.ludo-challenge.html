@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Ludo Challenge</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #1a1a1a; touch-action: none; }
+        #game-ui {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            width: 95%; max-width: 500px;
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px);
+            border-radius: 15px; padding: 15px; border: 1px solid rgba(255,255,255,0.2);
+            color: white; display: flex; flex-direction: column; align-items: center;
+            pointer-events: none; user-select: none; z-index: 10;
+        }
+        h1 { margin: 0 0 5px 0; font-size: 1.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        #status { font-size: 1rem; margin-bottom: 10px; font-weight: bold; color: #ffd700; text-align: center; }
+        #controls { pointer-events: auto; display: flex; gap: 15px; align-items: center; }
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e53); border: none; padding: 12px 25px;
+            color: white; font-size: 1rem; border-radius: 25px; 
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4); font-weight: bold;
+        }
+        button:active { transform: scale(0.95); }
+        button:disabled { background: #555; opacity: 0.6; }
+        #dice-display {
+            width: 50px; height: 50px; background: white; border-radius: 10px;
+            display: flex; justify-content: center; align-items: center;
+            color: #333; font-size: 1.5rem; font-weight: bold;
+        }
+        .instruction { position: absolute; bottom: 10px; width: 100%; text-align: center; color: rgba(255,255,255,0.4); pointer-events: none; font-size: 0.7rem; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="game-ui">
+        <h1>Nairaland 3D Ludo</h1>
+        <div id="status">Red's Turn</div>
+        <div id="controls">
+            <div id="dice-display">?</div>
+            <button id="roll-btn">ROLL DICE</button>
+        </div>
+    </div>
+    <div class="instruction">One Finger: Rotate | Two Fingers: Pan | Tap Piece to Move</div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const COLORS = { RED: 0xff4757, GREEN: 0x2ed573, BLUE: 0x1e90ff, YELLOW: 0xffa502, WHITE: 0xffffff, BOARD: 0x2f3542 };
+        const TILE_SIZE = 2;
+        const PLAYERS = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
+        const PLAYER_COLORS = [COLORS.RED, COLORS.GREEN, COLORS.YELLOW, COLORS.BLUE];
+        
+        let state = { turn: 0, diceValue: 0, waitingForRoll: true, waitingForMove: false, pieces: [], animating: false };
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x202025);
+        scene.fog = new THREE.FogExp2(0x202025, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 40, 30);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(20, 50, 20);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // Board
+        const boardGroup = new THREE.Group();
+        scene.add(boardGroup);
+        const platform = new THREE.Mesh(new THREE.BoxGeometry(34, 1, 34), new THREE.MeshStandardMaterial({ color: COLORS.BOARD }));
+        platform.position.y = -0.55;
+        platform.receiveShadow = true;
+        boardGroup.add(platform);
+
+        function createTile(x, z, color, name) {
+            const tile = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.2, 1.9), new THREE.MeshStandardMaterial({ color: color }));
+            tile.position.set(x * 2, 0, z * 2);
+            tile.receiveShadow = true;
+            boardGroup.add(tile);
+            return tile.position;
+        }
+
+        // Generate Path (Simplified Visuals)
+        const globalPath = [];
+        // Center
+        createTile(0, 0, COLORS.WHITE, 'center');
+        // Bases
+        const bases = [
+            { pos: {x: -4.5, z: -4.5}, color: COLORS.RED },
+            { pos: {x: -4.5, z: 4.5}, color: COLORS.GREEN },
+            { pos: {x: 4.5, z: 4.5}, color: COLORS.YELLOW },
+            { pos: {x: 4.5, z: -4.5}, color: COLORS.BLUE }
+        ];
+
+        bases.forEach(b => {
+            const base = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 10), new THREE.MeshStandardMaterial({ color: b.color }));
+            base.position.set(b.pos.x * 2, 0.1, b.pos.z * 2);
+            base.receiveShadow = true;
+            boardGroup.add(base);
+        });
+
+        // Path Logic (Hardcoded simple loop for gameplay)
+        const rawPath = [
+            {x:-1, z:-6}, {x:-1, z:-5}, {x:-1, z:-4}, {x:-1, z:-3}, {x:-1, z:-2},
+            {x:-2, z:-1}, {x:-3, z:-1}, {x:-4, z:-1}, {x:-5, z:-1}, {x:-6, z:-1}, {x:-7, z:-1}, {x:-7, z:0}, {x:-7, z:1}, {x:-6, z:1}, {x:-5, z:1}, {x:-4, z:1}, {x:-3, z:1}, {x:-2, z:1},
+            {x:-1, z:2}, {x:-1, z:3}, {x:-1, z:4}, {x:-1, z:5}, {x:-1, z:6}, {x:-1, z:7}, {x:0, z:7}, {x:1, z:7}, {x:1, z:6}, {x:1, z:5}, {x:1, z:4}, {x:1, z:3}, {x:1, z:2},
+            {x:2, z:1}, {x:3, z:1}, {x:4, z:1}, {x:5, z:1}, {x:6, z:1}, {x:7, z:1}, {x:7, z:0}, {x:7, z:-1}, {x:6, z:-1}, {x:5, z:-1}, {x:4, z:-1}, {x:3, z:-1}, {x:2, z:-1},
+            {x:1, z:-2}, {x:1, z:-3}, {x:1, z:-4}, {x:1, z:-5}, {x:1, z:-6}, {x:1, z:-7}, {x:0, z:-7}, {x:-1, z:-7}
+        ];
+        
+        rawPath.forEach(p => globalPath.push(createTile(p.x, p.z, COLORS.WHITE)));
+
+        // Pieces
+        const geoPiece = new THREE.SphereGeometry(0.6, 32, 16);
+        function addPieces(pIdx, baseX, baseZ) {
+            const positions = [{x: baseX-1.5, z: baseZ-1.5}, {x: baseX+1.5, z: baseZ-1.5}, {x: baseX-1.5, z: baseZ+1.5}, {x: baseX+1.5, z: baseZ+1.5}];
+            positions.forEach((pos, i) => {
+                const piece = new THREE.Mesh(geoPiece, new THREE.MeshStandardMaterial({ color: PLAYER_COLORS[pIdx] }));
+                piece.position.set(pos.x * 2, 1, pos.z * 2);
+                piece.castShadow = true;
+                piece.userData = { player: pIdx, state: 'base', pathIdx: -1, basePos: piece.position.clone() };
+                scene.add(piece);
+                state.pieces.push(piece);
+            });
+        }
+        addPieces(0, -4.5, -4.5); addPieces(1, -4.5, 4.5); addPieces(2, 4.5, 4.5); addPieces(3, 4.5, -4.5);
+
+        // Interaction
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        document.getElementById('roll-btn').addEventListener('click', () => {
+            if(!state.waitingForRoll || state.animating) return;
+            state.waitingForRoll = false;
+            let count = 0;
+            const iv = setInterval(() => {
+                document.getElementById('dice-display').innerText = Math.floor(Math.random()*6)+1;
+                count++;
+                if(count>10) { clearInterval(iv); finalizeRoll(); }
+            }, 50);
+        });
+
+        function finalizeRoll() {
+            state.diceValue = Math.floor(Math.random()*6)+1;
+            document.getElementById('dice-display').innerText = state.diceValue;
+            
+            const myPieces = state.pieces.filter(p => p.userData.player === state.turn);
+            const canMove = myPieces.some(p => p.userData.state === 'board' || (state.diceValue === 6 && p.userData.state === 'base'));
+            
+            if(!canMove) setTimeout(nextTurn, 1000);
+            else { state.waitingForMove = true; updateUI(); }
+        }
+
+        function nextTurn() {
+            state.turn = (state.turn + 1) % 4;
+            state.waitingForRoll = true; state.waitingForMove = false;
+            document.getElementById('dice-display').innerText = "?";
+            updateUI();
+        }
+
+        function updateUI() {
+            const btn = document.getElementById('roll-btn');
+            document.getElementById('status').innerText = `${PLAYERS[state.turn]}'s Turn`;
+            document.getElementById('status').style.color = '#' + PLAYER_COLORS[state.turn].toString(16);
+            if(state.waitingForRoll) { btn.disabled = false; btn.innerText = "ROLL"; }
+            else { btn.disabled = true; btn.innerText = `Rolled ${state.diceValue}`; }
+        }
+
+        window.addEventListener('pointerdown', (e) => {
+            if(!state.waitingForMove || state.animating) return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(state.pieces);
+            if(intersects.length > 0) {
+                const p = intersects[0].object;
+                if(p.userData.player === state.turn) attemptMove(p);
+            }
+        });
+
+        function attemptMove(piece) {
+            if(piece.userData.state === 'base') {
+                if(state.diceValue === 6) move(piece, 0 + (piece.userData.player * 13)); // Simple start logic
+            } else {
+                move(piece, (piece.userData.pathIdx + state.diceValue) % globalPath.length);
+            }
+        }
+
+        function move(piece, targetIdx) {
+            state.animating = true;
+            const start = piece.position.clone();
+            const end = globalPath[targetIdx].clone(); end.y = 1;
+            let t = 0;
+            function loop() {
+                t += 0.05;
+                if(t >= 1) {
+                    piece.position.copy(end);
+                    piece.userData.state = 'board';
+                    piece.userData.pathIdx = targetIdx;
+                    state.animating = false;
+                    state.waitingForMove = false;
+                    
+                    // Capture Logic
+                    state.pieces.forEach(other => {
+                        if(other !== piece && other.userData.state === 'board' && other.userData.pathIdx === targetIdx && other.userData.player !== piece.userData.player) {
+                            other.position.copy(other.userData.basePos);
+                            other.userData.state = 'base';
+                        }
+                    });
+
+                    if(state.diceValue !== 6) nextTurn();
+                    else { state.waitingForRoll = true; updateUI(); }
+                    return;
+                }
+                piece.position.lerpVectors(start, end, t);
+                piece.position.y = 1 + Math.sin(t * Math.PI) * 2;
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+        animate();
+    </script>
+</body>
+</html>

@@ -1,0 +1,3130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Ludo Challenge</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Russo+One&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #f0f2f5;
+        font-family: "Poppins", sans-serif;
+        user-select: none;
+      }
+
+      /* =========================================
+           UI - RESULT SCREEN
+           ========================================= */
+      #result-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s;
+      }
+      #result-screen.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #result-title {
+        font-family: "Russo One", sans-serif;
+        font-size: 3rem;
+        margin-bottom: 10px;
+        color: #333;
+      }
+      #result-desc {
+        font-size: 1.2rem;
+        color: #666;
+        margin-bottom: 30px;
+      }
+      #result-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 30px 0;
+        width: 300px;
+        text-align: left;
+      }
+      .result-item {
+        background: #f5f5f5;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        color: #444;
+        border-left: 5px solid #ccc;
+      }
+      .result-item span:last-child {
+        font-weight: bold;
+      }
+
+      /* =========================================
+           UI - GAME OVERLAY (HUD)
+           ========================================= */
+      #game-ui {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.5s;
+      }
+      #game-ui.active {
+        opacity: 1;
+        pointer-events: none;
+      }
+
+      /* Top Right Controls (Exit & Help) */
+      #top-right-controls {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        gap: 15px;
+        pointer-events: auto;
+        z-index: 10;
+      }
+
+      /* Zoom Controls (Right Center) */
+      #zoom-controls {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        pointer-events: auto;
+      }
+      .zoom-btn {
+        width: 50px;
+        height: 50px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        font-size: 24px;
+        font-weight: bold;
+        color: #444;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+      }
+      .zoom-btn:hover {
+        background: #2196f3;
+        color: white;
+        transform: scale(1.1);
+      }
+
+      #info-panel {
+        position: absolute;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        min-width: 300px;
+        text-align: center;
+        pointer-events: none;
+        transition: all 0.3s;
+        z-index: 100;
+      }
+      
+      #ui-turn-title {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        line-height: 1.1;
+      }
+      
+      #ui-turn-desc {
+        margin-top: 8px;
+        font-size: 1rem;
+        color: #555;
+        font-weight: 500;
+      }
+
+      #bottom-controls {
+        position: absolute;
+        bottom: 30px;
+        width: 100%;
+        text-align: center;
+        pointer-events: none;
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+      }
+
+      /* Action Buttons */
+      .main-btn {
+        pointer-events: auto;
+        padding: 12px 30px;
+        font-size: 16px;
+        font-weight: 600;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s;
+      }
+      .main-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      }
+      .main-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-roll {
+        background: linear-gradient(135deg, #ff4081, #f50057);
+        min-width: 150px;
+      }
+
+      /* Utility Icons (Exit/Help) */
+      .util-btn {
+        pointer-events: auto;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+      .util-btn:hover {
+        transform: scale(1.1);
+      }
+      .btn-exit {
+        background: #464646;
+      }
+      .btn-help {
+        background: #464646;
+      }
+
+      /* =========================================
+           UI - MODALS & MENUS
+           ========================================= */
+      #menu-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+        transition: opacity 0.5s;
+      }
+      #menu-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .menu-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(15px);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        width: 400px;
+        max-width: 90%;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        animation: floatUp 0.6s ease-out;
+      }
+
+      #confirm-modal {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-box {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        max-width: 300px;
+        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      .modal-actions {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+      .modal-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .btn-yes {
+        background: #d32f2f;
+        color: white;
+      }
+      .btn-no {
+        background: #eee;
+        color: #333;
+      }
+
+      h1.game-title {
+        font-family: "Russo One", sans-serif;
+        font-size: 2.5rem;
+        margin: 0 0 30px 0;
+        background: linear-gradient(45deg, #2196f3, #e91e63);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .menu-btn {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .menu-btn:hover {
+        background: #f8f9fa;
+        transform: scale(1.02);
+      }
+      .menu-btn.primary {
+        background: linear-gradient(135deg, #2196f3, #1976d2);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+      }
+
+      .setup-section {
+        margin-bottom: 25px;
+        text-align: left;
+      }
+      .setup-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 8px;
+        display: block;
+      }
+      .setup-desc {
+        font-size: 0.75rem;
+        color: #888;
+        margin-bottom: 10px;
+        display: block;
+      }
+      .option-grid {
+        display: flex;
+        gap: 10px;
+      }
+      .option-btn {
+        flex: 1;
+        padding: 10px;
+        font-size: 0.9rem;
+        border: 2px solid #eee;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: #555;
+      }
+      .option-btn.selected {
+        border-color: #2196f3;
+        background: #e3f2fd;
+        color: #1565c0;
+        font-weight: bold;
+      }
+      .color-grid {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 10px;
+      }
+      .color-swatch {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 3px solid transparent;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s;
+        position: relative;
+      }
+      .color-swatch.selected {
+        border-color: #333;
+        transform: scale(1.1);
+      }
+      .color-swatch.selected::after {
+        content: "✓";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: bold;
+        font-size: 1.2rem;
+      }
+
+      /* Settings UI */
+      .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding: 10px;
+        background: rgba(255,255,255,0.5);
+        border-radius: 10px;
+      }
+      .setting-info {
+        text-align: left;
+        flex: 1;
+        padding-right: 10px;
+      }
+      .setting-name {
+        display: block;
+        font-weight: 600;
+        color: #333;
+        font-size: 0.95rem;
+      }
+      .setting-desc {
+        display: block;
+        font-size: 0.75rem;
+        color: #666;
+        line-height: 1.2;
+      }
+      /* Switch Toggle */
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+        flex-shrink: 0;
+      }
+      .switch input { 
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+      }
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+      }
+      input:checked + .slider {
+        background-color: #2196f3;
+      }
+      input:focus + .slider {
+        box-shadow: 0 0 1px #2196f3;
+      }
+      input:checked + .slider:before {
+        transform: translateX(24px);
+      }
+      .slider.round {
+        border-radius: 34px;
+      }
+      .slider.round:before {
+        border-radius: 50%;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+      @keyframes floatUp {
+        from {
+          transform: translateY(30px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      @keyframes popIn {
+        from {
+          transform: scale(0.8);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      /* Theme: Sunrise (Warm & Inviting) */
+      body.theme-sunrise {
+        background: #fff3e0;
+      }
+      body.theme-sunrise .menu-card {
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid #ffb74d;
+        box-shadow: 0 10px 30px rgba(255, 167, 38, 0.2);
+        color: #5d4037;
+      }
+      body.theme-sunrise .game-title {
+        background: linear-gradient(45deg, #ff9800, #ff7043);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      body.theme-sunrise .menu-btn {
+        background: #fff;
+        color: #5d4037;
+        border: 1px solid #ffe0b2;
+      }
+      body.theme-sunrise .menu-btn:hover {
+        background: #fff3e0;
+        border-color: #ffb74d;
+      }
+      body.theme-sunrise .menu-btn.primary {
+        background: linear-gradient(135deg, #ff9800, #f57c00);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+      }
+      body.theme-sunrise h2, 
+      body.theme-sunrise .setup-label,
+      body.theme-sunrise .setting-name {
+        color: #e65100 !important;
+      }
+      body.theme-sunrise .setup-desc,
+      body.theme-sunrise .setting-desc {
+        color: #8d6e63;
+      }
+      body.theme-sunrise .option-btn {
+        background: #fff;
+        color: #5d4037;
+        border-color: #ffe0b2;
+      }
+      body.theme-sunrise .option-btn.selected {
+        background: #ff9800;
+        color: #fff;
+        border-color: #f57c00;
+      }
+      body.theme-sunrise .setting-item {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid #ffe0b2;
+      }
+
+      /* Theme: Midnight (Easy Dark) */
+      body.theme-midnight {
+        background: #121212;
+      }
+      body.theme-midnight .menu-card {
+        background: rgba(30, 30, 30, 0.95);
+        border: 1px solid #333;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        color: #e0e0e0;
+      }
+      body.theme-midnight .game-title {
+        background: linear-gradient(45deg, #90caf9, #64b5f6);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      body.theme-midnight h2, 
+      body.theme-midnight .setup-label,
+      body.theme-midnight .setting-name {
+        color: #f5f5f5 !important;
+      }
+      body.theme-midnight .setup-desc,
+      body.theme-midnight .setting-desc {
+        color: #bdbdbd;
+      }
+      body.theme-midnight .menu-btn {
+        background: #2c2c2c;
+        color: #e0e0e0;
+        border: 1px solid #424242;
+      }
+      body.theme-midnight .menu-btn:hover {
+        background: #383838;
+      }
+      body.theme-midnight .menu-btn.primary {
+        background: #1976d2;
+        color: white;
+        border: none;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      }
+      body.theme-midnight .setting-item {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      body.theme-midnight .option-btn {
+        background: #2c2c2c;
+        color: #bdbdbd;
+        border-color: #424242;
+      }
+      body.theme-midnight .option-btn.selected {
+        background: #1565c0;
+        color: #fff;
+        border-color: #1565c0;
+      }
+      /* Midnight Contrast Fixes */
+      body.theme-midnight #screen-instructions p,
+      body.theme-midnight #screen-instructions li,
+      body.theme-midnight #screen-instructions strong {
+          color: #e0e0e0 !important;
+      }
+      body.theme-midnight #ui-turn-desc {
+          color: #e0e0e0 !important;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      }
+
+      /* Mobile Specifics */
+      #mobile-menu-toggle {
+          display: none;
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          width: 45px;
+          height: 45px;
+          background: white;
+          border-radius: 10px;
+          border: none;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+          font-size: 1.5rem;
+          z-index: 100;
+          pointer-events: auto;
+          color: #333;
+      }
+      body.theme-midnight #mobile-menu-toggle {
+          background: #333;
+          color: #fff;
+          border: 1px solid #555;
+      }
+      body.theme-sunrise #mobile-menu-toggle {
+          background: #fff;
+          color: #5d4037;
+          border: 1px solid #ffb74d;
+      }
+
+      #mobile-menu-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.8);
+          z-index: 1500;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          backdrop-filter: blur(10px);
+          pointer-events: auto;
+      }
+      .mobile-menu-card {
+          background: white;
+          padding: 30px;
+          border-radius: 20px;
+          width: 80%;
+          max-width: 300px;
+          text-align: center;
+      }
+      body.theme-midnight .mobile-menu-card {
+          background: #222;
+          color: #eee;
+          border: 1px solid #444;
+      }
+      body.theme-sunrise .mobile-menu-card {
+          background: #fff3e0;
+          color: #5d4037;
+          border: 2px solid #ffb74d;
+      }
+
+      @media (max-width: 768px) {
+          #game-info-box, #top-right-controls, #zoom-controls {
+              display: none !important;
+          }
+          #mobile-menu-toggle {
+              display: block;
+          }
+          #info-panel {
+              top: 80px; /* Below menu button */
+              width: 85%;
+              padding: 10px 15px;
+          }
+          #info-panel h3 { font-size: 1rem; }
+          #info-panel p { font-size: 0.8rem; }
+          
+          #bottom-controls {
+              bottom: 40px;
+          }
+          .main-btn {
+              padding: 12px 30px;
+              font-size: 1rem;
+          }
+      }
+
+      /* Game Info Box */
+      #game-info-box {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        font-size: 0.85rem;
+        color: #333;
+        pointer-events: auto;
+        text-align: left;
+        min-width: 180px;
+        backdrop-filter: blur(5px);
+      }
+      body.theme-midnight #game-info-box {
+          background: rgba(30, 30, 30, 0.9);
+          color: #e0e0e0;
+          border: 1px solid #444;
+      }
+      body.theme-sunrise #game-info-box {
+          background: rgba(255, 255, 255, 0.95);
+          border: 2px solid #ffb74d;
+          color: #5d4037;
+      }
+      .info-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 5px;
+      }
+      .info-label {
+          font-weight: 600;
+          opacity: 0.7;
+      }
+      .info-val {
+          font-weight: bold;
+      }
+    </style>
+
+    <script
+      async
+      src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"
+    ></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="menu-overlay">
+      <div id="screen-main" class="menu-card">
+        <h1 class="game-title">3D Ludo Challenge</h1>
+        <button class="menu-btn primary" onclick="MenuSys.gotoSetup()">
+          Start Game
+        </button>
+        <button
+          class="menu-btn"
+          onclick="MenuSys.gotoInstructions()"
+        >
+          Instructions
+        </button>
+        <button
+          class="menu-btn"
+          onclick="MenuSys.gotoSettings()"
+        >
+          Settings
+        </button>
+      </div>
+
+      <div id="screen-setup" class="menu-card hidden">
+        <h2 style="margin: 0 0 20px 0; color: #333">Game Setup</h2>
+        <div class="setup-section">
+          <span class="setup-label">How many players?</span>
+          <span class="setup-desc">Choose between a duel or full chaos.</span>
+          <div class="option-grid">
+            <button class="option-btn" id="p2" onclick="MenuSys.setPlayers(2)">
+              2 Players
+            </button>
+            <button
+              class="option-btn selected"
+              id="p4"
+              onclick="MenuSys.setPlayers(4)"
+            >
+              4 Players
+            </button>
+          </div>
+        </div>
+        <div class="setup-section">
+          <span class="setup-label">Choose your colour(s)</span>
+          <span class="setup-desc" id="color-desc"
+            >Pick 1 color to control.</span
+          >
+          <div class="color-grid">
+            <div
+              class="color-swatch"
+              style="background: #ff0033"
+              onclick="MenuSys.toggleColor('red')"
+              id="c-red"
+            ></div>
+            <div
+              class="color-swatch"
+              style="background: #00e676"
+              onclick="MenuSys.toggleColor('green')"
+              id="c-green"
+            ></div>
+            <div
+              class="color-swatch"
+              style="background: #2979ff"
+              onclick="MenuSys.toggleColor('blue')"
+              id="c-blue"
+            ></div>
+            <div
+              class="color-swatch"
+              style="background: #ffea00"
+              onclick="MenuSys.toggleColor('yellow')"
+              id="c-yellow"
+            ></div>
+          </div>
+        </div>
+        <div class="setup-section">
+          <span class="setup-label">Difficulty</span>
+          <span class="setup-desc">Smart AI opponents.</span>
+          <div class="option-grid">
+            <button
+              class="option-btn selected"
+              id="d-normal"
+              onclick="MenuSys.setDiff('normal')"
+            >
+              Normal
+            </button>
+            <button
+              class="option-btn"
+              id="d-hard"
+              onclick="MenuSys.setDiff('hard')"
+            >
+              Hard
+            </button>
+          </div>
+        </div>
+        <button
+          class="menu-btn primary"
+          id="btn-play"
+          onclick="MenuSys.startGame()"
+        >
+          Play Now
+        </button>
+        <button
+          class="menu-btn"
+          style="padding: 0;font-size: 0.9rem;background: none;border: 0;"
+          onclick="MenuSys.gotoMain()"
+        >
+          Back
+        </button>
+      </div>
+
+      <div id="screen-settings" class="menu-card hidden">
+        <h2 style="margin: 0 0 20px 0; color: #333">Settings</h2>
+        
+        <div class="setup-section">
+            <span class="setup-label">Visual Theme</span>
+            <span class="setup-desc">Choose your atmosphere.</span>
+            <div class="option-grid" style="margin-bottom: 15px;">
+                <button class="option-btn selected" id="theme-default" onclick="MenuSys.setTheme('default')">Default</button>
+                <button class="option-btn" id="theme-sunrise" onclick="MenuSys.setTheme('sunrise')">Sunrise</button>
+                <button class="option-btn" id="theme-midnight" onclick="MenuSys.setTheme('midnight')">Midnight</button>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-name">Enable Safe Squares</span>
+                    <span class="setting-desc">Pieces cannot be captured on marked safe squares.</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="opt-safe-squares" onchange="MenuSys.updateSettings()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-name">Capture Promotion</span>
+                    <span class="setting-desc">Capturing a piece instantly promotes your piece to the finish.</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="opt-capture-promo" checked onchange="MenuSys.updateSettings()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-name">Extra Move on Capture</span>
+                    <span class="setting-desc">Get an additional dice roll after capturing an opponent.</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="opt-extra-move" onchange="MenuSys.updateSettings()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+             <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-name">Sound Effects</span>
+                    <span class="setting-desc">Play clicks, moves, and dice sounds.</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="opt-sfx" checked onchange="MenuSys.updateSettings()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+             <div class="setting-item">
+                <div class="setting-info">
+                    <span class="setting-name">Background Music</span>
+                    <span class="setting-desc">Play ambient background music.</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="opt-bgm" checked onchange="MenuSys.updateSettings()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+
+        <button class="menu-btn" onclick="MenuSys.gotoMain()">Back</button>
+      </div>
+
+      <div id="screen-instructions" class="menu-card hidden" style="width: 500px; text-align: left;">
+        <h2 style="margin: 0 0 20px 0; color: #333; text-align: center;">How to Play</h2>
+        <div style="max-height: 300px; overflow-y: auto; padding-right: 10px; margin-bottom: 20px; font-size: 0.9rem; color: #555;">
+            <p><strong>Objective:</strong> Move all 4 of your pieces from your base to the center of the board.</p>
+            
+            <p><strong>Basic Rules:</strong></p>
+            <ul style="padding-left: 20px; margin: 5px 0;">
+                <li>Roll a <strong>6</strong> to move a piece out of the base.</li>
+                <li>Roll a <strong>double 6</strong> to get an extra turn.</li>
+                <li>Capture opponent pieces by landing on the same square. Captured pieces return to base.</li>
+            </ul>
+
+            <p><strong>Game Modes:</strong></p>
+            <ul style="padding-left: 20px; margin: 5px 0;">
+                <li><strong>Normal:</strong> Classic Ludo rules.</li>
+                <li><strong>Hard:</strong> AI is more aggressive and strategic.</li>
+            </ul>
+
+            <p><strong>Settings:</strong></p>
+            <ul style="padding-left: 20px; margin: 5px 0;">
+                <li><strong>Safe Squares:</strong> If enabled, pieces on star/globe squares cannot be captured.</li>
+                <li><strong>Capture Promotion:</strong> If enabled, capturing an opponent instantly promotes your piece to the finish.</li>
+            </ul>
+        </div>
+        <button class="menu-btn" onclick="MenuSys.closeInstructions()">Close</button>
+      </div>
+    </div>
+
+    <div id="confirm-modal" class="hidden">
+      <div class="modal-box">
+        <h3 style="margin-top: 0">Quit Game?</h3>
+        <p>
+          Your progress will be lost. Are you sure you want to exit to the menu?
+        </p>
+        <div class="modal-actions">
+          <button class="modal-btn btn-no" onclick="GameSys.cancelExit()">
+            Cancel
+          </button>
+          <button class="modal-btn btn-yes" onclick="GameSys.confirmExit()">
+            Yes, Quit
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <h1 id="result-title">Game Over</h1>
+        <p id="result-desc">Thanks for playing!</p>
+        <ul id="result-list">
+            <!-- Populated by JS -->
+        </ul>
+        <button class="main-btn" onclick="window.location.reload()">Main Menu</button>
+    </div>
+
+    <div id="game-ui">
+      <div id="game-info-box">
+          <div class="info-row">
+              <span class="info-label">Mode:</span>
+              <span class="info-val" id="gi-mode">-</span>
+          </div>
+          <div class="info-row">
+              <span class="info-label">Difficulty:</span>
+              <span class="info-val" id="gi-diff">-</span>
+          </div>
+          <hr style="border: 0; border-top: 1px solid rgba(0,0,0,0.1); margin: 8px 0;">
+          <div style="margin-bottom: 4px;"><span class="info-label">You:</span> <span class="info-val" id="gi-player">-</span></div>
+          <div><span class="info-label">CPU:</span> <span class="info-val" id="gi-cpu">-</span></div>
+      </div>
+
+      <div id="info-panel">
+        <h3 id="ui-turn-title" style="margin: 0">Match in Progress</h3>
+        <p id="ui-turn-desc" style="margin-top: 5px; font-size: 0.85rem">
+          Click pieces to select. Roll dice to move.
+        </p>
+      </div>
+
+      <div id="top-right-controls">
+        <button class="util-btn btn-help" title="Instructions" onclick="MenuSys.gotoInstructions()">
+          ?
+        </button>
+        <button
+          class="util-btn btn-exit"
+          onclick="GameSys.requestExit()"
+          title="Exit Game"
+        >
+          ✖
+        </button>
+      </div>
+
+      <button id="mobile-menu-toggle" onclick="MobileSys.toggleMenu()">☰</button>
+
+      <div id="mobile-menu-overlay" class="hidden">
+          <div class="mobile-menu-card">
+              <h2 style="margin-top:0;">Game Menu</h2>
+              
+              <div style="text-align: left; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
+                  <div class="info-row"><span class="info-label">Mode:</span> <span class="info-val" id="m-gi-mode">-</span></div>
+                  <div class="info-row"><span class="info-label">Diff:</span> <span class="info-val" id="m-gi-diff">-</span></div>
+                  <div class="info-row"><span class="info-label">You:</span> <span class="info-val" id="m-gi-player">-</span></div>
+              </div>
+
+              <button class="menu-btn" onclick="MobileSys.toggleMenu(); MenuSys.gotoInstructions()">Instructions</button>
+              <button class="menu-btn" style="color: #d32f2f; border-color: #ef9a9a;" onclick="MobileSys.toggleMenu(); GameSys.requestExit()">Exit Game</button>
+              <button class="menu-btn primary" onclick="MobileSys.toggleMenu()">Resume</button>
+          </div>
+      </div>
+
+      <div id="zoom-controls">
+        <button class="zoom-btn" onclick="CameraOps.dollyIn()">+</button>
+        <button class="zoom-btn" onclick="CameraOps.dollyOut()">−</button>
+      </div>
+
+      <div id="bottom-controls">
+        <button id="btn-roll-dice" class="main-btn btn-roll" onclick="DiceManager.roll()">
+          Roll Dice
+        </button>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+      const COLORS = {
+        RED: 0xff0033,
+        GREEN: 0x00e676,
+        YELLOW: 0xffea00,
+        BLUE: 0x2979ff,
+        WHITE: 0xffffff,
+        BLACK_BORDER: 0x111111,
+        BG: 0xf0f2f5,
+      };
+      const TILE_SIZE = 2;
+      const BOARD_OFFSET = (15 * TILE_SIZE) / 2 - TILE_SIZE / 2;
+
+      // Scene
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(COLORS.BG);
+      scene.fog = new THREE.Fog(COLORS.BG, 50, 150);
+
+      const camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(0, 60, 40);
+      camera.lookAt(0, 0, 0);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.body.appendChild(renderer.domElement);
+
+      // ==========================================
+      // CONTROLS CONFIGURATION
+      // ==========================================
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enablePan = true;
+      controls.enableRotate = true;
+      controls.enableZoom = true;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      // Initial Menu State
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 1.0;
+
+      // Constraints
+      controls.minDistance = 15;
+      controls.maxDistance = 90;
+
+      const hemiLight = new THREE.HemisphereLight(0xffffff, 0xdddddd, 1.0);
+      scene.add(hemiLight);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      dirLight.position.set(20, 40, 20);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.set(2048, 2048);
+      scene.add(dirLight);
+
+      // ==========================================
+      // CUSTOM SMOOTH ZOOM LOGIC
+      // ==========================================
+      let targetZoomDistance = -1;
+      window.CameraOps = {
+        dollyIn: () => {
+          const currentDist = camera.position.distanceTo(controls.target);
+          let newDist = currentDist - 10;
+          if (newDist < controls.minDistance) newDist = controls.minDistance;
+          targetZoomDistance = newDist;
+        },
+        dollyOut: () => {
+          const currentDist = camera.position.distanceTo(controls.target);
+          let newDist = currentDist + 10;
+          if (newDist > controls.maxDistance) newDist = controls.maxDistance;
+          targetZoomDistance = newDist;
+        },
+        update: () => {
+          if (targetZoomDistance !== -1) {
+            const currentDist = camera.position.distanceTo(controls.target);
+            if (Math.abs(currentDist - targetZoomDistance) > 0.5) {
+              const dir = new THREE.Vector3()
+                .subVectors(camera.position, controls.target)
+                .normalize();
+              const nextDist = THREE.MathUtils.lerp(
+                currentDist,
+                targetZoomDistance,
+                0.1
+              );
+              const newPos = dir.multiplyScalar(nextDist).add(controls.target);
+              camera.position.copy(newPos);
+            } else {
+              targetZoomDistance = -1;
+            }
+          }
+        },
+      };
+
+      // ==========================================
+      // SOUND MANAGER (Tone.js Powered)
+      // ==========================================
+      window.SoundManager = {
+          initialized: false,
+          initializing: false,
+          bgmLoop: null,
+          
+          // Instruments
+          clickSynth: null,
+          moveSynth: null,
+          captureSynth: null,
+          diceSynth: null,
+          winSynth: null,
+          lossSynth: null,
+          bgmSynth: null,
+
+          init: async function() {
+              if (this.initialized || this.initializing) return;
+              this.initializing = true;
+              
+              // Must be called on user gesture
+              await Tone.start();
+              Tone.Destination.volume.value = -5; // Master volume trim
+              
+              // 1. BGM Synth (Atmospheric Pad)
+              const reverb = new Tone.Reverb({ decay: 4, wet: 0.4 }).toDestination();
+              const chorus = new Tone.Chorus(4, 2.5, 0.5).toDestination().start();
+              
+              this.bgmSynth = new Tone.PolySynth(Tone.Synth, {
+                  oscillator: { type: "triangle" },
+                  envelope: { attack: 1.5, decay: 1, sustain: 0.5, release: 2 }
+              }).connect(reverb).connect(chorus);
+              this.bgmSynth.volume.value = -12; // Background level
+
+              // 2. SFX: Click (High woodblock/tick)
+              this.clickSynth = new Tone.MembraneSynth({
+                  pitchDecay: 0.01,
+                  octaves: 2,
+                  oscillator: { type: "sine" },
+                  envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
+              }).toDestination();
+              this.clickSynth.volume.value = -5;
+
+              // 3. SFX: Move (Woodblock / Tap)
+              this.moveSynth = new Tone.Synth({
+                  oscillator: { type: "sine" },
+                  envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+              }).toDestination();
+              
+              // 4. SFX: Dice (Noise Rattle)
+              this.diceSynth = new Tone.NoiseSynth({
+                  noise: { type: 'brown' },
+                  envelope: { attack: 0.001, decay: 0.1, sustain: 0 }
+              }).toDestination();
+              this.diceSynth.volume.value = -2;
+
+              // 5. SFX: Capture (Retro Slap)
+              this.captureSynth = new Tone.Synth({
+                  oscillator: { type: "sawtooth" },
+                  envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 }
+              }).toDestination();
+
+              // 6. SFX: Win/Loss (Poly)
+              this.winSynth = new Tone.PolySynth(Tone.Synth, {
+                  oscillator: { type: "square" },
+                  envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 }
+              }).connect(reverb);
+              this.winSynth.volume.value = -8;
+
+              this.initialized = true;
+              this.initializing = false;
+              
+              // Setup BGM Loop (Adventure Theme)
+              // Chord Progression: Cmaj7 -> Am7 -> Fmaj7 -> G7
+              const chords = [
+                  { time: "0:0", notes: ["C4", "E4", "G4", "B4"], duration: "2m" },
+                  { time: "2:0", notes: ["A3", "C4", "E4", "G4"], duration: "2m" },
+                  { time: "4:0", notes: ["F3", "A3", "C4", "E4"], duration: "2m" },
+                  { time: "6:0", notes: ["G3", "B3", "D4", "F4"], duration: "2m" },
+              ];
+              
+              this.bgmPart = new Tone.Part((time, value) => {
+                  this.bgmSynth.triggerAttackRelease(value.notes, value.duration, time);
+              }, chords);
+              
+              this.bgmPart.loop = true;
+              this.bgmPart.loopEnd = "8m";
+              
+              Tone.Transport.bpm.value = 80;
+          },
+
+          playClick: function() {
+              if (!LudoState.settings.sfx) return;
+              if (!this.initialized) {
+                  this.init().then(() => {
+                      if(this.clickSynth) this.clickSynth.triggerAttackRelease("C6", "32n");
+                  });
+                  return;
+              }
+              this.clickSynth.triggerAttackRelease("C6", "32n");
+          },
+
+          playRoll: function() {
+              if (!LudoState.settings.sfx || !this.initialized) return;
+              // Simulate rattle: multiple noise bursts
+              const now = Tone.now();
+              for(let i=0; i<8; i++) {
+                  const time = now + (i * 0.06) + (Math.random() * 0.02);
+                  this.diceSynth.triggerAttackRelease("16n", time);
+              }
+              // Final thud
+              this.clickSynth.triggerAttackRelease("C2", "8n", now + 0.6);
+          },
+
+          playMove: function() {
+              if (!LudoState.settings.sfx || !this.initialized) return;
+              // Woodblock sound
+              this.moveSynth.triggerAttackRelease("G5", "32n");
+          },
+
+          playCapture: function() {
+              if (!LudoState.settings.sfx || !this.initialized) return;
+              const now = Tone.now();
+              this.captureSynth.triggerAttackRelease("C5", "16n", now);
+              this.captureSynth.frequency.rampTo("C2", 0.2, now);
+          },
+          
+          playWin: function() {
+              if (!LudoState.settings.sfx || !this.initialized) return;
+              const now = Tone.now();
+              // Fanfare
+              this.winSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n", now);
+              this.winSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n", now + 0.15);
+              this.winSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n", now + 0.3);
+              this.winSynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "2n", now + 0.45);
+          },
+
+          playLoss: function() {
+              if (!LudoState.settings.sfx || !this.initialized) return;
+              const now = Tone.now();
+              // Sad chords
+              this.winSynth.triggerAttackRelease(["C4", "Eb4", "G4"], "2n", now);
+              this.winSynth.triggerAttackRelease(["B3", "D4", "F4"], "2n", now + 0.8);
+          },
+
+          toggleBGM: function(enable) {
+              if (enable) {
+                  this.startBGM();
+              } else {
+                  this.stopBGM();
+              }
+          },
+
+          startBGM: function() {
+              if (!this.initialized || !LudoState.settings.bgm) return;
+              Tone.Transport.start();
+              this.bgmPart.start(0);
+          },
+
+          stopBGM: function() {
+              if (!this.initialized) return;
+              this.bgmPart.stop();
+              Tone.Transport.stop();
+              // Release any stuck notes
+              this.bgmSynth.releaseAll();
+          }
+      };
+
+      // ==========================================
+      // SYSTEM LOGIC
+      // ==========================================
+      window.GameSys = {
+        requestExit: function () {
+          document.getElementById("confirm-modal").classList.remove("hidden");
+        },
+        cancelExit: function () {
+          document.getElementById("confirm-modal").classList.add("hidden");
+        },
+        confirmExit: function () {
+          document.getElementById("confirm-modal").classList.add("hidden");
+          document.getElementById("game-ui").classList.remove("active");
+          document.getElementById("result-screen").classList.remove("active");
+          document.getElementById("result-screen").classList.add("hidden");
+
+          // Return to Menu
+          controls.autoRotate = true;
+          controls.enableRotate = true;
+          controls.enabled = true;
+          document.getElementById("menu-overlay").classList.remove("hidden");
+          MenuSys.gotoMain();
+
+          // Camera Reset
+          const targetPos = { x: 0, y: 60, z: 40 };
+          const startCam = camera.position.clone();
+          let t = 0;
+          const resetAnim = () => {
+            t += 0.02;
+            if (t <= 1) {
+              camera.position.lerpVectors(
+                startCam,
+                new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z),
+                t
+              );
+              camera.lookAt(0, 0, 0);
+              requestAnimationFrame(resetAnim);
+            }
+          };
+          resetAnim();
+          LudoGame.resetBoard();
+        },
+      };
+
+      window.MobileSys = {
+          toggleMenu: function() {
+              const overlay = document.getElementById('mobile-menu-overlay');
+              const isHidden = overlay.classList.contains('hidden');
+              
+              if (isHidden) {
+                  // Open
+                  SoundManager.playClick();
+                  overlay.classList.remove('hidden');
+                  
+                  // Sync Info
+                  document.getElementById('m-gi-mode').innerText = document.getElementById('gi-mode').innerText;
+                  document.getElementById('m-gi-diff').innerText = document.getElementById('gi-diff').innerText;
+                  document.getElementById('m-gi-player').innerText = document.getElementById('gi-player').innerText;
+              } else {
+                  // Close
+                  SoundManager.playClick();
+                  overlay.classList.add('hidden');
+              }
+          }
+      };
+
+      window.MenuSys = {
+        state: { players: 4, colors: [], difficulty: "normal" },
+        gotoSetup: function () {
+          SoundManager.playClick();
+          // Try to start BGM if enabled (playClick will init if needed)
+          // We use a small timeout to allow init to complete if it was just triggered
+          setTimeout(() => {
+              if(LudoState.settings.bgm) SoundManager.startBGM();
+          }, 100);
+
+          document.getElementById("screen-main").classList.add("hidden");
+          document.getElementById("screen-setup").classList.remove("hidden");
+          this.setPlayers(4);
+          this.updatePlayBtn();
+        },
+        gotoMain: function () {
+          SoundManager.playClick();
+          document.getElementById("screen-setup").classList.add("hidden");
+          document.getElementById("screen-settings").classList.add("hidden");
+          document.getElementById("screen-main").classList.remove("hidden");
+        },
+        gotoSettings: function () {
+          SoundManager.playClick();
+          document.getElementById("screen-main").classList.add("hidden");
+          document.getElementById("screen-settings").classList.remove("hidden");
+          
+          // Sync Theme Buttons
+          const currentTheme = LudoState.settings.theme;
+          ['default', 'sunrise', 'midnight'].forEach(t => {
+              document.getElementById(`theme-${t}`).classList.toggle('selected', t === currentTheme);
+          });
+        },
+        gotoInstructions: function () {
+          SoundManager.playClick();
+          // Hide other screens
+          document.getElementById("screen-main").classList.add("hidden");
+          document.getElementById("screen-setup").classList.add("hidden");
+          document.getElementById("screen-settings").classList.add("hidden");
+          
+          // Show instructions
+          document.getElementById("menu-overlay").classList.remove("hidden");
+          document.getElementById("screen-instructions").classList.remove("hidden");
+        },
+        closeInstructions: function () {
+          SoundManager.playClick();
+          document.getElementById("screen-instructions").classList.add("hidden");
+          
+          // Check if game is running
+          const isGameActive = document.getElementById("game-ui").classList.contains("active");
+          
+          if (isGameActive) {
+              document.getElementById("menu-overlay").classList.add("hidden");
+          } else {
+              document.getElementById("screen-main").classList.remove("hidden");
+          }
+        },
+        updateSettings: function() {
+            if(!window.LudoState) return;
+            LudoState.settings.safeSquares = document.getElementById('opt-safe-squares').checked;
+            LudoState.settings.capturePromotion = document.getElementById('opt-capture-promo').checked;
+            LudoState.settings.extraMoveOnCapture = document.getElementById('opt-extra-move').checked;
+            
+            LudoState.settings.sfx = document.getElementById('opt-sfx').checked;
+            const bgmEnabled = document.getElementById('opt-bgm').checked;
+            LudoState.settings.bgm = bgmEnabled;
+            SoundManager.toggleBGM(bgmEnabled);
+        },
+        setPlayers: function (num) {
+          SoundManager.playClick();
+          this.state.players = num;
+          document.getElementById("p2").classList.toggle("selected", num === 2);
+          document.getElementById("p4").classList.toggle("selected", num === 4);
+          document.getElementById("color-desc").innerText =
+            num === 2 ? "Pick any 2 colors." : "Pick 1 color.";
+          this.state.colors = [];
+          this.renderColorSelection();
+          this.updatePlayBtn();
+        },
+        setDiff: function (diff) {
+          SoundManager.playClick();
+          this.state.difficulty = diff;
+          document
+            .getElementById("d-normal")
+            .classList.toggle("selected", diff === "normal");
+          document
+            .getElementById("d-hard")
+            .classList.toggle("selected", diff === "hard");
+        },
+        toggleColor: function (color) {
+          SoundManager.playClick();
+          const idx = this.state.colors.indexOf(color);
+          if (this.state.players === 4) {
+            this.state.colors = [color];
+          } else {
+            if (idx > -1) this.state.colors.splice(idx, 1);
+            else {
+              if (this.state.colors.length < 2) this.state.colors.push(color);
+              else {
+                this.state.colors.shift();
+                this.state.colors.push(color);
+              }
+            }
+          }
+          this.renderColorSelection();
+          this.updatePlayBtn();
+        },
+        renderColorSelection: function () {
+          ["red", "green", "blue", "yellow"].forEach((c) => {
+            document
+              .getElementById(`c-${c}`)
+              .classList.toggle("selected", this.state.colors.includes(c));
+          });
+        },
+        updatePlayBtn: function () {
+          const btn = document.getElementById("btn-play");
+          let valid =
+            (this.state.players === 4 && this.state.colors.length === 1) ||
+            (this.state.players === 2 && this.state.colors.length === 2);
+          if (valid) {
+            btn.style.opacity = "1";
+            btn.style.pointerEvents = "auto";
+            btn.innerText = "Play Now";
+          } else {
+            btn.style.opacity = "0.5";
+            btn.style.pointerEvents = "none";
+            btn.innerText = "Pick Colors";
+          }
+        },
+        setTheme: function(themeName) {
+            SoundManager.playClick();
+            LudoState.settings.theme = themeName;
+            
+            // Update UI Buttons
+            ['default', 'sunrise', 'midnight'].forEach(t => {
+                document.getElementById(`theme-${t}`).classList.toggle('selected', t === themeName);
+            });
+
+            // Update Body Class (for UI theming)
+            document.body.className = ''; // Clear existing
+            if (themeName !== 'default') {
+                document.body.classList.add(`theme-${themeName}`);
+            }
+
+            // Update 3D Scene
+            if (themeName === 'default') {
+                scene.background = new THREE.Color(COLORS.BG);
+                scene.fog = new THREE.Fog(COLORS.BG, 50, 150);
+            } else if (themeName === 'sunrise') {
+                scene.background = new THREE.Color(0xfff3e0);
+                scene.fog = new THREE.Fog(0xfff3e0, 40, 120);
+            } else if (themeName === 'midnight') {
+                scene.background = new THREE.Color(0x121212);
+                scene.fog = new THREE.Fog(0x121212, 30, 100);
+            }
+        },
+        startGame: function () {
+          SoundManager.playClick();
+          if(LudoState.settings.bgm) SoundManager.startBGM();
+          
+          document.getElementById("menu-overlay").classList.add("hidden");
+          controls.enabled = false;
+          controls.autoRotate = false;
+
+          const startPos = { x: 0, y: 50, z: 30 };
+          const startCam = camera.position.clone();
+          let t = 0;
+
+          const animCam = () => {
+            t += 0.02;
+            if (t <= 1) {
+              camera.position.lerpVectors(
+                startCam,
+                new THREE.Vector3(startPos.x, startPos.y, startPos.z),
+                t
+              );
+              camera.lookAt(0, 0, 0);
+              requestAnimationFrame(animCam);
+            } else {
+              document.getElementById("game-ui").classList.add("active");
+              controls.enabled = true;
+              controls.enableRotate = true;
+              controls.enablePan = true;
+              controls.autoRotate = false;
+              controls.target.set(0, 0, 0);
+              controls.update();
+              
+              // INITIALIZE LUDO LOGIC STATE
+              LudoLogic.init(this.state.colors, this.state.players);
+            }
+          };
+          animCam();
+          LudoGame.resetBoard();
+        },
+      };
+
+      // DICE
+      function createDiceFaceTexture(number) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, 128, 128);
+        ctx.strokeStyle = "#e0e0e0";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, 128, 128);
+        ctx.fillStyle = "#000000";
+        const r = 11;
+        const c = 64;
+        const g = 34;
+        if (number % 2 === 1) {
+          ctx.beginPath();
+          ctx.arc(c, c, r, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        if (number > 1) {
+          ctx.beginPath();
+          ctx.arc(c - g, c - g, r, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(c + g, c + g, r, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        if (number > 3) {
+          ctx.beginPath();
+          ctx.arc(c + g, c - g, r, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(c - g, c + g, r, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        if (number === 6) {
+          ctx.beginPath();
+          ctx.arc(c - g, c, r, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(c + g, c, r, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+      }
+      const DICE_TEXTURES = [
+        null,
+        createDiceFaceTexture(1),
+        createDiceFaceTexture(2),
+        createDiceFaceTexture(3),
+        createDiceFaceTexture(4),
+        createDiceFaceTexture(5),
+        createDiceFaceTexture(6),
+      ];
+      class Dice {
+        constructor(x, z) {
+          this.mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(3.2, 3.2, 3.2),
+            this.getMaterials(1)
+          );
+          this.mesh.position.set(x, 2, z);
+          this.mesh.castShadow = true;
+          this.mesh.receiveShadow = true;
+          this.mesh.userData = { isDice: true, instance: this };
+          scene.add(this.mesh);
+          this.isRolling = false;
+        }
+        getMaterials(topNum) {
+          const matBase = new THREE.MeshStandardMaterial({
+            map: DICE_TEXTURES[1],
+            roughness: 0.1,
+          });
+          const matTop = new THREE.MeshStandardMaterial({
+            map: DICE_TEXTURES[topNum],
+            roughness: 0.1,
+          });
+          return [matBase, matBase, matTop, matBase, matBase, matBase];
+        }
+        animateRoll(resultValue, onComplete) {
+          if (this.isRolling) return;
+          this.isRolling = true;
+          const duration = 600;
+          const start = performance.now();
+          const startRot = this.mesh.rotation.clone();
+          const animate = (time) => {
+            const progress = Math.min((time - start) / duration, 1);
+            this.mesh.rotation.set(
+              startRot.x + Math.random() * 8,
+              startRot.y + Math.random() * 8,
+              startRot.z + Math.random() * 8
+            );
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+              this.mesh.rotation.set(0, 0, 0);
+              this.mesh.material = this.getMaterials(resultValue);
+              this.isRolling = false;
+              if (onComplete) onComplete();
+            }
+          };
+          requestAnimationFrame(animate);
+        }
+      }
+      const dice1 = new Dice(20, -2);
+      const dice2 = new Dice(20, 2);
+
+
+      window.DiceManager = {
+        roll: function () {
+          // IMPORTANT: AI calls this too. 
+          // If we restrict with "if(!waitingForRoll) return" AND we set waitingForRoll=false inside AI turn start,
+          // then AI can never roll.
+          // CORRECT LOGIC: waitingForRoll must be TRUE for AI too.
+          if (dice1.isRolling || dice2.isRolling) return;
+          if (!LudoState.waitingForRoll) return;
+
+          // Block further input immediately
+          LudoState.waitingForRoll = false;
+          SoundManager.playRoll();
+
+          const r1 = Math.floor(Math.random() * 6) + 1;
+          const r2 = Math.floor(Math.random() * 6) + 1;
+          
+          let completeCount = 0;
+          const onFinish = () => {
+             completeCount++;
+             if(completeCount === 2) {
+                 LudoLogic.processDiceResult(r1, r2);
+             }
+          };
+
+          // Trigger both
+          dice1.animateRoll(r1, onFinish);
+          dice2.animateRoll(r2, onFinish);
+          
+          return [r1, r2];
+        },
+      };
+
+      // BOARD & VISUALS
+      function gridToWorld(gx, gz) {
+        return {
+          x: gx * TILE_SIZE - BOARD_OFFSET,
+          z: gz * TILE_SIZE - BOARD_OFFSET,
+        };
+      }
+      function createBorderedTile(geo, colorHex, x, z) {
+        const group = new THREE.Group();
+        const pos = gridToWorld(x, z);
+        group.position.set(pos.x, 0, pos.z);
+        const mat = new THREE.MeshStandardMaterial({
+          color: colorHex,
+          roughness: 0.3,
+          metalness: 0.1,
+          emissive: colorHex,
+          emissiveIntensity: 0.1,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        const wireframe = new THREE.LineSegments(
+          new THREE.EdgesGeometry(geo),
+          new THREE.LineBasicMaterial({
+            color: COLORS.BLACK_BORDER,
+            linewidth: 2,
+          })
+        );
+        wireframe.position.y = 0.01;
+        group.add(wireframe);
+        scene.add(group);
+        return group;
+      }
+
+      function buildBoard() {
+        const basePlate = new THREE.Mesh(
+          new THREE.BoxGeometry(31, 0.2, 31),
+          new THREE.MeshStandardMaterial({ color: 0xffffff })
+        );
+        basePlate.position.y = -0.15;
+        basePlate.receiveShadow = true;
+        scene.add(basePlate);
+        const baseGeo = new THREE.BoxGeometry(
+          TILE_SIZE * 6,
+          0.4,
+          TILE_SIZE * 6
+        );
+        const whiteGeo = new THREE.BoxGeometry(
+          TILE_SIZE * 4,
+          0.45,
+          TILE_SIZE * 4
+        );
+        const bases = [
+          { col: COLORS.RED, x: 2.5, z: 2.5 },
+          { col: COLORS.GREEN, x: 11.5, z: 2.5 },
+          { col: COLORS.BLUE, x: 2.5, z: 11.5 },
+          { col: COLORS.YELLOW, x: 11.5, z: 11.5 },
+        ];
+        bases.forEach((b) => {
+          const mesh = new THREE.Mesh(
+            baseGeo,
+            new THREE.MeshStandardMaterial({ color: b.col, roughness: 0.4 })
+          );
+          const pos = gridToWorld(b.x, b.z);
+          mesh.position.set(pos.x, -0.05, pos.z);
+          mesh.receiveShadow = true;
+          scene.add(mesh);
+          createBorderedTile(whiteGeo, COLORS.WHITE, b.x, b.z);
+          const circGeo = new THREE.CylinderGeometry(
+            TILE_SIZE / 3,
+            TILE_SIZE / 3,
+            0.5,
+            32
+          );
+          const circMat = new THREE.MeshStandardMaterial({
+            color: b.col,
+            roughness: 0.2,
+          });
+          [
+            [-1, -1],
+            [1, -1],
+            [-1, 1],
+            [1, 1],
+          ].forEach((o) => {
+            const c = new THREE.Mesh(circGeo, circMat);
+            c.position.set(
+              pos.x + (o[0] * TILE_SIZE) / 1.5,
+              0.05,
+              pos.z + (o[1] * TILE_SIZE) / 1.5
+            );
+            c.receiveShadow = true;
+            scene.add(c);
+            c.add(
+              new THREE.LineSegments(
+                new THREE.EdgesGeometry(circGeo),
+                new THREE.LineBasicMaterial({ color: COLORS.BLACK_BORDER })
+              )
+            );
+          });
+        });
+        const tileGeo = new THREE.BoxGeometry(
+          TILE_SIZE * 0.98,
+          0.5,
+          TILE_SIZE * 0.98
+        );
+        for (let z = 0; z < 15; z++) {
+          for (let x = 0; x < 15; x++) {
+            if (
+              (x < 6 && z < 6) ||
+              (x > 8 && z < 6) ||
+              (x < 6 && z > 8) ||
+              (x > 8 && z > 8)
+            )
+              continue;
+            if (x >= 6 && x <= 8 && z >= 6 && z <= 8) continue;
+            let color = COLORS.WHITE;
+            let isStar = false;
+            if (z === 7 && x > 0 && x < 6) color = COLORS.RED;
+            if (x === 7 && z > 0 && z < 6) color = COLORS.GREEN;
+            if (z === 7 && x > 8 && x < 14) color = COLORS.YELLOW;
+            if (x === 7 && z > 8 && z < 14) color = COLORS.BLUE;
+            if (z === 6 && x === 1) color = COLORS.RED;
+            if (x === 8 && z === 1) color = COLORS.GREEN;
+            if (z === 8 && x === 13) color = COLORS.YELLOW;
+            if (x === 6 && z === 13) color = COLORS.BLUE;
+            if (
+              (x === 2 && z === 8) ||
+              (x === 6 && z === 2) ||
+              (x === 8 && z === 12) ||
+              (x === 12 && z === 6)
+            )
+              isStar = true;
+            const tileGroup = createBorderedTile(tileGeo, color, x, z);
+            if (isStar) {
+              const star = new THREE.Mesh(
+                new THREE.CylinderGeometry(0, 0.5, 0.1, 5),
+                new THREE.MeshBasicMaterial({ color: 0xaaaaaa })
+              );
+              star.position.y = 0.26;
+              tileGroup.add(star);
+            }
+          }
+        }
+        const mid = gridToWorld(7, 7);
+        const centerData = [
+          { col: COLORS.RED, rot: Math.PI },
+          { col: COLORS.GREEN, rot: Math.PI / 2 },
+          { col: COLORS.YELLOW, rot: 0 },
+          { col: COLORS.BLUE, rot: -Math.PI / 2 },
+        ];
+        for (let i = 0; i < 4; i++) {
+          const shape = new THREE.Shape();
+          shape.moveTo(0, 0);
+          shape.lineTo(1.5 * TILE_SIZE, 1.5 * TILE_SIZE);
+          shape.lineTo(1.5 * TILE_SIZE, -1.5 * TILE_SIZE);
+          shape.lineTo(0, 0);
+          const geo = new THREE.ShapeGeometry(shape);
+          const mat = new THREE.MeshStandardMaterial({
+            color: centerData[i].col,
+            roughness: 0.2,
+          });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.rotation.x = -Math.PI / 2;
+          mesh.rotation.z = centerData[i].rot;
+          mesh.position.set(mid.x, 0.01, mid.z);
+          scene.add(mesh);
+          const wireframe = new THREE.LineSegments(
+            new THREE.EdgesGeometry(geo),
+            new THREE.LineBasicMaterial({ color: COLORS.BLACK_BORDER })
+          );
+          wireframe.rotation.x = -Math.PI / 2;
+          wireframe.rotation.z = centerData[i].rot;
+          wireframe.position.set(mid.x, 0.02, mid.z);
+          scene.add(wireframe);
+        }
+      }
+      buildBoard();
+
+      const PIECES = { blue: [], red: [], green: [], yellow: [] };
+      const TILE_STATE = {};
+      let selectedPiece = null;
+      const BASES = {
+        blue: [
+          { x: 2, z: 11 },
+          { x: 3, z: 11 },
+          { x: 2, z: 12 },
+          { x: 3, z: 12 },
+        ],
+        red: [
+          { x: 2, z: 2 },
+          { x: 3, z: 2 },
+          { x: 2, z: 3 },
+          { x: 3, z: 3 },
+        ],
+        green: [
+          { x: 11, z: 2 },
+          { x: 12, z: 2 },
+          { x: 11, z: 3 },
+          { x: 12, z: 3 },
+        ],
+        yellow: [
+          { x: 11, z: 11 },
+          { x: 12, z: 11 },
+          { x: 11, z: 12 },
+          { x: 12, z: 12 },
+        ],
+      };
+
+      function createPiece(colorName, colorHex, index) {
+        const group = new THREE.Group();
+        const geo = new THREE.CylinderGeometry(0.65, 0.65, 0.4, 32);
+        const mat = new THREE.MeshStandardMaterial({
+          color: colorHex,
+          roughness: 0.2,
+          metalness: 0.3,
+        });
+        const body = new THREE.Mesh(geo, mat);
+        body.position.y = 0.2;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        group.add(body);
+        const topGeo = new THREE.TorusGeometry(0.55, 0.1, 8, 32);
+        const top = new THREE.Mesh(topGeo, mat);
+        top.rotation.x = Math.PI / 2;
+        top.position.y = 0.4;
+        group.add(top);
+        const ringGeo = new THREE.RingGeometry(0.7, 0.9, 32);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: COLORS.WHITE,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.8,
+        });
+        const selRing = new THREE.Mesh(ringGeo, ringMat);
+        selRing.rotation.x = -Math.PI / 2;
+        selRing.position.y = 0.05;
+        selRing.visible = false;
+        group.add(selRing);
+        group.userData = {
+          id: `${colorName}-${index}`,
+          color: colorName,
+          index: index,
+          currBox: -1,
+          isPiece: true,
+          selRing: selRing,
+        };
+        scene.add(group);
+        PIECES[colorName].push(group);
+        const basePos = BASES[colorName][index];
+        const world = gridToWorld(basePos.x, basePos.z);
+        group.position.set(world.x, 0, world.z);
+      }
+      ["red", "green", "yellow", "blue"].forEach((c) => {
+        for (let i = 0; i < 4; i++) createPiece(c, COLORS[c.toUpperCase()], i);
+      });
+
+      // Highlight Marker for Valid Moves
+      const highlightMesh = new THREE.Mesh(
+          new THREE.RingGeometry(0.5, 0.8, 32),
+          new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+      );
+      highlightMesh.rotation.x = -Math.PI / 2;
+      highlightMesh.position.y = 0.1;
+      highlightMesh.visible = false;
+      scene.add(highlightMesh);
+
+      const MAIN_PATH_COORDS = [
+        // BLUE QUADRANT (0-12)
+        { x: 6, z: 13 }, // 0: Blue Start
+        { x: 6, z: 12 },
+        { x: 6, z: 11 },
+        { x: 6, z: 10 },
+        { x: 6, z: 9 },
+        { x: 5, z: 8 }, // 5 (Skip 6,8)
+        { x: 4, z: 8 },
+        { x: 3, z: 8 },
+        { x: 2, z: 8 }, // 8: Star
+        { x: 1, z: 8 },
+        { x: 0, z: 8 },
+        { x: 0, z: 7 },
+        { x: 0, z: 6 }, // 12
+        
+        // RED QUADRANT (13-25)
+        { x: 1, z: 6 }, // 13: Red Start
+        { x: 2, z: 6 },
+        { x: 3, z: 6 },
+        { x: 4, z: 6 },
+        { x: 5, z: 6 },
+        { x: 6, z: 5 }, // 18 (Skip 6,6)
+        { x: 6, z: 4 },
+        { x: 6, z: 3 },
+        { x: 6, z: 2 }, // 21: Star
+        { x: 6, z: 1 },
+        { x: 6, z: 0 },
+        { x: 7, z: 0 },
+        { x: 8, z: 0 }, // 25
+
+        // GREEN QUADRANT (26-38)
+        { x: 8, z: 1 }, // 26: Green Start
+        { x: 8, z: 2 },
+        { x: 8, z: 3 },
+        { x: 8, z: 4 },
+        { x: 8, z: 5 },
+        { x: 9, z: 6 }, // 31 (Skip 8,6)
+        { x: 10, z: 6 },
+        { x: 11, z: 6 },
+        { x: 12, z: 6 }, // 34: Star
+        { x: 13, z: 6 },
+        { x: 14, z: 6 },
+        { x: 14, z: 7 },
+        { x: 14, z: 8 }, // 38
+
+        // YELLOW QUADRANT (39-51)
+        { x: 13, z: 8 }, // 39: Yellow Start
+        { x: 12, z: 8 },
+        { x: 11, z: 8 },
+        { x: 10, z: 8 },
+        { x: 9, z: 8 },
+        { x: 8, z: 9 }, // 44 (Skip 8,8)
+        { x: 8, z: 10 },
+        { x: 8, z: 11 },
+        { x: 8, z: 12 }, // 47: Star
+        { x: 8, z: 13 },
+        { x: 8, z: 14 },
+        { x: 7, z: 14 },
+        { x: 6, z: 14 }, // 51: Last Box (Behind Blue Start)
+      ];
+      const HOME_PATHS = {
+        blue: [
+          { x: 7, z: 13 },
+          { x: 7, z: 12 },
+          { x: 7, z: 11 },
+          { x: 7, z: 10 },
+          { x: 7, z: 9 },
+          { x: 7, z: 8 },
+        ],
+        red: [
+          { x: 1, z: 7 },
+          { x: 2, z: 7 },
+          { x: 3, z: 7 },
+          { x: 4, z: 7 },
+          { x: 5, z: 7 },
+          { x: 6, z: 7 },
+        ],
+        green: [
+          { x: 7, z: 1 },
+          { x: 7, z: 2 },
+          { x: 7, z: 3 },
+          { x: 7, z: 4 },
+          { x: 7, z: 5 },
+          { x: 7, z: 6 },
+        ],
+        yellow: [
+          { x: 13, z: 7 },
+          { x: 12, z: 7 },
+          { x: 11, z: 7 },
+          { x: 10, z: 7 },
+          { x: 9, z: 7 },
+          { x: 8, z: 7 },
+        ],
+      };
+      
+      const CENTER_OFFSETS = {
+          red: { x: -0.5, z: 0 },
+          green: { x: 0, z: -0.5 },
+          yellow: { x: 0.5, z: 0 },
+          blue: { x: 0, z: 0.5 }
+      }
+
+      function getWorldPosFromBox(boxIndex, color) {
+        if (boxIndex === -1) return null; // Base handled elsewhere
+        if (boxIndex === 999) { // CENTER
+             const mid = gridToWorld(7, 7);
+             const off = CENTER_OFFSETS[color] || {x:0, z:0};
+             // Offset to center of the triangle (approx 2/3 of half-tile)
+             return { x: mid.x + off.x * 1.3, z: mid.z + off.z * 1.3 };
+        }
+        let gx, gz;
+        if (boxIndex >= 100) {
+          let arr, idx;
+          if (boxIndex >= 400) {
+            arr = HOME_PATHS.yellow;
+            idx = boxIndex - 400;
+          } else if (boxIndex >= 300) {
+            arr = HOME_PATHS.green;
+            idx = boxIndex - 300;
+          } else if (boxIndex >= 200) {
+            arr = HOME_PATHS.red;
+            idx = boxIndex - 200;
+          } else {
+            arr = HOME_PATHS.blue;
+            idx = boxIndex - 100;
+          }
+          if (arr && arr[idx]) {
+            gx = arr[idx].x;
+            gz = arr[idx].z;
+          } else {
+            gx = 7;
+            gz = 7;
+          }
+        } else {
+          const c = MAIN_PATH_COORDS[boxIndex % 52];
+          gx = c.x;
+          gz = c.z;
+        }
+        return gridToWorld(gx, gz);
+      }
+
+      function updateTileStacking(boxIndex) {
+        if (!TILE_STATE[boxIndex]) return;
+        const pieces = TILE_STATE[boxIndex];
+        const count = pieces.length;
+        if (count === 0) return;
+        
+        // Center handling (box 999) - Promoted Pieces
+        if(boxIndex === 999) {
+            // Group by color
+            const byColor = { red: [], green: [], blue: [], yellow: [] };
+            pieces.forEach(p => {
+                if(byColor[p.userData.color]) byColor[p.userData.color].push(p);
+            });
+
+            Object.keys(byColor).forEach(color => {
+                const group = byColor[color];
+                if (group.length === 0) return;
+                
+                // Base position for this color's triangle
+                const basePos = getWorldPosFromBox(999, color);
+                
+                // Offsets for up to 4 pieces in a 2x2 grid
+                const scale = 0.5;
+                const gap = 0.6; 
+                const offsets = [
+                    { x: -gap/2, z: -gap/2 },
+                    { x: gap/2, z: -gap/2 },
+                    { x: -gap/2, z: gap/2 },
+                    { x: gap/2, z: gap/2 }
+                ];
+
+                group.forEach((p, i) => {
+                    p.scale.set(scale, scale, scale);
+                    if (i < 4) {
+                        p.position.set(basePos.x + offsets[i].x, 0, basePos.z + offsets[i].z);
+                    }
+                });
+            });
+            return;
+        }
+
+        let scale = 1;
+        let offsets = [{ x: 0, z: 0 }];
+        if (count === 2) {
+          scale = 0.7;
+          offsets = [
+            { x: -0.5, z: 0 },
+            { x: 0.5, z: 0 },
+          ];
+        } else if (count > 2) {
+          scale = 0.6;
+          offsets = [
+            { x: -0.5, z: -0.5 },
+            { x: 0.5, z: -0.5 },
+            { x: -0.5, z: 0.5 },
+            { x: 0.5, z: 0.5 },
+          ];
+        }
+        pieces.forEach((p, i) => {
+          if (i >= 4) return;
+          const off = offsets[i];
+          p.scale.set(scale, scale, scale);
+          const worldBase = getWorldPosFromBox(boxIndex, p.userData.color);
+          if (worldBase) {
+            const targetY = (selectedPiece === p) ? 1.5 : 0;
+            p.position.set(worldBase.x + off.x, targetY, worldBase.z + off.z);
+          }
+        });
+      }
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      window.LudoGame = {
+        // Visual Move only
+        movePiece: function (color, pieceIndex, newBoxIndex) {
+          const piece = PIECES[color][pieceIndex];
+          const oldBox = piece.userData.currBox;
+          if (oldBox !== -1 && TILE_STATE[oldBox]) {
+            TILE_STATE[oldBox] = TILE_STATE[oldBox].filter((p) => p !== piece);
+            updateTileStacking(oldBox);
+          }
+          piece.userData.currBox = newBoxIndex;
+          if (newBoxIndex !== -1) {
+            if (!TILE_STATE[newBoxIndex]) TILE_STATE[newBoxIndex] = [];
+            TILE_STATE[newBoxIndex].push(piece);
+            updateTileStacking(newBoxIndex);
+          } else {
+            const b = BASES[color][pieceIndex];
+            const w = gridToWorld(b.x, b.z);
+            piece.position.set(w.x, 0, w.z);
+            piece.scale.set(1, 1, 1);
+          }
+        },
+        resetBoard: function () {
+          ["red", "green", "blue", "yellow"].forEach((c) => {
+            PIECES[c].forEach((p, i) => this.movePiece(c, i, -1));
+          });
+        },
+        selectPiece: function (piece) {
+          if (piece && (piece.userData.currBox === 999 || piece.userData.isFinished)) return;
+
+          if (selectedPiece && selectedPiece !== piece) {
+            selectedPiece.userData.selRing.visible = false;
+            selectedPiece.position.y = 0;
+            selectedPiece = null;
+          }
+          if (piece) {
+            if (selectedPiece === piece) {
+              piece.userData.selRing.visible = false;
+              piece.position.y = 0;
+              selectedPiece = null;
+              highlightMesh.visible = false;
+            } else {
+              selectedPiece = piece;
+              piece.userData.selRing.visible = true;
+              piece.position.y = 1.5;
+              LudoLogic.onPieceSelected(piece);
+            }
+          }
+        },
+        showHighlight: function(boxIndex, color) {
+            const pos = getWorldPosFromBox(boxIndex, color);
+            if(pos) {
+                highlightMesh.position.set(pos.x, 0.1, pos.z);
+                highlightMesh.visible = true;
+            }
+        },
+        hideHighlight: function() {
+            highlightMesh.visible = false;
+        }
+      };
+
+
+      // ==========================================
+      // NEW: GAME LOGIC ENGINE
+      // ==========================================
+      
+      const PATH_MAP = {
+          // Start Index in MAIN_PATH_COORDS
+          blue: 0,
+          red: 13, 
+          green: 26,
+          yellow: 39
+      };
+      
+      const SAFE_SPOTS = [0, 8, 13, 21, 26, 34, 39, 47]; // Indices on Main Path
+
+      window.LudoState = {
+          players: ['blue', 'red', 'green', 'yellow'],
+          turnIndex: 0,
+          diceValues: [],
+          waitingForRoll: true,
+          waitingForMove: false,
+          pieces: {}, // Stores logical state { steps: 0, state: 'BASE'|'PATH'|'HOME'|'WIN' }
+          humanColor: 'blue', // In 2p mode, this is unused or just one of them
+          mode: '4p', // '4p' or '2p'
+          teams: { player: [], computer: [] },
+          activeTeam: 'player', // 'player' or 'computer'
+          finishedCount: { blue:0, red:0, green:0, yellow:0 },
+          finishOrder: [], // Array of colors in order of finishing
+          isGameOver: false,
+          settings: {
+              safeSquares: false,
+              capturePromotion: true,
+              extraMoveOnCapture: false,
+              sfx: true,
+              bgm: true,
+              theme: 'default'
+          }
+      };
+
+      window.LudoLogic = {
+          init: function(humanColors, numPlayers) {
+              LudoState.mode = (numPlayers === 2) ? '2p' : '4p';
+              LudoState.finishOrder = [];
+              LudoState.isGameOver = false;
+              
+              if (LudoState.mode === '2p') {
+                  LudoState.teams.player = humanColors; // Array of 2 colors
+                  const allColors = ['red', 'green', 'blue', 'yellow'];
+                  LudoState.teams.computer = allColors.filter(c => !humanColors.includes(c));
+                  LudoState.activeTeam = 'player';
+                  LudoState.humanColor = humanColors[0]; // Just for reference
+              } else {
+                  const colorStr = humanColors[0];
+                  LudoState.humanColor = colorStr;
+                  LudoState.teams.player = humanColors;
+                  LudoState.teams.computer = ['red', 'green', 'blue', 'yellow'].filter(c => c !== colorStr);
+                  LudoState.activeTeam = 'player'; // We'll use turnIndex for 4p logic still
+              }
+
+              // Update Game Info Box
+              document.getElementById('gi-mode').innerText = (LudoState.mode === '2p') ? "Duel (2P)" : "Chaos (4P)";
+              document.getElementById('gi-diff').innerText = MenuSys.state.difficulty.charAt(0).toUpperCase() + MenuSys.state.difficulty.slice(1);
+              
+              const pColors = LudoState.teams.player.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ');
+              const cColors = LudoState.teams.computer.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ');
+              
+              document.getElementById('gi-player').innerText = pColors;
+              document.getElementById('gi-cpu').innerText = cColors;
+              
+              // Reset logic state
+              ['blue', 'red', 'green', 'yellow'].forEach(c => {
+                  LudoState.pieces[c] = Array(4).fill(0).map(() => ({ 
+                      steps: -1, 
+                      state: 'BASE',
+                      boxIndex: -1
+                  }));
+                  LudoState.finishedCount[c] = 0;
+              });
+              LudoState.diceValues = [];
+              
+              if (LudoState.mode === '2p') {
+                  // 2P Mode: Start with Player Team
+                  LudoState.activeTeam = 'player';
+                  this.startTurn();
+              } else {
+                  // 4P Mode: Start with Red (Classic)
+                  LudoState.turnIndex = LudoState.players.indexOf('red'); 
+                  this.startTurn();
+              }
+          },
+
+          startTurn: function() {
+              if (LudoState.isGameOver) return;
+
+              let isHumanTurn = false;
+              let turnLabel = "";
+              let turnColor = "";
+
+              if (LudoState.mode === '2p') {
+                  isHumanTurn = (LudoState.activeTeam === 'player');
+                  turnLabel = isHumanTurn ? "Your Turn (2 Sides)" : "Computer's Turn";
+                  turnColor = isHumanTurn ? COLORS[LudoState.teams.player[0].toUpperCase()] : COLORS[LudoState.teams.computer[0].toUpperCase()];
+              } else {
+                  const player = LudoState.players[LudoState.turnIndex];
+                  
+                  // Skip if player already finished
+                  if (LudoState.finishOrder.includes(player)) {
+                      this.nextTurn();
+                      return;
+                  }
+
+                  isHumanTurn = (player === LudoState.humanColor);
+                  turnLabel = isHumanTurn ? "Your Turn" : `${player.toUpperCase()}'s Turn`;
+                  turnColor = (player === 'yellow') ? '#DAA520' : player;
+              }
+              
+              // Update UI
+              const uiTitle = document.getElementById('ui-turn-title');
+              const uiDesc = document.getElementById('ui-turn-desc');
+              const btnRoll = document.getElementById('btn-roll-dice');
+              const panel = document.getElementById('info-panel');
+              
+              panel.style.borderBottomColor = turnColor;
+              uiTitle.innerText = turnLabel;
+              uiTitle.style.color = turnColor;
+              
+              LudoState.waitingForRoll = true; 
+              LudoState.waitingForMove = false;
+
+              if(isHumanTurn) {
+                  uiDesc.innerText = "Click 'Roll Dice' to begin.";
+                  btnRoll.disabled = false;
+                  btnRoll.style.opacity = 1;
+              } else {
+                  uiDesc.innerText = "Computer is thinking...";
+                  btnRoll.disabled = true;
+                  btnRoll.style.opacity = 0.5;
+                  
+                  // Speed up if player has finished (Spectator Mode)
+                  const delay = (LudoState.finishOrder.includes(LudoState.humanColor)) ? 200 : 1000;
+                  setTimeout(() => DiceManager.roll(), delay);
+              }
+          },
+
+          processDiceResult: function(r1, r2) {
+              LudoState.diceValues = [r1, r2];
+              
+              let isHumanTurn = false;
+              let activeColors = [];
+
+              if (LudoState.mode === '2p') {
+                  isHumanTurn = (LudoState.activeTeam === 'player');
+                  activeColors = LudoState.teams[LudoState.activeTeam];
+              } else {
+                  const player = LudoState.players[LudoState.turnIndex];
+                  isHumanTurn = (player === LudoState.humanColor);
+                  activeColors = [player];
+              }
+              
+              // Filter available moves across ALL active colors
+              const canMove = this.checkIfAnyMovePossible(activeColors, [r1, r2]);
+              
+              if(!canMove) {
+                  document.getElementById('ui-turn-desc').innerText = "No valid moves. Switching turn...";
+                  const delay = (LudoState.finishOrder.includes(LudoState.humanColor)) ? 500 : 1500;
+                  setTimeout(() => this.nextTurn(), delay);
+                  return;
+              }
+
+              LudoState.waitingForMove = true;
+              if(isHumanTurn) {
+                  document.getElementById('ui-turn-desc').innerText = `Rolled ${r1} & ${r2}. Select a piece to move.`;
+              } else {
+                  const delay = (LudoState.finishOrder.includes(LudoState.humanColor)) ? 200 : 800;
+                  setTimeout(() => AI.playTurn(activeColors, [r1, r2]), delay);
+              }
+          },
+
+          nextTurn: function() {
+              if (LudoState.isGameOver) return;
+
+              if (LudoState.mode === '2p') {
+                  // Check Win Condition for 2P
+                  const pWins = LudoState.teams.player.every(c => LudoState.finishedCount[c] === 4);
+                  const cWins = LudoState.teams.computer.every(c => LudoState.finishedCount[c] === 4);
+                  
+                  if (pWins) { this.handleGameOver('win'); return; }
+                  if (cWins) { this.handleGameOver('loss'); return; }
+
+                  // Toggle Team
+                  LudoState.activeTeam = (LudoState.activeTeam === 'player') ? 'computer' : 'player';
+                  this.startTurn();
+
+              } else {
+                  // 4P Logic
+                  
+                  // Check if Game Over (3 computers finished OR player finished last)
+                  const computers = LudoState.teams.computer;
+                  const player = LudoState.humanColor;
+                  
+                  const allComputersFinished = computers.every(c => LudoState.finishOrder.includes(c));
+                  const playerFinished = LudoState.finishOrder.includes(player);
+                  
+                  // Condition 2: Game Over when all 3 computers promote before player
+                  if (allComputersFinished && !playerFinished) {
+                      this.handleGameOver('loss');
+                      return;
+                  }
+                  
+                  // Condition 3: Game Won when player promotes ahead of ANY computer? 
+                  // Wait, prompt says "ahead of any of the computers" but also "remaining computer should take their turns".
+                  // This implies we continue until everyone is done.
+                  
+                  // Check if everyone is finished
+                  if (LudoState.finishOrder.length === 4) {
+                      this.handleGameOver('finished');
+                      return;
+                  }
+
+                  let nextIndex = (LudoState.turnIndex + 1) % 4;
+                  // Find next player who hasn't finished
+                  let loopCount = 0;
+                  while (LudoState.finishOrder.includes(LudoState.players[nextIndex]) && loopCount < 4) {
+                      nextIndex = (nextIndex + 1) % 4;
+                      loopCount++;
+                  }
+                  
+                  if (loopCount >= 4) {
+                      // Everyone finished
+                      this.handleGameOver('finished');
+                      return;
+                  }
+                  
+                  LudoState.turnIndex = nextIndex;
+                  this.startTurn();
+              }
+          },
+          
+          handleGameOver: function(result) {
+              LudoState.isGameOver = true;
+              
+              if (result === 'win' || (result !== 'loss' && LudoState.finishOrder.indexOf(LudoState.humanColor) === 0)) {
+                  SoundManager.playWin();
+              } else {
+                  SoundManager.playLoss();
+              }
+
+              // Enable Auto-Rotate for cinematic effect
+              controls.autoRotate = true;
+              controls.autoRotateSpeed = 2.0;
+              
+              const screen = document.getElementById('result-screen');
+              const title = document.getElementById('result-title');
+              const desc = document.getElementById('result-desc');
+              const list = document.getElementById('result-list');
+              
+              list.innerHTML = ''; // Clear list
+              
+              setTimeout(() => {
+                  screen.classList.remove('hidden');
+                  screen.classList.add('active');
+                  
+                  if (LudoState.mode === '2p') {
+                      if (result === 'win') {
+                          title.innerText = "You Won!";
+                          title.style.color = "#4CAF50";
+                          desc.innerText = "Congratulations! You defeated the computer.";
+                      } else {
+                          title.innerText = "You Lost";
+                          title.style.color = "#F44336";
+                          desc.innerText = "The computer promoted all pieces first.";
+                      }
+                  } else {
+                      // 4P Result
+                      const playerPos = LudoState.finishOrder.indexOf(LudoState.humanColor) + 1;
+                      
+                      if (result === 'loss') {
+                          title.innerText = "Game Over";
+                          title.style.color = "#F44336";
+                          desc.innerText = "All computers finished before you.";
+                      } else {
+                          title.innerText = `You finished ${playerPos}${this.getOrdinal(playerPos)}!`;
+                          title.style.color = (playerPos === 1) ? "#FFD700" : "#2196F3";
+                          desc.innerText = "Here are the final standings:";
+                      }
+                      
+                      // Populate List
+                      LudoState.finishOrder.forEach((color, idx) => {
+                          const li = document.createElement('li');
+                          li.className = 'result-item';
+                          li.style.borderLeftColor = COLORS[color.toUpperCase()];
+                          li.innerHTML = `<span>${idx + 1}. ${color.toUpperCase()}</span> <span>${(color === LudoState.humanColor) ? '(You)' : ''}</span>`;
+                          list.appendChild(li);
+                      });
+                      
+                      // If player lost (not in finishOrder yet), add them at the end
+                      if (!LudoState.finishOrder.includes(LudoState.humanColor)) {
+                           const li = document.createElement('li');
+                           li.className = 'result-item';
+                           li.style.borderLeftColor = COLORS[LudoState.humanColor.toUpperCase()];
+                           li.innerHTML = `<span>4. ${LudoState.humanColor.toUpperCase()}</span> <span>(You - DNF)</span>`;
+                           list.appendChild(li);
+                      }
+                  }
+              }, 1000);
+          },
+          
+          getOrdinal: function(n) {
+              const s = ["th", "st", "nd", "rd"];
+              const v = n % 100;
+              return s[(v - 20) % 10] || s[v] || s[0];
+          },
+
+          // Coordinate Math
+          getBoxIndex: function(color, steps) {
+              if (steps === -1) return -1; // Base
+              if (steps >= 57) return 999; // Center/Win
+              
+              // Main Path Logic (0 to 50)
+              if (steps <= 50) {
+                  const startOffset = PATH_MAP[color];
+                  return (startOffset + steps) % 52;
+              }
+              
+              // Home Path Logic (51 to 56)
+              // 100=BlueHome, 200=RedHome, 300=GreenHome, 400=YellowHome
+              const homeOffset = (steps - 51); // 0 to 5
+              if (color === 'blue') return 100 + homeOffset;
+              if (color === 'red') return 200 + homeOffset;
+              if (color === 'green') return 300 + homeOffset;
+              if (color === 'yellow') return 400 + homeOffset;
+              
+              return 999;
+          },
+
+          checkIfAnyMovePossible: function(colors, diceVals) {
+             // Handle array of colors (2p mode) or single color string
+             const colorList = Array.isArray(colors) ? colors : [colors];
+             
+             for(let color of colorList) {
+                 for(let i=0; i<4; i++) {
+                     const p = LudoState.pieces[color][i];
+                     for(let d of diceVals) {
+                         if(this.isValidMove(color, i, d)) return true;
+                     }
+                 }
+             }
+             return false;
+          },
+
+          isValidMove: function(color, pIndex, dieVal) {
+              const p = LudoState.pieces[color][pIndex];
+              
+              // Rule: Needs 6 to leave base
+              if (p.state === 'BASE') {
+                  return dieVal === 6;
+              }
+              // Rule: Piece already finished
+              if (p.state === 'WIN') return false;
+              
+              // Rule: Cannot overshoot 57 (Center)
+              if (p.steps + dieVal > 57) {
+                  return false;
+              }
+              
+              return true; 
+          },
+
+          onPieceSelected: function(pieceObj) {
+              if(!LudoState.waitingForMove) return;
+              
+              const color = pieceObj.userData.color;
+              let isMyTurn = false;
+              
+              if (LudoState.mode === '2p') {
+                  // Check if piece color belongs to active team
+                  const activeColors = LudoState.teams[LudoState.activeTeam];
+                  if (activeColors.includes(color)) isMyTurn = true;
+              } else {
+                  if (color === LudoState.players[LudoState.turnIndex]) isMyTurn = true;
+              }
+
+              if(!isMyTurn) {
+                  // Wrong player
+                  LudoGame.hideHighlight();
+                  return;
+              }
+
+              const pIndex = pieceObj.userData.index;
+              
+              // Find valid moves for this specific piece
+              const validMoves = [];
+              LudoState.diceValues.forEach(val => {
+                  if(this.isValidMove(color, pIndex, val)) validMoves.push(val);
+              });
+
+              if(validMoves.length === 0) {
+                  LudoGame.hideHighlight();
+                  return;
+              }
+
+              // Visual: Show highlight for the first valid move
+              const moveVal = validMoves[0]; // Pick first valid die
+              const currentSteps = LudoState.pieces[color][pIndex].steps;
+              const nextSteps = (currentSteps === -1) ? 0 : currentSteps + moveVal;
+              const targetBox = this.getBoxIndex(color, nextSteps);
+              
+              LudoGame.showHighlight(targetBox, color);
+              
+              // Store pending move data
+              this.pendingMove = { color, pIndex, val: moveVal };
+          },
+          
+          executePendingMove: function() {
+               if(this.pendingMove) {
+                   this.performMove(this.pendingMove.color, this.pendingMove.pIndex, this.pendingMove.val);
+                   this.pendingMove = null;
+                   LudoGame.hideHighlight();
+                   // Deselect
+                   if(selectedPiece) {
+                       selectedPiece.userData.selRing.visible = false;
+                       selectedPiece.position.y = 0;
+                       selectedPiece = null;
+                   }
+               }
+          },
+
+          performMove: function(color, pIndex, dieVal) {
+              const pData = LudoState.pieces[color][pIndex];
+              const oldState = pData.state;
+              
+              SoundManager.playMove();
+
+              // Update Steps
+              if(pData.state === 'BASE') {
+                  pData.steps = 0;
+                  pData.state = 'PATH';
+              } else {
+                  pData.steps += dieVal;
+              }
+
+              // Check Finish
+              if(pData.steps >= 57) {
+                  pData.state = 'WIN';
+                  pData.steps = 57; // Clamp
+              }
+              
+              // Calculate visual Box Index
+              let newBox = this.getBoxIndex(color, pData.steps);
+              pData.boxIndex = newBox;
+
+              // CAPTURE LOGIC
+              let captured = false;
+              const isSafe = LudoState.settings.safeSquares && SAFE_SPOTS.includes(newBox);
+
+              // Entry Box Capture Constraint (Rule 1)
+              let canCapture = true;
+              if (!LudoState.settings.safeSquares && oldState === 'BASE' && dieVal === 6) {
+                  // We just moved to Start. Check if we MUST move again.
+                  // If there are remaining dice, and NO other piece can move, we are forced to move this piece again.
+                  // In that case, we cannot capture on the entry box.
+                  const remainingDice = LudoState.diceValues.filter((d, i) => i !== LudoState.diceValues.indexOf(dieVal));
+                  if (remainingDice.length > 0) {
+                      // In 2p mode, "other piece" can be from ANY controlled color
+                      let otherPieceCanMove = false;
+                      if (LudoState.mode === '2p') {
+                          const activeColors = LudoState.teams[LudoState.activeTeam];
+                          for(let c of activeColors) {
+                              if (LudoState.pieces[c].some((p, i) => (c !== color || i !== pIndex) && p.state === 'PATH')) {
+                                  otherPieceCanMove = true;
+                                  break;
+                              }
+                          }
+                      } else {
+                          otherPieceCanMove = LudoState.pieces[color].some((p, i) => i !== pIndex && p.state === 'PATH');
+                      }
+                      
+                      if (!otherPieceCanMove) {
+                          canCapture = false;
+                      }
+                  }
+              }
+
+              if (canCapture && newBox < 100 && newBox !== -1 && !isSafe) {
+                  // Check if enemy piece is here
+                  for(let c of LudoState.players) {
+                      // In 2p mode, prevent friendly fire between controlled colors
+                      let isEnemy = (c !== color);
+                      if (LudoState.mode === '2p') {
+                          const myTeam = LudoState.teams[LudoState.activeTeam];
+                          if (myTeam.includes(c)) isEnemy = false;
+                      }
+
+                      if (isEnemy) {
+                          LudoState.pieces[c].forEach((enemyP, idx) => {
+                              if (enemyP.boxIndex === newBox && enemyP.state === 'PATH') {
+                                  // CAPTURE!
+                                  console.log(`${color} captured ${c}!`);
+                                  enemyP.state = 'BASE';
+                                  enemyP.steps = -1;
+                                  enemyP.boxIndex = -1;
+                                  LudoGame.movePiece(c, idx, -1); // Visually reset enemy
+                                  captured = true;
+                                  SoundManager.playCapture();
+                              }
+                          });
+                      }
+                  }
+              }
+
+              // Capture Promotion
+              if (captured && LudoState.settings.capturePromotion) {
+                  pData.state = 'WIN';
+                  pData.steps = 57;
+                  pData.boxIndex = 999;
+                  newBox = 999;
+              }
+
+              // Handle Win State
+              if (pData.state === 'WIN') {
+                  const pieceObj = PIECES[color][pIndex];
+                  pieceObj.userData.isFinished = true;
+                  
+                  // Update finished count
+                  LudoState.finishedCount[color] = LudoState.pieces[color].filter(p => p.state === 'WIN').length;
+                  
+                  if (LudoState.finishedCount[color] === 4) {
+                      console.log(`${color} has qualified!`);
+                      if (!LudoState.finishOrder.includes(color)) {
+                          LudoState.finishOrder.push(color);
+                      }
+                  }
+              }
+
+              // Visual Move
+              LudoGame.movePiece(color, pIndex, newBox);
+              
+              // Remove die from pool
+              const dIdx = LudoState.diceValues.indexOf(dieVal);
+              if(dIdx > -1) LudoState.diceValues.splice(dIdx, 1);
+
+              // Check Continuation
+              let activeColors = [];
+              let isHumanTurn = false;
+              if (LudoState.mode === '2p') {
+                  isHumanTurn = (LudoState.activeTeam === 'player');
+                  activeColors = LudoState.teams[LudoState.activeTeam];
+              } else {
+                  const player = LudoState.players[LudoState.turnIndex];
+                  isHumanTurn = (player === LudoState.humanColor);
+                  activeColors = [player];
+              }
+
+              if(LudoState.diceValues.length > 0 && this.checkIfAnyMovePossible(activeColors, LudoState.diceValues)) {
+                   // Continue turn
+                   if(isHumanTurn) {
+                        document.getElementById('ui-turn-desc').innerText = `Remaining Roll: ${LudoState.diceValues.join(', ')}. Move again.`;
+                   } else {
+                        setTimeout(() => AI.playTurn(activeColors, LudoState.diceValues), 600);
+                   }
+              } else {
+                  // End Turn Logic
+                  const extraTurn = (dieVal === 6) || (captured && LudoState.settings.extraMoveOnCapture);
+
+                  if (extraTurn) {
+                       // Bonus turn!
+                       LudoState.diceValues = [];
+                       LudoState.waitingForRoll = true; // RE-ENABLE rolling
+                       
+                        if(isHumanTurn) {
+                            document.getElementById('ui-turn-desc').innerText = captured ? "Capture! Roll again!" : "Rolled a 6! Roll again.";
+                            document.getElementById('btn-roll-dice').disabled = false;
+                            document.getElementById('btn-roll-dice').style.opacity = 1;
+                        } else {
+                             setTimeout(() => DiceManager.roll(), 1000);
+                        }
+                  } else {
+                      setTimeout(() => this.nextTurn(), 1000);
+                  }
+              }
+          }
+      };
+
+      // ==========================================
+      // AI ENGINE
+      // ==========================================
+      window.AI = {
+          playTurn: function(colors, diceVals) {
+              const isHard = (MenuSys.state.difficulty === 'hard');
+              const colorList = Array.isArray(colors) ? colors : [colors];
+              
+              // Find all possible moves across ALL controlled colors
+              let moves = [];
+              for(let dVal of diceVals) {
+                  for(let color of colorList) {
+                      LudoState.pieces[color].forEach((p, idx) => {
+                          if(LudoLogic.isValidMove(color, idx, dVal)) {
+                              moves.push({ color: color, idx: idx, val: dVal });
+                          }
+                      });
+                  }
+              }
+
+              if(moves.length === 0) {
+                   LudoLogic.nextTurn();
+                   return; 
+              }
+
+              // Scoring Function
+              const evaluateMove = (move) => {
+                  let score = 0;
+                  const p = LudoState.pieces[move.color][move.idx];
+                  const currentSteps = p.steps;
+                  const nextSteps = (currentSteps === -1) ? 0 : currentSteps + move.val;
+                  const targetBox = LudoLogic.getBoxIndex(move.color, nextSteps);
+                  
+                  // 1. Capture (Highest Priority)
+                  let captures = false;
+                  const isSafe = LudoState.settings.safeSquares && SAFE_SPOTS.includes(targetBox);
+                  
+                  // Entry Box Capture Constraint Check
+                  let canCapture = true;
+                  if (!LudoState.settings.safeSquares && p.state === 'BASE' && move.val === 6) {
+                      const remainingDice = diceVals.filter(d => d !== move.val); // Simplified check
+                      if (remainingDice.length > 0) {
+                          // Check if ANY piece from ANY controlled color can move
+                          let otherPieceCanMove = false;
+                          for(let c of colorList) {
+                              if (LudoState.pieces[c].some((op, i) => (c !== move.color || i !== move.idx) && op.state === 'PATH')) {
+                                  otherPieceCanMove = true;
+                                  break;
+                              }
+                          }
+                          if (!otherPieceCanMove) canCapture = false;
+                      }
+                  }
+
+                  if (canCapture && targetBox < 100 && targetBox !== -1 && !isSafe) {
+                      for(let c of LudoState.players) {
+                          // Check if enemy (not in my team)
+                          let isEnemy = true;
+                          if (LudoState.mode === '2p' && colorList.includes(c)) isEnemy = false;
+                          if (c === move.color) isEnemy = false;
+
+                          if (isEnemy) {
+                              LudoState.pieces[c].forEach((enemyP) => {
+                                  if (enemyP.boxIndex === targetBox && enemyP.state === 'PATH') {
+                                      captures = true;
+                                  }
+                              });
+                          }
+                      }
+                  }
+                  if (captures) score += 1000;
+
+                  // 2. Promote/Win
+                  if (nextSteps === 57) score += 500;
+
+                  // 3. Safety (Hard Mode)
+                  if (isHard) {
+                      // Avoid landing in front of enemy (within 6 steps behind)
+                      let inDanger = false;
+                      if (targetBox < 100 && !SAFE_SPOTS.includes(targetBox)) {
+                          for(let c of LudoState.players) {
+                              let isEnemy = true;
+                              if (LudoState.mode === '2p' && colorList.includes(c)) isEnemy = false;
+                              if (c === move.color) isEnemy = false;
+
+                              if (isEnemy) {
+                                  LudoState.pieces[c].forEach((enemyP) => {
+                                      if (enemyP.state === 'PATH' && enemyP.boxIndex < 100) {
+                                          // Simple distance check on main path
+                                          let dist = (targetBox - enemyP.boxIndex + 52) % 52;
+                                          if (dist > 0 && dist <= 6) inDanger = true;
+                                          
+                                          // Check enemy start boxes (0, 13, 26, 39)
+                                          const enemyStart = PATH_MAP[c];
+                                          if (targetBox === enemyStart) inDanger = true;
+                                      }
+                                  });
+                              }
+                          }
+                      }
+                      if (inDanger) score -= 200;
+                      
+                      // Prefer Safe Spots
+                      if (SAFE_SPOTS.includes(targetBox)) score += 50;
+                  }
+
+                  // 4. Progress
+                  score += nextSteps;
+                  
+                  // 5. Leave Base
+                  if (p.state === 'BASE' && move.val === 6) score += 150;
+
+                  return score;
+              };
+
+              // Hard Mode: Lookahead for 2 dice
+              if (isHard && diceVals.length === 2) {
+                  // We need to pick the best FIRST move that enables a good SECOND move
+                  let bestPairScore = -Infinity;
+                  let bestFirstMove = moves[0];
+
+                  // Iterate all possible first moves
+                  moves.forEach(move1 => {
+                      let score1 = evaluateMove(move1);
+                      
+                      // Simulate state after move1 (conceptually)
+                      // We can't easily deep clone the state, so we approximate:
+                      // If move1 captures, that's huge.
+                      // If move1 leaves us in a spot where move2 can capture, that's also huge.
+                      
+                      // Find possible second moves given move1
+                      const remainingDie = diceVals[0] === move1.val ? diceVals[1] : diceVals[0];
+                      
+                      // Possible pieces for second move:
+                      // 1. The same piece (if it didn't finish)
+                      // 2. Other pieces from ANY controlled color
+                      
+                      let maxScore2 = -Infinity;
+                      
+                      // Check same piece
+                      const p = LudoState.pieces[move1.color][move1.idx];
+                      const nextSteps = (p.steps === -1) ? 0 : p.steps + move1.val;
+                      if (nextSteps < 57) {
+                          // Hypothetical move 2 for same piece
+                          // Note: We can't fully simulate the "Entry Box Constraint" for the second move easily without temp state
+                          // But we can approximate score
+                          let move2 = { color: move1.color, idx: move1.idx, val: remainingDie };
+                          // We need to pass a "simulated" piece state to evaluateMove, but evaluateMove reads global state.
+                          // Let's just add a bonus if the combined move captures.
+                          
+                          // Check combined capture (Move 1 + Move 2)
+                          const combinedSteps = nextSteps + remainingDie;
+                          const combinedBox = LudoLogic.getBoxIndex(move1.color, combinedSteps);
+                          // ... (Simplified: just assume we can check capture at combinedBox)
+                          // For now, let's just rely on the fact that if Move 1 captures, Score1 is high.
+                      }
+
+                      // Check other pieces
+                      for(let c of colorList) {
+                          LudoState.pieces[c].forEach((otherP, otherIdx) => {
+                              if ((c !== move1.color || otherIdx !== move1.idx) && LudoLogic.isValidMove(c, otherIdx, remainingDie)) {
+                                  let move2 = { color: c, idx: otherIdx, val: remainingDie };
+                                  let score2 = evaluateMove(move2);
+                                  if (score2 > maxScore2) maxScore2 = score2;
+                              }
+                          });
+                      }
+                      
+                      // Total Score for this branch
+                      let total = score1 + (maxScore2 > -Infinity ? maxScore2 : 0);
+                      
+                      if (total > bestPairScore) {
+                          bestPairScore = total;
+                          bestFirstMove = move1;
+                      }
+                  });
+                  
+                  LudoLogic.performMove(bestFirstMove.color, bestFirstMove.idx, bestFirstMove.val);
+                  return;
+              }
+
+              // Normal Mode or Single Die: Greedy Choice
+              moves.sort((a, b) => evaluateMove(b) - evaluateMove(a));
+              LudoLogic.performMove(moves[0].color, moves[0].idx, moves[0].val);
+          }
+      };
+
+      // ==========================================
+      // INPUT HANDLING UPDATES
+      // ==========================================
+      window.addEventListener("pointerdown", (event) => {
+        if (!document.getElementById("menu-overlay").classList.contains("hidden")) return;
+        if (!document.getElementById("confirm-modal").classList.contains("hidden")) return;
+
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(scene.children, true);
+
+        // Check if we clicked the Highlight Ring (Execute Move)
+        if(highlightMesh.visible) {
+             const hIntersects = raycaster.intersectObject(highlightMesh);
+             if(hIntersects.length > 0) {
+                 LudoLogic.executePendingMove();
+                 return;
+             }
+        }
+
+        for (let i = 0; i < intersects.length; i++) {
+          let obj = intersects[i].object;
+          while (obj.parent && !obj.userData.isPiece && !obj.userData.isDice)
+            obj = obj.parent;
+          
+          if (obj.userData.isDice) {
+             // Click on dice to roll
+             let isHumanTurn = false;
+             if (LudoState.mode === '2p') {
+                 isHumanTurn = (LudoState.activeTeam === 'player');
+             } else {
+                 isHumanTurn = (LudoState.players[LudoState.turnIndex] === LudoState.humanColor);
+             }
+
+             if (LudoState.waitingForRoll && isHumanTurn) {
+                 DiceManager.roll();
+             }
+             return;
+          }
+
+          if (obj.userData.isPiece) {
+            // Only allow selection if Waiting for Move AND it's human piece
+            let isMyPiece = false;
+            if (LudoState.mode === '2p') {
+                isMyPiece = LudoState.teams.player.includes(obj.userData.color);
+            } else {
+                isMyPiece = (obj.userData.color === LudoState.humanColor);
+            }
+
+            if(LudoState.waitingForMove && isMyPiece) {
+                LudoGame.selectPiece(obj);
+                // Auto-execute if user clicks the piece again (common UX)
+                if(LudoLogic.pendingMove && LudoLogic.pendingMove.pIndex === obj.userData.index) {
+                     LudoLogic.executePendingMove();
+                }
+            }
+            return;
+          }
+        }
+      });
+      
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      function animateLoop() {
+        requestAnimationFrame(animateLoop);
+        controls.update();
+        CameraOps.update();
+        renderer.render(scene, camera);
+      }
+      animateLoop();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,2417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NairaLudo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=Rowdies:wght@300;400;700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Poppins', sans-serif;
+            /* Changed to a deep space black to blend with the 3D scene */
+            background-color: #050505; 
+            color: white;
+            user-select: none;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* --- PAWN LABELS (KEYBOARD MODE) --- */
+        .pawn-badge {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #fff;
+            color: #000;
+            border-radius: 50%;
+            font-weight: 800;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 3px solid #00ff88;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            z-index: 10;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-family: 'Rowdies', cursive;
+        }
+        .pawn-badge.visible { opacity: 1; }
+
+        /* --- UI OVERLAYS --- */
+        #setup-screen, #message-overlay, #settings-overlay, #results-overlay, #instructions-overlay, #features-overlay, #about-overlay, #click-blocker {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            z-index: 50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            transition: opacity 0.4s ease;
+        }
+        
+        #click-blocker {
+            z-index: 300;
+            background: linear-gradient(135deg, rgba(0,50,0,0.95), rgba(0,0,0,0.95));
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .setup-panel {
+            background: rgba(20, 30, 20, 0.6);
+            border: 1px solid rgba(0, 255, 100, 0.2);
+            padding: 50px;
+            border-radius: 30px;
+            width: 480px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 255, 100, 0.1), inset 0 0 20px rgba(0,255,0,0.05);
+            position: relative;
+            overflow: hidden;
+            max-height: 90vh; /* Ensure it fits on smaller screens */
+            overflow-y: auto;
+        }
+        
+        .setup-panel::-webkit-scrollbar { width: 0; } /* Hide scrollbar for panel */
+
+        .setup-panel::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, transparent, #00ff88, transparent);
+        }
+
+        .setup-step { display: none; animation: fadeIn 0.4s ease-out; }
+        .setup-step.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .logo-text {
+            font-family: 'Rowdies', cursive;
+            font-size: 4rem;
+            line-height: 1;
+            margin-bottom: 5px;
+            background: linear-gradient(to bottom, #ffffff 40%, #00ff88 60%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 0 #006633);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .setup-subtitle { 
+            font-size: 1rem; color: #88ccaa; margin-bottom: 30px; 
+            letter-spacing: 3px; text-transform: uppercase; font-weight: 600;
+        }
+
+        .mode-btn, .count-btn, .game-btn, .action-btn {
+            display: block; width: 100%; padding: 18px; margin: 12px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff; font-size: 1.1rem; font-weight: 600;
+            cursor: pointer; border-radius: 12px;
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            text-transform: uppercase; letter-spacing: 1px;
+            backdrop-filter: blur(4px);
+        }
+
+        .mode-btn:hover, .count-btn:hover, .game-btn:hover { 
+            background: rgba(0, 255, 136, 0.15);
+            border-color: #00ff88; color: #00ff88;
+            transform: translateX(5px);
+            box-shadow: -4px 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        .mode-btn.continue { 
+            background: linear-gradient(90deg, #00b09b, #96c93d); 
+            border: none; color: #003300; box-shadow: 0 5px 20px rgba(0, 255, 136, 0.3);
+        }
+        
+        .action-btn {
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+            border: none; color: #003300;
+            border-radius: 50px; font-weight: 800; font-size: 1.2rem;
+            box-shadow: 0 5px 25px rgba(0, 255, 136, 0.4);
+        }
+        .action-btn:hover { transform: scale(1.05); box-shadow: 0 8px 30px rgba(0, 255, 136, 0.6); }
+
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; font-size: 0.85rem; color: #8ca; margin-bottom: 5px; font-weight: 600; }
+        .input-group-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+        .input-group input {
+            width: 100%; padding: 12px; background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1); color: white;
+            border-radius: 8px; font-family: inherit; box-sizing: border-box;
+            transition: border-color 0.2s; font-size: 1rem;
+        }
+        .input-group input:focus { outline: none; border-color: #00ff88; background: rgba(0,0,0,0.5); }
+        
+        .toggle-small {
+            font-size: 0.7rem; padding: 4px 10px;
+            background: rgba(255,255,255,0.1); border-radius: 4px;
+            cursor: pointer; border: 1px solid transparent;
+        }
+        .toggle-small:hover { border-color: #00ff88; color: #00ff88; }
+        .toggle-small.active { background: #00ff88; color: #003300; font-weight: bold; }
+
+        /* IN-GAME UI */
+        .top-bar {
+            padding: 20px; display: flex; justify-content: space-between; align-items: flex-start;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+        }
+
+        .status-panel {
+            background: rgba(10, 20, 10, 0.8); backdrop-filter: blur(10px);
+            padding: 10px 25px; border-radius: 12px;
+            border-left: 4px solid #00ff88;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            pointer-events: auto;
+        }
+
+        h1 { margin: 0; font-size: 0.9rem; color: #8ca; text-transform: uppercase; letter-spacing: 2px; }
+        .turn-indicator { font-size: 1.5rem; margin-top: 2px; font-weight: 700; color: #fff; }
+        .info-text { font-size: 0.9rem; color: #ccc; margin-top: 5px; font-style: italic; }
+
+        /* Controls Layout */
+        .controls-container { 
+            display: flex; gap: 8px; align-items: flex-start; 
+            pointer-events: auto; 
+        }
+        
+        .game-btn { 
+            width: auto; padding: 10px 15px; font-size: 0.8rem; margin: 0; 
+            border-radius: 12px; background: rgba(0,0,0,0.6); 
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: auto;
+        }
+        
+        .game-btn.active { background: #00ff88; color: #003300; border-color: #00ff88; }
+
+        /* Dropdown Menu */
+        .dropdown { position: relative; display: inline-block; pointer-events: auto; }
+        
+        .dropdown-content {
+            display: none; position: absolute; right: 0; top: 100%;
+            background-color: rgba(20, 30, 20, 0.98);
+            min-width: 180px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.8);
+            border-radius: 12px; border: 1px solid #00ff88; margin-top: 5px; z-index: 100;
+            padding: 8px;
+            pointer-events: auto;
+        }
+        .dropdown-content.show { display: block; animation: fadeIn 0.2s; }
+        
+        .dropdown-content .game-btn { 
+            width: 100%; text-align: left; margin: 4px 0; border: none; background: transparent; 
+            justify-content: flex-start; padding: 12px;
+        }
+        .dropdown-content .game-btn:hover { background: rgba(0, 255, 136, 0.1); color: #00ff88; transform: none; }
+
+        .bottom-bar {
+            padding: 30px; display: flex; justify-content: center; align-items: center; gap: 40px;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+            pointer-events: none; height: 160px;
+        }
+
+        .dice-slot { width: 100px; height: 100px; display: flex; justify-content: center; align-items: center; pointer-events: auto; }
+
+        .dice-select-btn {
+            width: 80px; height: 80px; background: #eee; color: #111;
+            font-size: 2.5rem; font-weight: 800; border-radius: 20px; border: none;
+            cursor: pointer; box-shadow: 0 8px 0 #999, 0 15px 20px rgba(0,0,0,0.4);
+            transition: transform 0.1s; display: flex; justify-content: center; align-items: center;
+        }
+        .dice-select-btn:hover { transform: translateY(-3px); }
+        .dice-select-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #999; }
+        .dice-select-btn.selected { background: #00ff88; color: #003300; box-shadow: 0 8px 0 #009955, 0 0 20px #00ff88; }
+        .dice-select-btn.used { opacity: 0.3; pointer-events: none; background: #333; color: #555; box-shadow: none; transform: translateY(8px); }
+
+        #roll-btn {
+            pointer-events: auto;
+            background: linear-gradient(135deg, #00ff88, #00b359);
+            border: none; padding: 25px 70px;
+            font-size: 1.8rem; color: #003300; font-weight: 900;
+            border-radius: 60px; box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+            animation: pulse 2s infinite; cursor: pointer; min-width: 260px;
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        #roll-btn:hover { transform: scale(1.05); }
+        #roll-btn:disabled { background: #333; color: #666; box-shadow: none; animation: none; cursor: not-allowed; }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 255, 136, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); } }
+
+        #toast {
+            position: absolute; bottom: 220px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 50, 50, 0.9); color: white; padding: 12px 30px;
+            border-radius: 50px; font-weight: 700; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-box {
+            background: rgba(20, 25, 20, 0.95); border: 1px solid #00ff88;
+            padding: 40px; border-radius: 20px; text-align: center; min-width: 320px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.8);
+            max-width: 90%;
+        }
+        .modal-box .game-btn { width: auto; display: inline-block; margin: 10px; }
+
+        #results-list { margin-bottom: 20px; text-align: left; }
+        .result-item { padding: 12px; margin: 8px 0; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; justify-content: space-between; }
+        .result-rank { font-weight: bold; color: #00ff88; margin-right: 10px; }
+
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; display: flex; justify-content: center; align-items: center;
+            z-index: 200; color: #00ff88; font-size: 1.5rem; letter-spacing: 3px; font-weight: 800;
+            transition: opacity 0.5s; font-family: 'Rowdies', cursive;
+        }
+        
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .toggle-label { font-size: 1.1rem; color: #ddd; font-weight: 600; }
+        
+        /* Instructions Text */
+        .instruct-text { text-align: left; font-size: 0.95rem; line-height: 1.6; color: #ddd; margin-bottom: 20px; }
+        .instruct-key { color: #00ff88; font-weight: bold; }
+
+        /* SCROLLABLE TEXT FOR FEATURES */
+        .scrollable-text::-webkit-scrollbar { width: 8px; }
+        .scrollable-text::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .scrollable-text::-webkit-scrollbar-thumb { background: #00ff88; border-radius: 4px; }
+        .scrollable-text h3 { color: #00ff88; margin-top: 20px; margin-bottom: 5px; font-size: 1.1rem; border-bottom: 1px solid rgba(0,255,136,0.3); padding-bottom: 5px; }
+        .scrollable-text ul { margin: 0; padding-left: 20px; color: #ccc; }
+        .scrollable-text li { margin-bottom: 5px; }
+
+        /* --- SMART ASSISTANT CSS --- */
+        #game-assistant {
+            position: absolute;
+            bottom: 180px; /* Above the dice bar */
+            right: 20px;
+            width: 280px;
+            z-index: 45;
+            display: flex;
+            align-items: flex-end;
+            flex-direction: column;
+            pointer-events: none; /* Let clicks pass through container area */
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .assistant-bubble {
+            background: rgba(0, 31, 63, 0.75); /* Semi-transparent Navy */
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            border-radius: 15px 15px 2px 15px;
+            padding: 15px;
+            color: #e0fff0;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+            position: relative;
+            transform-origin: bottom right;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: auto; /* Enable clicks on the bubble itself */
+            transition: opacity 0.5s, transform 0.5s;
+            max-width: 100%;
+        }
+
+        .assistant-bubble.hidden {
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+            pointer-events: none;
+        }
+
+        .assistant-close {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.4);
+            cursor: pointer;
+            width: 16px; height: 16px;
+            text-align: center;
+            line-height: 16px;
+        }
+        .assistant-close:hover { color: #ff4444; }
+
+        .assistant-avatar {
+            width: 50px; height: 50px;
+            background: radial-gradient(circle at 30% 30%, #00ff88, #005522);
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 15px #00ff88;
+            display: flex; justify-content: center; align-items: center;
+            position: relative;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .assistant-avatar:hover { transform: scale(1.1); }
+        .assistant-avatar::after {
+            content: ''; width: 30px; height: 18px;
+            background: #000; border-radius: 0 0 30px 30px;
+            margin-top: 15px; /* SHIFTED DOWN MOUTH */
+            opacity: 0.6;
+        }
+        .assistant-eyes {
+            position: absolute; top: 15px; width: 100%; display: flex; justify-content: center; gap: 8px;
+        }
+        .eye { width: 6px; height: 6px; background: #fff; border-radius: 50%; animation: blink 4s infinite; }
+        
+        @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+
+        .confirm-disable-btns {
+            display: flex; gap: 10px; margin-top: 10px; justify-content: flex-end;
+        }
+        .confirm-btn {
+            padding: 4px 10px; font-size: 0.7rem; border-radius: 4px; border: none; cursor: pointer; font-weight: bold;
+        }
+        .btn-yes { background: #ff4444; color: white; }
+        .btn-no { background: rgba(255,255,255,0.2); color: white; }
+
+    </style>
+</head>
+<body>
+
+    <div id="loading">NAIRALUDO LOADING...</div>
+    
+    <div id="click-blocker" style="display:none">
+        <div class="logo-text" style="font-size:3rem">NairaLudo</div>
+        <div style="font-size: 1.2rem; color: #ccc">Tap to Enter</div>
+        <button class="action-btn" onclick="setup.unlockAudio()">PLAY</button>
+    </div>
+
+    <!-- Pawn Number Labels Container -->
+    <div id="pawn-labels"></div>
+
+    <!-- SMART ASSISTANT CONTAINER -->
+    <div id="game-assistant">
+        <div id="assistant-bubble" class="assistant-bubble hidden">
+            <div class="assistant-close" onclick="gameAssistant.askToDisable()">✕</div>
+            <div id="assistant-text">Welcome to NairaLudo!</div>
+            <div id="assistant-confirm" style="display:none">
+                <div style="margin-top:5px; font-size:0.75rem; color:#ffa">Disable assistant?</div>
+                <div class="confirm-disable-btns">
+                    <button class="confirm-btn btn-yes" onclick="gameAssistant.confirmDisable(true)">Yes</button>
+                    <button class="confirm-btn btn-no" onclick="gameAssistant.confirmDisable(false)">No</button>
+                </div>
+            </div>
+        </div>
+        <div class="assistant-avatar" onclick="gameAssistant.poke()">
+            <div class="assistant-eyes"><div class="eye"></div><div class="eye"></div></div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+    
+    <div id="toast">Notification</div>
+
+    <div id="setup-screen">
+        <div class="setup-panel">
+            <div id="step-1" class="setup-step active">
+                <div class="logo-text">NairaLudo</div>
+                <div class="setup-subtitle">The Ultimate Board Game</div>
+                <button id="continue-btn" class="mode-btn continue" onclick="setup.playClick(); setup.loadGame()" style="display:none">Continue Game</button>
+                <button class="mode-btn" onclick="setup.playClick(); setup.selectMode('human')">New Game (Vs Human)</button>
+                <button class="mode-btn" onclick="setup.playClick(); setup.selectMode('computer')">Play with Computer (Beta)</button>
+                <button class="mode-btn" onclick="setup.playClick(); setup.showSettings()">Settings</button>
+                <button class="mode-btn" onclick="setup.playClick(); setup.showInstructions()">How to Play</button>
+                <!-- ADDED NEW BUTTONS HERE -->
+                <button class="mode-btn" onclick="setup.playClick(); setup.showFeatures()">Game Features</button>
+                <button class="mode-btn" onclick="setup.playClick(); setup.showAbout()">About</button>
+            </div>
+            
+            <div id="step-difficulty" class="setup-step">
+                <div class="setup-subtitle" style="color:white; font-size: 1.5rem">AI Level</div>
+                <button class="mode-btn" onclick="setup.playClick(); setup.selectDifficulty('easy')">Easy</button>
+                <button class="mode-btn" style="border: 1px solid #ff4444; color:#ffdddd" onclick="setup.playClick(); setup.selectDifficulty('hard')">Hard (Strategic)</button>
+                <button class="action-btn" style="background:transparent; border:1px solid #777; margin-top:20px; font-size:0.9rem" onclick="setup.playClick(); setup.showStep(1)">Back</button>
+            </div>
+
+            <div id="step-2" class="setup-step">
+                <div class="setup-subtitle" style="color:white; font-size: 1.5rem">Select Players</div>
+                <button class="count-btn" onclick="setup.playClick(); setup.selectCount(2, 'dual')">2 Players (Dual Color)</button>
+                <button class="count-btn" onclick="setup.playClick(); setup.selectCount(2, 'single')">2 Players (Classic)</button>
+                <button class="count-btn" onclick="setup.playClick(); setup.selectCount(3, 'single')">3 Players</button>
+                <button class="count-btn" onclick="setup.playClick(); setup.selectCount(4, 'single')">4 Players</button>
+                <button class="action-btn" style="background:transparent; border:1px solid #777; margin-top:20px; font-size:0.9rem" onclick="setup.playClick(); setup.showStep(1)">Back</button>
+            </div>
+            
+            <div id="step-3" class="setup-step">
+                <div class="setup-subtitle" style="color:white; font-size: 1.5rem">Identity</div>
+                <div id="name-inputs"></div>
+                <button class="action-btn" onclick="setup.playClick(); setup.startGame()">Start Game</button>
+                <button class="action-btn" style="background:transparent; border:1px solid #777; margin-top:20px; font-size:0.9rem" onclick="setup.playClick(); setup.showStep(2)">Back</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions Overlay -->
+    <div id="instructions-overlay" style="display:none">
+        <div class="modal-box" style="text-align: left; max-width: 500px;">
+            <div class="logo-text" style="font-size: 2rem; text-align: center; margin-bottom: 20px;">How to Play</div>
+            <div class="instruct-text">
+                <p><strong>Goal:</strong> Move all your pawns around the board and into the home center before your opponents.</p>
+                <p><strong>Controls (Mouse/Touch):</strong><br>
+                • Tap "Roll Dice" to start your turn.<br>
+                • Tap a highlighted pawn to move it.<br>
+                • Tap "2D/3D" to toggle camera views.</p>
+                <p><strong>Keyboard Mode (Beta):</strong><br>
+                • <span class="instruct-key">Spacebar</span>: Roll Dice<br>
+                • <span class="instruct-key">Left/Right Arrow</span>: Select Dice Value<br>
+                • <span class="instruct-key">Ctrl</span> (Hold): Show Pawn Numbers<br>
+                • <span class="instruct-key">Ctrl + 1-8</span>: Move Pawn Numbered 1-8</p>
+                <p><strong>Rules:</strong><br>
+                • Roll a 6 to move a pawn out of base.<br>
+                • Rolling a 6 gives you an extra roll.<br>
+                • Land on an opponent to send them back to base!</p>
+            </div>
+            <div style="text-align: center;">
+                <button class="action-btn" onclick="setup.playClick(); setup.closeInstructions()">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Features Overlay (ADDED) -->
+    <div id="features-overlay" style="display:none">
+        <div class="modal-box" style="text-align: left; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+            <div class="logo-text" style="font-size: 2rem; text-align: center; margin-bottom: 20px;">Game Features</div>
+            <div class="scrollable-text" style="overflow-y: auto; padding-right: 10px; flex: 1;">
+                <h3>Game Save System</h3>
+                <ul>
+                    <li>Auto-saves your progress to browser localStorage</li>
+                    <li>Close and reopen anytime - your game is still there</li>
+                    <li>Works in same browser on same device</li>
+                    <li>Saves everything: turn, pawn positions, dice, winners</li>
+                </ul>
+                <h3>Game Modes</h3>
+                <ul>
+                    <li>2 Players (dual colors or classic)</li>
+                    <li>3 Players</li>
+                    <li>4 Players</li>
+                    <li>Play vs Computer AI (Easy or Hard difficulty)</li>
+                    <li>Spectator mode (watch AI vs AI)</li>
+                </ul>
+                <h3>Smart AI</h3>
+                <ul>
+                    <li>Easy mode: random moves</li>
+                    <li>Hard mode: strategic decisions (captures enemies, uses safe spots, forms blockades, pushes to win)</li>
+                </ul>
+                <h3>Graphics</h3>
+                <ul>
+                    <li>Full 3D board with Three.js</li>
+                    <li>Beautiful pawns with gold crowns</li>
+                    <li>Professional lighting and shadows</li>
+                    <li>Toggle between 3D view and 2D top-down view</li>
+                    <li>Smooth animations for everything</li>
+                </ul>
+                <h3>Sound</h3>
+                <ul>
+                    <li>Background music (menu and gameplay)</li>
+                    <li>Sound effects (roll, move, capture, win)</li>
+                    <li>Toggle music and sound on/off in settings</li>
+                </ul>
+                <h3>Controls</h3>
+                <ul>
+                    <li>Mouse/Touch: click to roll, select dice, move pawns</li>
+                    <li>Keyboard Mode: Spacebar to roll, arrows to select dice, Ctrl+Number to move pawns</li>
+                </ul>
+                <h3>Game Assistant</h3>
+                <ul>
+                    <li>Friendly AI helper that gives tips</li>
+                    <li>Only helps human players</li>
+                    <li>Can be turned off in settings</li>
+                    <li>Celebrates your wins and captures</li>
+                </ul>
+                <h3>Gameplay</h3>
+                <ul>
+                    <li>Standard Ludo rules (roll 6 to exit, bonus rolls, captures, safe spots)</li>
+                    <li>Multiple winners tracked (1st, 2nd, 3rd place)</li>
+                    <li>Shows standings anytime</li>
+                    <li>Auto-validates all moves</li>
+                    <li>Toast messages explain everything</li>
+                </ul>
+                <h3>Polish</h3>
+                <ul>
+                    <li>Player name customization</li>
+                    <li>Turn indicator shows current player</li>
+                    <li>How to Play guide</li>
+                    <li>Settings menu (music, sound, assistant)</li>
+                    <li>Winner animations and celebrations</li>
+                    <li>Works on desktop, tablet, and mobile</li>
+                </ul>
+                <div style="margin-top: 20px; font-weight: bold; color: #8ca; text-align: center;">
+                    Big thanks to Nairaland and Seun Osewa for this challenge! Great opportunity for Nigerian to show what we can build.
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="action-btn" onclick="setup.playClick(); setup.closeFeatures()">Back</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Overlay (ADDED) -->
+    <div id="about-overlay" style="display:none">
+        <div class="modal-box" style="text-align: center; max-width: 500px;">
+            <div class="logo-text" style="font-size: 3rem; margin-bottom: 20px;">NairaLudo</div>
+            <p style="color: #ddd; font-size: 1.1rem; margin-bottom: 10px;">Made with love ❤️</p>
+            <p style="color: #00ff88; font-size: 1rem; margin-bottom: 30px;">for Nairaland Full-stack Vibe Engineering Challenge</p>
+            <button class="action-btn" onclick="setup.playClick(); setup.closeAbout()">Back</button>
+        </div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settings-overlay" style="display:none">
+        <div class="modal-box">
+            <div class="logo-text" style="font-size: 2.5rem">Settings</div>
+            <div class="toggle-row">
+                <span class="toggle-label">Music</span>
+                <button class="game-btn" id="btn-music" onclick="setup.playClick(); setup.toggleMusic()">ON</button>
+            </div>
+            <div class="toggle-row">
+                <span class="toggle-label">Sound FX</span>
+                <button class="game-btn" id="btn-sfx" onclick="setup.playClick(); setup.toggleSFX()">ON</button>
+            </div>
+            <!-- Added Assistant Toggle -->
+            <div class="toggle-row">
+                <span class="toggle-label">Game Assistant</span>
+                <button class="game-btn" id="btn-assistant" onclick="setup.playClick(); setup.toggleAssistant()">ON</button>
+            </div>
+            <button class="action-btn" onclick="setup.playClick(); setup.closeSettings()">Close</button>
+        </div>
+    </div>
+
+    <!-- Standings/Results Overlay -->
+    <div id="results-overlay" style="display:none">
+        <div class="modal-box">
+            <div class="logo-text" style="font-size: 2.5rem">Standings</div>
+            <div id="results-list"></div>
+            <button class="action-btn" onclick="setup.playClick(); document.getElementById('results-overlay').style.display='none'">Close</button>
+            <button class="action-btn" onclick="setup.playClick(); game.exitToMenu()" style="margin-top:10px; background:#444; border:none; box-shadow:none;">Exit Game</button>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <div class="top-bar">
+            <div class="status-panel">
+                <h1>NairaLudo</h1>
+                <div id="turn-text" class="turn-indicator">Waiting...</div>
+                <div id="status-text" class="info-text">Setup Game to Start</div>
+            </div>
+            <div class="controls-container">
+                <!-- Priority Buttons -->
+                <button class="game-btn" onclick="setup.playClick(); game.toggleView()" id="cam-btn">2D / 3D</button>
+                <button class="game-btn" onclick="setup.playClick(); game.toggleKeyboardMode()" id="key-btn">KEYBOARD: OFF</button>
+                <button class="game-btn" onclick="setup.playClick(); game.showResults()" id="results-btn" style="display:none">STANDINGS</button>
+                
+                <!-- Dropdown for Secondary -->
+                <div class="dropdown">
+                    <button class="game-btn" style="font-size: 1.2rem; padding: 5px 15px;" onclick="game.toggleMenu(event)">☰</button>
+                    <div class="dropdown-content" id="dropdown-menu">
+                        <button class="game-btn" onclick="setup.playClick(); setup.showInstructions()">How to Play</button>
+                        <button class="game-btn" onclick="setup.playClick(); setup.showSettings()">Settings</button>
+                        <button class="game-btn" onclick="setup.playClick(); game.exitToMenu()">Main Menu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-bar">
+            <div id="dice-slot-0" class="dice-slot"></div>
+            <button id="roll-btn">ROLL</button>
+            <div id="dice-slot-1" class="dice-slot"></div>
+        </div>
+    </div>
+
+    <div id="message-overlay" style="display:none">
+        <div class="modal-box">
+            <div id="message-text">Red Wins!</div>
+            <button class="action-btn" id="continue-playing-btn" onclick="setup.playClick(); game.continueAfterWin()">Continue Playing</button>
+            <br><br>
+            <button class="game-btn" onclick="setup.playClick(); game.exitToMenu()">Exit to Menu</button>
+        </div>
+    </div>
+
+    <!-- Three.js Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+    <script>
+        // --- SMART ASSISTANT CLASS ---
+        class GameAssistant {
+            constructor() {
+                this.enabled = true;
+                this.bubble = document.getElementById('assistant-bubble');
+                this.textEl = document.getElementById('assistant-text');
+                this.confirmEl = document.getElementById('assistant-confirm');
+                this.timer = null;
+                this.lastTipTime = 0;
+                this.tips = [
+                    "Rolling a 6 is the only way to get a pawn out of base.",
+                    "If you roll a 6, you get a bonus roll!",
+                    "Safe spots (Star icons) protect you from being captured.",
+                    "Try to move your pawns in groups for better defense.",
+                    "Don't leave a pawn alone near an enemy base if you can help it!",
+                    "Your goal is to get all 4 pawns to the center home.",
+                    "Sometimes it's better to block than to run.",
+                    "Patience is key. The dice can change everything instantly.",
+                    "Use the 2D view if you need a clearer look at the board."
+                ];
+            }
+
+            show(message, priority = false, duration = 6000) {
+                if (!this.enabled) return;
+                
+                // Smart Timing: Don't show non-priority tips too often (limit to once every ~60s)
+                const now = Date.now();
+                if (!priority && (now - this.lastTipTime < 60000)) return;
+
+                // Stop any pending hide timer
+                if (this.timer) clearTimeout(this.timer);
+
+                this.textEl.style.display = 'block';
+                this.confirmEl.style.display = 'none';
+                this.textEl.innerText = message;
+                this.bubble.classList.remove('hidden');
+
+                this.lastTipTime = now;
+
+                // Auto hide logic
+                this.timer = setTimeout(() => {
+                    this.hide();
+                }, duration);
+            }
+
+            hide() {
+                this.bubble.classList.add('hidden');
+                this.confirmEl.style.display = 'none'; // Reset state
+                this.textEl.style.display = 'block';
+            }
+
+            poke() {
+                if (!this.enabled) return;
+                const msgs = ["Need help?", "I'm watching!", "Good luck!", "Don't forget to roll!"];
+                this.show(msgs[Math.floor(Math.random() * msgs.length)], true, 3000);
+            }
+
+            askToDisable() {
+                if (this.timer) clearTimeout(this.timer);
+                this.textEl.style.display = 'none';
+                this.confirmEl.style.display = 'block';
+            }
+
+            confirmDisable(shouldDisable) {
+                if (shouldDisable) {
+                    this.enabled = false;
+                    this.hide();
+                    if(window.game) window.game.showToast("Assistant Disabled (Check Settings)");
+                    if(setup) setup.updateSettingsUI();
+                } else {
+                    this.hide();
+                    this.show("Okay, I'll stay!", true, 2000);
+                }
+            }
+
+            toggle(state) {
+                this.enabled = state;
+                if(this.enabled) this.show("I'm back! Let's play.", true);
+                else this.hide();
+            }
+
+            // Contextual Hooks
+            onStart() {
+                this.show("Welcome! I'm your assistant. I'll give you tips as we play. Good luck!", true, 8000);
+            }
+            
+            onRoll6(name) {
+                this.show(`Nice roll, ${name}! A 6 gets you out or gives a bonus roll!`, true);
+            }
+
+            onCapture(name) {
+                const msgs = [`Great move ${name}! You sent them home.`, "Strategic capture!", "The board is yours!"];
+                this.show(msgs[Math.floor(Math.random() * msgs.length)], true);
+            }
+
+            onCaptured(name) {
+                const msgs = [`Ouch ${name}! Don't worry, you can recover.`, "Back to base... stick to safe spots!", "Unlucky! Shake it off."];
+                this.show(msgs[Math.floor(Math.random() * msgs.length)], true);
+            }
+
+            onWin(name) {
+                this.show(`Amazing job ${name}! Victory is sweet!`, true, 10000);
+            }
+            
+            triggerRandomTip(name) {
+                if(Math.random() > 0.7) { // 30% chance when called
+                    const tip = this.tips[Math.floor(Math.random() * this.tips.length)];
+                    this.show(`Tip for ${name}: ${tip}`, false);
+                }
+            }
+        }
+
+        // --- TIMEOUT MANAGER ---
+        const TimerManager = {
+            timers: [],
+            set: function(fn, delay) {
+                const id = setTimeout(() => {
+                    fn();
+                    this.clear(id);
+                }, delay);
+                this.timers.push(id);
+                return id;
+            },
+            clear: function(id) {
+                clearTimeout(id);
+                this.timers = this.timers.filter(t => t !== id);
+            },
+            clearAll: function() {
+                this.timers.forEach(t => clearTimeout(t));
+                this.timers = [];
+            }
+        };
+
+        // --- CONSTANTS & CONFIG ---
+        const COLORS = {
+            RED: 0xff3333,
+            GREEN: 0x00cc66, /* Naira Greenish */
+            YELLOW: 0xffcc00,
+            BLUE: 0x3366ff,
+            GREY: 0x222222
+        };
+
+        const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
+        const COLOR_HEX = ['#ff3333', '#00cc66', '#ffcc00', '#3366ff'];
+        const STORAGE_KEY = 'nairaludo_save_v18_final';
+
+        // --- SAVE/LOAD SYSTEM ---
+        const Storage = {
+            save: (data) => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            },
+            load: () => {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : null;
+            },
+            clear: () => {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        };
+
+        // --- SOUND MANAGER ---
+        class SoundManager {
+            constructor() { 
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+                this.musicEnabled = true;
+                this.sfxEnabled = true;
+                
+                this.bgmMenu = new Audio('https://vicosmaster.github.io/uncopmusic/pregameplay.mp3');
+                this.bgmMenu.loop = true;
+                this.bgmMenu.preload = 'auto';
+                this.bgmMenu.volume = 0.3; // Background Level
+                
+                this.bgmGame = new Audio('https://vicosmaster.github.io/uncopmusic/gameplay.mp3');
+                this.bgmGame.loop = true;
+                this.bgmGame.preload = 'auto';
+                this.bgmGame.volume = 0.3; 
+                
+                this.currentTrack = null; 
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.masterGain.gain.value = 0.8; // Boost SFX
+            }
+
+            resume() {
+                if(this.ctx.state === 'suspended') this.ctx.resume();
+            }
+
+            playClick() {
+                if(!this.sfxEnabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+                osc.connect(gain); gain.connect(this.masterGain);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playTone(freq, type, duration, vol=0.5, timeOffset=0) {
+                if(!this.sfxEnabled) return;
+                const osc = this.ctx.createOscillator(); 
+                const gain = this.ctx.createGain();
+                osc.type = type; 
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime + timeOffset);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime + timeOffset);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + timeOffset + duration);
+                osc.connect(gain); gain.connect(this.masterGain);
+                osc.start(this.ctx.currentTime + timeOffset); 
+                osc.stop(this.ctx.currentTime + timeOffset + duration);
+            }
+
+            playRoll() { if(!this.sfxEnabled) return; for(let i=0; i<6; i++) { this.playTone(300 + Math.random()*200, 'square', 0.05, 0.4, i*0.06); } }
+            playMove() { this.playTone(500, 'sine', 0.1, 0.6); } 
+            playDrop() { this.playTone(100, 'triangle', 0.15, 0.7); } 
+            playCapture() { this.playTone(400, 'sawtooth', 0.1, 0.5); this.playTone(200, 'sawtooth', 0.2, 0.5, 0.1); } 
+            playWin() { [523.25, 659.25, 783.99, 1046.50].forEach((f,i) => this.playTone(f, 'sine', 0.4, 0.4, i*0.1)); }
+            playStarSound() { [1500, 2000, 1800, 2500].forEach((f,i) => this.playTone(f, 'sine', 0.1, 0.2, i*0.05)); }
+            playError() { this.playTone(150, 'sawtooth', 0.2, 0.3); }
+
+            playMenuMusic() {
+                if(this.currentTrack === 'menu') return;
+                this.stopMusic();
+                this.currentTrack = 'menu';
+                if(this.musicEnabled) {
+                    this.bgmMenu.currentTime = 0;
+                    this.bgmMenu.play().catch(e => {
+                        console.log("Audio waiting");
+                        document.getElementById('click-blocker').style.display = 'flex';
+                    });
+                }
+            }
+
+            playGameMusic() {
+                if(this.currentTrack === 'game') return;
+                this.stopMusic();
+                this.currentTrack = 'game';
+                if(this.musicEnabled) {
+                    this.bgmGame.currentTime = 0;
+                    this.bgmGame.play().catch(e => console.log("Audio waiting"));
+                }
+            }
+
+            stopMusic() {
+                this.bgmMenu.pause();
+                this.bgmGame.pause();
+                this.currentTrack = null;
+            }
+
+            setMusic(enabled) {
+                this.musicEnabled = enabled;
+                if(enabled) {
+                    if(this.currentTrack === 'menu') this.bgmMenu.play();
+                    else if(this.currentTrack === 'game') this.bgmGame.play();
+                    else this.playMenuMusic(); 
+                } else {
+                    this.bgmMenu.pause();
+                    this.bgmGame.pause();
+                }
+            }
+            
+            setSFX(enabled) { this.sfxEnabled = enabled; }
+        }
+
+        // --- PARTICLE SYSTEM ---
+        class StarParticleSystem {
+            constructor(scene) {
+                this.particles = [];
+                this.scene = scene;
+                const canvas = document.createElement('canvas');
+                canvas.width = 32; canvas.height = 32;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.arc(16, 16, 8, 0, Math.PI*2); ctx.fill();
+                this.texture = new THREE.CanvasTexture(canvas);
+                this.material = new THREE.SpriteMaterial({ map: this.texture, color: 0xffd700, transparent: true, blending: THREE.AdditiveBlending });
+            }
+
+            spawn(pos) {
+                for(let i=0; i<15; i++) {
+                    const sprite = new THREE.Sprite(this.material);
+                    sprite.position.copy(pos);
+                    const vel = new THREE.Vector3((Math.random()-0.5) * 0.5, (Math.random() * 0.5) + 0.2, (Math.random()-0.5) * 0.5);
+                    sprite.scale.set(0.8, 0.8, 0.8);
+                    this.scene.add(sprite);
+                    this.particles.push({ mesh: sprite, vel: vel, life: 1.0 });
+                }
+                if(window.soundManager) window.soundManager.playStarSound();
+            }
+
+            update() {
+                for(let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.life -= 0.03;
+                    p.mesh.position.add(p.vel);
+                    p.mesh.scale.setScalar(p.life * 0.8);
+                    p.mesh.rotation.z += 0.1;
+                    if(p.life <= 0) {
+                        this.scene.remove(p.mesh);
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+        }
+
+        // --- SETUP LOGIC ---
+        const setup = {
+            config: { mode: 'human', playerCount: 4, subMode: 'single', playerNames: [], difficulty: 'easy', playerTypes: [] },
+            playerOneIsCPU: false,
+
+            init: () => {
+                const saved = Storage.load();
+                if(saved) document.getElementById('continue-btn').style.display = 'block';
+                setup.updateSettingsUI();
+                
+                // Attempt Immediate Play
+                window.soundManager.resume();
+                const playPromise = window.soundManager.bgmMenu.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
+                        window.soundManager.currentTrack = 'menu';
+                    }).catch(error => {
+                        document.getElementById('click-blocker').style.display = 'flex';
+                    });
+                }
+            },
+            
+            unlockAudio: () => {
+                window.soundManager.resume();
+                window.soundManager.playMenuMusic();
+                document.getElementById('click-blocker').style.display = 'none';
+            },
+
+            playClick: () => { window.soundManager.playClick(); },
+            
+            selectMode: (mode) => {
+                setup.config.mode = mode;
+                if(mode === 'computer') setup.showStep('difficulty');
+                else setup.showStep(2);
+            },
+            selectDifficulty: (diff) => {
+                setup.config.difficulty = diff;
+                setup.showStep(2);
+            },
+            selectCount: (count, subMode) => {
+                setup.config.playerCount = count;
+                setup.config.subMode = subMode;
+                setup.generateNameInputs(count, subMode);
+                setup.showStep(3);
+            },
+            showStep: (stepId) => {
+                document.querySelectorAll('.setup-step').forEach(el => el.classList.remove('active'));
+                document.getElementById('step-' + stepId).classList.add('active');
+            },
+            showInstructions: () => {
+                document.getElementById('instructions-overlay').style.display = 'flex';
+                // Close dropdown if open
+                const dd = document.getElementById('dropdown-menu');
+                if(dd) dd.classList.remove('show');
+            },
+            closeInstructions: () => {
+                document.getElementById('instructions-overlay').style.display = 'none';
+            },
+            // NEW FUNCTIONS
+            showFeatures: () => {
+                document.getElementById('features-overlay').style.display = 'flex';
+            },
+            closeFeatures: () => {
+                document.getElementById('features-overlay').style.display = 'none';
+            },
+            showAbout: () => {
+                document.getElementById('about-overlay').style.display = 'flex';
+            },
+            closeAbout: () => {
+                document.getElementById('about-overlay').style.display = 'none';
+            },
+            toggleP1Type: () => {
+                setup.playerOneIsCPU = !setup.playerOneIsCPU;
+                const input = document.getElementById('pname-0');
+                const badge = document.getElementById('p1-badge');
+                if(setup.playerOneIsCPU) {
+                    input.value = `CPU 1 (Spectator)`;
+                    badge.innerText = "Switch to Human";
+                    badge.classList.add('active');
+                } else {
+                    input.value = `Player 1`;
+                    badge.innerText = "Switch to CPU";
+                    badge.classList.remove('active');
+                }
+            },
+            generateNameInputs: (count, subMode) => {
+                const container = document.getElementById('name-inputs');
+                container.innerHTML = '';
+                let placeholders = [];
+                let isCPU = setup.config.mode === 'computer';
+                
+                if (count === 2 && subMode === 'dual') placeholders = ["Player 1 (Red & Yellow)", "Player 2 (Green & Blue)"];
+                else if (count === 2) placeholders = ["Player 1 (Red)", "Player 2 (Yellow)"];
+                else if (count === 3) placeholders = ["Player 1 (Red)", "Player 2 (Green)", "Player 3 (Yellow)"];
+                else placeholders = ["Player 1 (Red)", "Player 2 (Green)", "Player 3 (Yellow)", "Player 4 (Blue)"];
+                
+                setup.playerOneIsCPU = false; 
+
+                for(let i=0; i<count; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'input-group';
+                    let val = `Player ${i+1}`;
+                    let disabled = "";
+                    let extra = "";
+
+                    if(isCPU) {
+                        if(i === 0) {
+                            extra = `<div class="input-group-row"><label>${placeholders[i]}</label><div id="p1-badge" class="toggle-small" onclick="setup.toggleP1Type()">Switch to CPU</div></div>`;
+                        } else {
+                            val = `CPU ${i+1} (${setup.config.difficulty === 'hard' ? 'Hard' : 'Easy'})`;
+                            disabled = "readonly style='opacity:0.7'";
+                            extra = `<label>${placeholders[i]}</label>`;
+                        }
+                    } else {
+                        extra = `<label>${placeholders[i]}</label>`;
+                    }
+
+                    if(i===0 && isCPU) {
+                         div.innerHTML = `${extra}<input type="text" id="pname-${i}" value="${val}" maxlength="20">`;
+                    } else {
+                         div.innerHTML = `${extra}<input type="text" id="pname-${i}" value="${val}" maxlength="20" ${disabled}>`;
+                    }
+                    container.appendChild(div);
+                }
+            },
+            startGame: () => {
+                setup.config.playerNames = [];
+                setup.config.playerTypes = [];
+                for(let i=0; i<setup.config.playerCount; i++) {
+                    setup.config.playerNames.push(document.getElementById(`pname-${i}`).value || `Player ${i+1}`);
+                    if(setup.config.mode === 'computer') {
+                        if (i === 0) {
+                            setup.config.playerTypes.push(setup.playerOneIsCPU ? 'cpu' : 'human');
+                        } else {
+                            setup.config.playerTypes.push('cpu');
+                        }
+                    } else {
+                        setup.config.playerTypes.push('human');
+                    }
+                }
+                
+                // FORCE RESET NEW GAME
+                Storage.clear();
+                window.game.cleanup();
+                
+                window.soundManager.resume();
+                window.soundManager.playGameMusic();
+                
+                window.game.paused = false;
+
+                document.getElementById('setup-screen').style.opacity = 0;
+                setTimeout(() => document.getElementById('setup-screen').style.display = 'none', 500);
+                document.getElementById('roll-btn').style.display = 'block';
+                window.game.startGame(setup.config, false); 
+            },
+            loadGame: () => {
+                const saved = Storage.load();
+                if(!saved) return;
+                window.soundManager.resume();
+                window.soundManager.playGameMusic();
+                
+                window.game.paused = false;
+
+                document.getElementById('setup-screen').style.opacity = 0;
+                setTimeout(() => document.getElementById('setup-screen').style.display = 'none', 500);
+                document.getElementById('roll-btn').style.display = 'block';
+                window.game.startGame(saved.config, true, saved); 
+            },
+            showSettings: () => { 
+                document.getElementById('settings-overlay').style.display = 'flex'; 
+                setup.updateSettingsUI(); 
+                window.game.paused = true; 
+                // Close menu if open
+                const dd = document.getElementById('dropdown-menu');
+                if(dd) dd.classList.remove('show');
+            },
+            closeSettings: () => { 
+                document.getElementById('settings-overlay').style.display = 'none'; 
+                window.game.paused = false; 
+            },
+            toggleMusic: () => { window.soundManager.setMusic(!window.soundManager.musicEnabled); setup.updateSettingsUI(); },
+            toggleSFX: () => { window.soundManager.setSFX(!window.soundManager.sfxEnabled); setup.updateSettingsUI(); },
+            toggleAssistant: () => { 
+                if(window.gameAssistant) {
+                    window.gameAssistant.toggle(!window.gameAssistant.enabled);
+                    setup.updateSettingsUI();
+                }
+            },
+            updateSettingsUI: () => {
+                const mBtn = document.getElementById('btn-music');
+                const sBtn = document.getElementById('btn-sfx');
+                const aBtn = document.getElementById('btn-assistant');
+                
+                if(window.soundManager) {
+                    mBtn.innerText = window.soundManager.musicEnabled ? "ON" : "OFF";
+                    sBtn.innerText = window.soundManager.sfxEnabled ? "ON" : "OFF";
+                    mBtn.style.background = window.soundManager.musicEnabled ? 'rgba(0,255,136,0.2)' : 'rgba(255,50,50,0.2)';
+                    sBtn.style.background = window.soundManager.sfxEnabled ? 'rgba(0,255,136,0.2)' : 'rgba(255,50,50,0.2)';
+                    mBtn.style.color = window.soundManager.musicEnabled ? '#00ff88' : '#ff4e4e';
+                    sBtn.style.color = window.soundManager.sfxEnabled ? '#00ff88' : '#ff4e4e';
+                }
+                
+                if(window.gameAssistant) {
+                    aBtn.innerText = window.gameAssistant.enabled ? "ON" : "OFF";
+                    aBtn.style.background = window.gameAssistant.enabled ? 'rgba(0,255,136,0.2)' : 'rgba(255,50,50,0.2)';
+                    aBtn.style.color = window.gameAssistant.enabled ? '#00ff88' : '#ff4e4e';
+                }
+            }
+        };
+
+        // --- ASSET GENERATION ---
+        class AssetGenerator {
+            static createWoodTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                
+                // Base wood color
+                ctx.fillStyle = '#3e2723';
+                ctx.fillRect(0,0,512,512);
+                
+                // Wood Grain
+                for(let i=0; i<100; i++) {
+                    ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.2})`;
+                    ctx.lineWidth = Math.random() * 5 + 1;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.random()*512, 0);
+                    ctx.bezierCurveTo(Math.random()*512, 170, Math.random()*512, 340, Math.random()*512, 512);
+                    ctx.stroke();
+                }
+
+                const tex = new THREE.CanvasTexture(canvas);
+                return tex;
+            }
+
+            static createBoardTexture(activeColors) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 2048; canvas.height = 2048;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                const gradient = ctx.createRadialGradient(1024, 1024, 0, 1024, 1024, 1450);
+                gradient.addColorStop(0, '#fef9e7'); gradient.addColorStop(1, '#f5e6d3');
+                ctx.fillStyle = gradient; ctx.fillRect(0, 0, 2048, 2048);
+                const cellSize = 2048 / 15;
+                
+                const drawCellWithShadow = (x, y) => {
+                    ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 5; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
+                    ctx.strokeRect(x * cellSize, y * cellSize, 1 * cellSize, 1 * cellSize);
+                    ctx.shadowColor = 'transparent';
+                };
+                
+                ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 4;
+                for(let y=0; y<15; y++) {
+                    for(let x=0; x<15; x++) {
+                        if (!((x < 6 && y < 6) || (x > 8 && y < 6) || (x < 6 && y > 8) || (x > 8 && y > 8) || ((x >= 6 && x <= 8) && (y >= 6 && y <= 8)))) drawCellWithShadow(x, y);
+                    }
+                }
+                const fillRect = (x, y, w, h, color) => {
+                    const grd = ctx.createLinearGradient(x*cellSize, y*cellSize, (x+w)*cellSize, (y+h)*cellSize);
+                    grd.addColorStop(0, color); grd.addColorStop(1, this.darkenColor(color, 15));
+                    ctx.fillStyle = grd; ctx.fillRect(x*cellSize, y*cellSize, w*cellSize, h*cellSize);
+                    ctx.strokeStyle = this.darkenColor(color, 30); ctx.lineWidth = 4;
+                    ctx.strokeRect(x*cellSize, y*cellSize, w*cellSize, h*cellSize);
+                };
+                const cRed = '#e74c3c'; const cGreen = '#00cc66'; const cYellow = '#f39c12'; const cBlue = '#3498db';
+                fillRect(0, 0, 6, 6, cRed); fillRect(9, 0, 6, 6, cGreen); fillRect(9, 9, 6, 6, cYellow); fillRect(0, 9, 6, 6, cBlue);
+                ctx.fillStyle = '#fef9e7'; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 5;
+                const drawCircle = (cx, cy) => {
+                    ctx.beginPath(); ctx.arc(cx*cellSize, cy*cellSize, 2.3*cellSize, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(cx*cellSize, cy*cellSize, 1.8*cellSize, 0, Math.PI*2); ctx.stroke();
+                };
+                drawCircle(3, 3); drawCircle(12, 3); drawCircle(3, 12); drawCircle(12, 12);
+                for(let i=1; i<6; i++) fillRect(i, 7, 1, 1, cRed);
+                for(let i=1; i<6; i++) fillRect(7, i, 1, 1, cGreen);
+                for(let i=9; i<14; i++) fillRect(i, 7, 1, 1, cYellow);
+                for(let i=9; i<14; i++) fillRect(7, i, 1, 1, cBlue);
+                
+                const drawStartSquare = (x, y, color) => {
+                    fillRect(x, y, 1, 1, color); ctx.fillStyle = '#ffd700'; ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2;
+                    const cx = (x + 0.5) * cellSize; const cy = (y + 0.5) * cellSize; const size = cellSize * 0.3;
+                    this.drawStar(ctx, cx, cy, 5, size, size/2);
+                };
+                drawStartSquare(1, 6, cRed); drawStartSquare(8, 1, cGreen); drawStartSquare(13, 8, cYellow); drawStartSquare(6, 13, cBlue);
+                
+                const drawTriangle = (x1, y1, x2, y2, x3, y3, color) => {
+                    ctx.beginPath(); ctx.moveTo(x1*cellSize, y1*cellSize); ctx.lineTo(x2*cellSize, y2*cellSize); ctx.lineTo(x3*cellSize, y3*cellSize); ctx.closePath();
+                    const grd = ctx.createLinearGradient(x1*cellSize, y1*cellSize, x2*cellSize, y2*cellSize);
+                    grd.addColorStop(0, color); grd.addColorStop(1, this.darkenColor(color, 20)); ctx.fillStyle = grd; ctx.fill();
+                    ctx.strokeStyle = this.darkenColor(color, 35); ctx.lineWidth = 4; ctx.stroke();
+                };
+                drawTriangle(6, 6, 9, 6, 7.5, 7.5, cGreen); drawTriangle(6, 9, 9, 9, 7.5, 7.5, cBlue);
+                drawTriangle(6, 6, 6, 9, 7.5, 7.5, cRed); drawTriangle(9, 6, 9, 9, 7.5, 7.5, cYellow);
+                
+                ctx.strokeStyle = '#8b7355'; ctx.lineWidth = 8; ctx.strokeRect(10, 10, 2028, 2028);
+                const texture = new THREE.CanvasTexture(canvas); texture.anisotropy = 16;
+                texture.minFilter = THREE.LinearMipmapLinearFilter; texture.magFilter = THREE.LinearFilter;
+                return texture;
+            }
+            static drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+                let rot = Math.PI / 2 * 3; let x = cx; let y = cy; const step = Math.PI / spikes;
+                ctx.beginPath(); ctx.moveTo(cx, cy - outerRadius);
+                for(let i = 0; i < spikes; i++) {
+                    x = cx + Math.cos(rot) * outerRadius; y = cy + Math.sin(rot) * outerRadius; ctx.lineTo(x, y); rot += step;
+                    x = cx + Math.cos(rot) * innerRadius; y = cy + Math.sin(rot) * innerRadius; ctx.lineTo(x, y); rot += step;
+                }
+                ctx.lineTo(cx, cy - outerRadius); ctx.closePath(); ctx.fill(); ctx.stroke();
+            }
+            static darkenColor(color, percent) {
+                const num = parseInt(color.replace("#",""), 16); const amt = Math.round(2.55 * percent);
+                const R = (num >> 16) - amt; const G = (num >> 8 & 0x00FF) - amt; const B = (num & 0x0000FF) - amt;
+                return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+            }
+            static createDiceTexture(number) {
+                const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 256, 256); gradient.addColorStop(0, '#ffffff'); gradient.addColorStop(1, '#f0f0f0');
+                ctx.fillStyle = gradient; ctx.fillRect(0, 0, 256, 256);
+                ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 6; ctx.strokeRect(0, 0, 256, 256);
+                ctx.fillStyle = '#000';
+                const drawDot = (x, y) => { ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI*2); ctx.fill(); };
+                const c = 128, l = 64, r = 192, t = 64, b = 192;
+                if(number % 2 === 1) drawDot(c, c); if(number > 1) { drawDot(l, t); drawDot(r, b); }
+                if(number > 3) { drawDot(r, t); drawDot(l, b); } if(number === 6) { drawDot(l, c); drawDot(r, c); }
+                const texture = new THREE.CanvasTexture(canvas); texture.anisotropy = 16; return texture;
+            }
+        }
+
+        // --- GAME LOGIC ---
+        class LudoGame {
+            constructor() {
+                this.scene = null; this.camera = null; this.renderer = null; this.controls = null;
+                this.raycaster = new THREE.Raycaster(); this.mouse = new THREE.Vector2();
+                this.boardGroup = new THREE.Group();
+                this.pawns = []; this.dices = []; this.diceMaterials = []; this.tweens = [];
+                this.particleSystem = null;
+                
+                this.currentPlayerIndex = 0;
+                this.gameState = 'SETUP'; 
+                this.isSwitchingTurn = false; 
+                this.pathMap = this.generatePathMap();
+                
+                this.config = {}; this.activeColors = [true, true, true, true]; 
+                this.playerCount = 4; this.playerNames = []; this.playerColors = []; 
+                this.playerTypes = []; 
+                this.availableDice = []; this.selectedDieIndex = -1; this.doublesRolled = false;
+                this.paused = false; 
+                
+                this.winners = []; 
+                
+                this.keyboardMode = false;
+                this.validPawnMap = {}; 
+
+                this.initScene();
+                this.animate();
+                
+                window.addEventListener('keydown', (e) => this.onKeyDown(e));
+                window.addEventListener('keyup', (e) => this.onKeyUp(e));
+                
+                // Close dropdown on outside click
+                window.addEventListener('click', (e) => {
+                    if (!e.target.matches('.game-btn') && !e.target.closest('.dropdown')) {
+                        const dd = document.getElementById('dropdown-menu');
+                        if (dd && dd.classList.contains('show')) dd.classList.remove('show');
+                    }
+                });
+
+                // Init Assistant
+                this.assistant = new GameAssistant();
+                window.gameAssistant = this.assistant;
+            }
+            
+            toggleMenu(event) {
+                event.stopPropagation();
+                setup.playClick();
+                document.getElementById('dropdown-menu').classList.toggle('show');
+            }
+            
+            toggleKeyboardMode() {
+                this.keyboardMode = !this.keyboardMode;
+                this.keyboardMode = !this.keyboardMode;
+                this.keyboardMode = !this.keyboardMode;
+                // Wait, logic fix
+                this.keyboardMode = !this.keyboardMode; 
+                
+                // Actual Logic
+                this.keyboardMode = !this.keyboardMode; // 1->0->1
+                // Wait, simple toggle
+                if(document.getElementById('key-btn').innerText.includes("OFF")) {
+                    this.keyboardMode = true;
+                    document.getElementById('key-btn').innerText = "KEYBOARD: ON";
+                    document.getElementById('key-btn').classList.add('active');
+                } else {
+                    this.keyboardMode = false;
+                    document.getElementById('key-btn').innerText = "KEYBOARD: OFF";
+                    document.getElementById('key-btn').classList.remove('active');
+                    this.clearPawnLabels();
+                }
+                setup.playClick();
+            }
+            
+            onKeyDown(e) {
+                if(!this.keyboardMode || this.paused || this.playerTypes[this.currentPlayerIndex] === 'cpu') return;
+                
+                if (e.code === 'Space' && this.gameState === 'WAITING_ROLL') {
+                    e.preventDefault();
+                    this.rollDice();
+                } 
+                else if (this.gameState === 'SELECT_DICE' || this.gameState === 'SELECT_PIECE') {
+                    if (e.code === 'ArrowLeft') {
+                        // Skip used dice
+                        if(this.availableDice.length > 0 && !this.availableDice[0].used) this.selectDie(0);
+                    } else if (e.code === 'ArrowRight') {
+                        // Select right, or left if right is used/doesn't exist?
+                        if(this.availableDice.length > 1 && !this.availableDice[1].used) this.selectDie(1);
+                        else if (this.availableDice.length > 0 && !this.availableDice[0].used) this.selectDie(0);
+                    }
+                }
+                
+                // Show Pawn Labels on Ctrl
+                if (e.key === 'Control') {
+                    document.querySelectorAll('.pawn-badge').forEach(el => el.classList.add('visible'));
+                }
+                
+                // Select Pawn with Ctrl + Number (1-8)
+                if (e.ctrlKey && this.gameState === 'SELECT_PIECE') {
+                    const key = e.key;
+                    if (['1','2','3','4','5','6','7','8'].includes(key) && this.validPawnMap[key]) {
+                        e.preventDefault();
+                        this.executeMove(this.validPawnMap[key]);
+                    }
+                }
+            }
+            
+            onKeyUp(e) {
+                if (e.key === 'Control') {
+                    document.querySelectorAll('.pawn-badge').forEach(el => el.classList.remove('visible'));
+                }
+            }
+            
+            cleanup() {
+                // Kill all pending timers to prevent ghost games
+                TimerManager.clearAll();
+                this.tweens.forEach(t => t.stop());
+                this.tweens = [];
+                this.clearPawnLabels();
+            }
+
+            generatePathMap() {
+                const mainLoop = [];
+                for(let x=1; x<=5; x++) mainLoop.push({x:x, y:6}); for(let y=5; y>=0; y--) mainLoop.push({x:6, y:y});
+                mainLoop.push({x:7, y:0}); mainLoop.push({x:8, y:0}); for(let y=1; y<=5; y++) mainLoop.push({x:8, y:y});
+                for(let x=9; x<=14; x++) mainLoop.push({x:x, y:6}); mainLoop.push({x:14, y:7}); mainLoop.push({x:14, y:8});
+                for(let x=13; x>=9; x--) mainLoop.push({x:x, y:8}); for(let y=9; y<=14; y++) mainLoop.push({x:8, y:y});
+                mainLoop.push({x:7, y:14}); mainLoop.push({x:6, y:14}); for(let y=13; y>=9; y--) mainLoop.push({x:6, y:y});
+                for(let x=5; x>=0; x--) mainLoop.push({x:x, y:8}); mainLoop.push({x:0, y:7}); mainLoop.push({x:0, y:6});
+                const redHome = []; for(let x=1; x<=5; x++) redHome.push({x:x, y:7}); redHome.push({x:6, y:7});
+                const greenHome = []; for(let y=1; y<=5; y++) greenHome.push({x:7, y:y}); greenHome.push({x:7, y:6});
+                const yellowHome = []; for(let x=13; x>=9; x--) yellowHome.push({x:x, y:7}); yellowHome.push({x:8, y:7});
+                const blueHome = []; for(let y=13; y>=9; y--) blueHome.push({x:7, y:y}); blueHome.push({x:7, y:8});
+                return { main: mainLoop, homes: [redHome, greenHome, yellowHome, blueHome] };
+            }
+
+            initScene() {
+                const container = document.getElementById('canvas-container');
+                this.scene = new THREE.Scene();
+                // Set black background to blend with CSS
+                this.scene.background = new THREE.Color(0x050505);
+                this.scene.fog = new THREE.Fog(0x050505, 50, 200);
+                
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                container.appendChild(this.renderer.domElement);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
+                this.scene.add(ambientLight);
+                
+                const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
+                dirLight.position.set(40, 60, 40); 
+                dirLight.castShadow = true;
+                dirLight.shadow.mapSize.width = 4096;
+                dirLight.shadow.mapSize.height = 4096;
+                dirLight.shadow.camera.near = 0.5;
+                dirLight.shadow.camera.far = 200;
+                dirLight.shadow.bias = -0.0005; 
+                dirLight.shadow.normalBias = 0.02; 
+                dirLight.shadow.camera.left = -40; dirLight.shadow.camera.right = 40;
+                dirLight.shadow.camera.top = 40; dirLight.shadow.camera.bottom = -40;
+                this.scene.add(dirLight);
+                
+                const fillLight = new THREE.DirectionalLight(0xb3d9ff, 0.4); fillLight.position.set(-20, 30, -20); this.scene.add(fillLight);
+                const rimLight = new THREE.DirectionalLight(0xffffff, 0.3); rimLight.position.set(0, 10, -50); this.scene.add(rimLight);
+                
+                this.preloadDiceMaterials();
+                this.createDice();
+                
+                // --- NEW ENVIRONMENT SETUP ---
+                this.createEnvironment(); 
+                
+                this.particleSystem = new StarParticleSystem(this.scene);
+
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true; this.controls.dampingFactor = 0.05;
+                this.controls.autoRotate = true; this.controls.autoRotateSpeed = 1.5;
+                this.controls.maxPolarAngle = Math.PI / 2.2;
+                this.controls.minDistance = 20; this.controls.maxDistance = 90;
+                this.resetCamera();
+                
+                window.addEventListener('resize', () => this.onWindowResize(), false);
+                window.addEventListener('click', (e) => this.onClick(e), false);
+                document.getElementById('roll-btn').addEventListener('click', () => { setup.playClick(); this.rollDice(); });
+                document.getElementById('loading').style.opacity = 0; setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+            }
+
+            // NEW: Create stars and table environment
+            createEnvironment() {
+                // 1. Starry Background
+                const starGeo = new THREE.BufferGeometry();
+                const starCount = 3000;
+                const posArray = new Float32Array(starCount * 3);
+                for(let i=0; i<starCount*3; i++) {
+                    posArray[i] = (Math.random() - 0.5) * 600;
+                }
+                starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+                const starMat = new THREE.PointsMaterial({ size: 0.5, color: 0xffffff });
+                const stars = new THREE.Points(starGeo, starMat);
+                this.scene.add(stars);
+
+                // 2. The Round Wooden Table
+                const woodTex = AssetGenerator.createWoodTexture();
+                
+                // Table Top
+                const tableTopGeo = new THREE.CylinderGeometry(35, 35, 2, 64);
+                const tableMat = new THREE.MeshStandardMaterial({ 
+                    map: woodTex, 
+                    roughness: 0.6, 
+                    metalness: 0.1,
+                    color: 0x8d6e63
+                });
+                const tableTop = new THREE.Mesh(tableTopGeo, tableMat);
+                tableTop.position.y = -1.1; // Just below board y=0
+                tableTop.receiveShadow = true;
+                this.scene.add(tableTop);
+
+                // Table Pedestal/Leg
+                const legGeo = new THREE.CylinderGeometry(4, 8, 20, 32);
+                const leg = new THREE.Mesh(legGeo, tableMat);
+                leg.position.y = -11;
+                leg.castShadow = true;
+                leg.receiveShadow = true;
+                this.scene.add(leg);
+
+                // Table Base
+                const baseGeo = new THREE.CylinderGeometry(15, 15, 2, 32);
+                const base = new THREE.Mesh(baseGeo, tableMat);
+                base.position.y = -21;
+                base.receiveShadow = true;
+                this.scene.add(base);
+
+                // 3. The Shadow Floor (Far below)
+                const floorGeo = new THREE.PlaneGeometry(300, 300);
+                const floorMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 1 });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.rotation.x = -Math.PI / 2;
+                floor.position.y = -21.1;
+                floor.receiveShadow = true;
+                this.scene.add(floor);
+            }
+
+            preloadDiceMaterials() {
+                for(let i=1; i<=6; i++) {
+                    this.diceMaterials.push(new THREE.MeshStandardMaterial({ map: AssetGenerator.createDiceTexture(i), roughness: 0.2, metalness: 0.1 }));
+                }
+            }
+
+            startGame(config, isLoad, savedData) {
+                this.cleanup(); // CRITICAL: Stop previous loops
+                this.controls.autoRotate = false;
+                this.config = config;
+                this.playerCount = config.playerCount;
+                this.playerNames = config.playerNames;
+                this.playerTypes = config.playerTypes || Array(config.playerCount).fill('human');
+                this.isSwitchingTurn = false;
+                this.playerColors = []; this.activeColors = [true, true, true, true]; 
+                this.winners = [];
+
+                if (config.playerCount === 2) {
+                    if (config.subMode === 'single') {
+                        this.playerColors = [[0], [2]];
+                        this.activeColors = [true, false, true, false];
+                    } else {
+                        this.playerColors = [[0, 2], [1, 3]];
+                    }
+                } else if (config.playerCount === 3) {
+                    this.playerColors = [[0], [1], [2]];
+                    this.activeColors[3] = false;
+                } else {
+                    this.playerColors = [[0], [1], [2], [3]];
+                }
+
+                this.createBoard(); this.createPawns(); this.resetCamera();
+                this.dices.forEach(d => { const r = Math.floor(Math.random() * 6) + 1; this.updateDiceVisuals(d, r); });
+                
+                if (isLoad && savedData) {
+                    this.currentPlayerIndex = savedData.turn;
+                    this.winners = savedData.winners || [];
+                    this.playerTypes = savedData.config.playerTypes || this.playerTypes;
+                    this.applySavedState(savedData);
+                    if(savedData.dice && savedData.dice.diceValues) {
+                        this.dices.forEach((d, i) => this.updateDiceVisuals(d, savedData.dice.diceValues[i]));
+                    }
+                    if(this.winners.length > 0) document.getElementById('results-btn').style.display = 'block';
+                } else {
+                    this.currentPlayerIndex = 0;
+                    this.updateTurnUI();
+                    this.clearDiceUI();
+                    this.runIntroAnimation();
+                    this.assistant.onStart(); // Trigger assistant
+                }
+            }
+            
+            updateDiceVisuals(dieMesh, topVal) {
+                const bottomVal = 7 - topVal;
+                const possible = [1,2,3,4,5,6].filter(n => n !== topVal && n !== bottomVal);
+                for (let k = possible.length - 1; k > 0; k--) {
+                    const j = Math.floor(Math.random() * (k + 1));
+                    [possible[k], possible[j]] = [possible[j], possible[k]];
+                }
+                const mats = [];
+                mats[2] = this.diceMaterials[topVal-1]; mats[3] = this.diceMaterials[bottomVal-1];
+                mats[0] = this.diceMaterials[possible[0]-1]; mats[1] = this.diceMaterials[possible[1]-1];
+                mats[4] = this.diceMaterials[possible[2]-1]; mats[5] = this.diceMaterials[possible[3]-1];
+                dieMesh.material = mats;
+            }
+
+            runIntroAnimation() {
+                this.boardGroup.scale.set(0.01, 0.01, 0.01);
+                this.pawns.forEach(p => p.visible = false);
+                this.dices.forEach(d => { d.position.set(30, 1, 0); d.visible = false; });
+                new TWEEN.Tween(this.boardGroup.scale).to({x:1, y:1, z:1}, 1000).easing(TWEEN.Easing.Elastic.Out).delay(200).start();
+                let delay = 1200;
+                this.pawns.forEach((p, idx) => {
+                    if(!p.userData.active) return;
+                    p.visible = true; const finalY = p.position.y; p.position.y = 50;
+                    new TWEEN.Tween(p.position).to({y: finalY}, 800).easing(TWEEN.Easing.Bounce.Out).delay(delay)
+                        .onStart(() => { TimerManager.set(() => window.soundManager.playDrop(), 0); }).start();
+                    delay += 50;
+                });
+                delay += 1000;
+                this.dices.forEach((d, i) => {
+                    d.visible = true; d.position.set(i===0 ? -30 : 30, 5, 0); const targetX = i*3 - 1.5;
+                    new TWEEN.Tween(d.position).to({x: targetX, y: 1.35}, 1000).easing(TWEEN.Easing.Cubic.Out).delay(delay).start();
+                    new TWEEN.Tween(d.rotation).to({z: i===0 ? -Math.PI*4 : Math.PI*4, x: Math.PI*2}, 1000).delay(delay)
+                        .onComplete(() => { if(i===1) window.soundManager.playRoll(); }).start();
+                });
+                
+                // IMPORTANT: Automatically trigger first roll if P1 is CPU after intro
+                if(this.playerTypes[0] === 'cpu') {
+                    TimerManager.set(() => {
+                        this.rollDice();
+                    }, delay + 2000);
+                }
+            }
+
+            createBoard() {
+                this.scene.remove(this.boardGroup); this.boardGroup = new THREE.Group();
+                // REPLACED OLD TABLE WITH JUST THE BOARD PARTS
+                // The main table is now in createEnvironment() so it persists
+
+                const boardSize = 30;
+                const boardGeo = new THREE.BoxGeometry(boardSize, 0.6, boardSize);
+                const boardTex = AssetGenerator.createBoardTexture(this.activeColors);
+                const boardMat = new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.6, metalness: 0.1, envMapIntensity: 0.5 });
+                const board = new THREE.Mesh(boardGeo, boardMat);
+                board.receiveShadow = true; board.castShadow = true; this.boardGroup.add(board);
+
+                const borderGeo = new THREE.BoxGeometry(boardSize + 1.2, 0.8, boardSize + 1.2);
+                const borderMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.7, metalness: 0.2 });
+                const border = new THREE.Mesh(borderGeo, borderMat);
+                border.position.y = -0.2; border.castShadow = true; border.receiveShadow = true; this.boardGroup.add(border);
+
+                const cornerGeo = new THREE.BoxGeometry(1.5, 1.2, 1.5);
+                const cornerMat = new THREE.MeshStandardMaterial({ color: 0x4e342e, roughness: 0.6, metalness: 0.3 });
+                [[-15.5, -15.5], [15.5, -15.5], [15.5, 15.5], [-15.5, 15.5]].forEach(pos => {
+                    const corner = new THREE.Mesh(cornerGeo, cornerMat);
+                    corner.position.set(pos[0], -0.2, pos[1]);
+                    corner.castShadow = true; corner.receiveShadow = true; this.boardGroup.add(corner);
+                });
+                this.scene.add(this.boardGroup);
+            }
+
+            createPawns() {
+                this.pawns.forEach(p => this.scene.remove(p)); this.pawns = [];
+                const baseOffsets = [
+                    [{x:1.5, y:1.5}, {x:4.5, y:1.5}, {x:1.5, y:4.5}, {x:4.5, y:4.5}], 
+                    [{x:10.5, y:1.5}, {x:13.5, y:1.5}, {x:10.5, y:4.5}, {x:13.5, y:4.5}],
+                    [{x:10.5, y:10.5}, {x:13.5, y:10.5}, {x:10.5, y:13.5}, {x:13.5, y:13.5}],
+                    [{x:1.5, y:10.5}, {x:4.5, y:10.5}, {x:1.5, y:13.5}, {x:4.5, y:13.5}]
+                ];
+                const pColors = [COLORS.RED, COLORS.GREEN, COLORS.YELLOW, COLORS.BLUE];
+                for(let p=0; p<4; p++) {
+                    if (!this.activeColors[p]) continue;
+                    const color = pColors[p];
+                    for(let i=0; i<4; i++) {
+                        const pawnGroup = new THREE.Group();
+                        const baseGeo = new THREE.CylinderGeometry(0.7, 0.9, 0.3, 32);
+                        const baseMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.6, emissive: color, emissiveIntensity: 0.1 });
+                        const base = new THREE.Mesh(baseGeo, baseMat); base.position.y = 0.15; base.castShadow = true; base.receiveShadow = true; pawnGroup.add(base);
+                        
+                        const bodyGeo = new THREE.CylinderGeometry(0.55, 0.75, 1.2, 32);
+                        const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.15, metalness: 0.7, emissive: color, emissiveIntensity: 0.1 });
+                        const body = new THREE.Mesh(bodyGeo, bodyMat); body.position.y = 0.9; body.castShadow = true; body.receiveShadow = true; pawnGroup.add(body);
+                        
+                        const neckGeo = new THREE.CylinderGeometry(0.45, 0.55, 0.3, 32);
+                        const neck = new THREE.Mesh(neckGeo, bodyMat); neck.position.y = 1.65; neck.castShadow = true; pawnGroup.add(neck);
+                        
+                        const headGeo = new THREE.SphereGeometry(0.65, 32, 32);
+                        const headMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.1, metalness: 0.8, emissive: color, emissiveIntensity: 0.15 });
+                        const head = new THREE.Mesh(headGeo, headMat); head.position.y = 2.1; head.castShadow = true; head.receiveShadow = true; pawnGroup.add(head);
+                        
+                        const crownGeo = new THREE.CylinderGeometry(0.25, 0.35, 0.25, 32);
+                        const crownMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.1, metalness: 0.9, emissive: 0xffd700, emissiveIntensity: 0.2 });
+                        const crown = new THREE.Mesh(crownGeo, crownMat); crown.position.y = 2.7; crown.castShadow = true; pawnGroup.add(crown);
+                        const topGeo = new THREE.SphereGeometry(0.15, 16, 16); const top = new THREE.Mesh(topGeo, crownMat); top.position.y = 2.9; top.castShadow = true; pawnGroup.add(top);
+                        
+                        pawnGroup.userData = { player: p, id: i, isPawn: true, pos: -1, stepsTaken: 0, active: true, baseColor: color };
+                        const yardPos = baseOffsets[p][i]; this.setPawnPosition(pawnGroup, yardPos.x, yardPos.y);
+                        this.scene.add(pawnGroup); this.pawns.push(pawnGroup);
+                    }
+                }
+            }
+
+            applySavedState(savedData) {
+                savedData.pawns.forEach(s => {
+                    const pawn = this.pawns.find(p => p.userData.player === s.player && p.userData.id === s.id);
+                    if(pawn) {
+                        pawn.userData.pos = s.pos; pawn.userData.stepsTaken = s.stepsTaken;
+                        if(s.pos === -1) {
+                            const baseOffsets = [
+                                [{x:1.5, y:1.5}, {x:4.5, y:1.5}, {x:1.5, y:4.5}, {x:4.5, y:4.5}], 
+                                [{x:10.5, y:1.5}, {x:13.5, y:1.5}, {x:10.5, y:4.5}, {x:13.5, y:4.5}],
+                                [{x:10.5, y:10.5}, {x:13.5, y:10.5}, {x:10.5, y:13.5}, {x:13.5, y:13.5}],
+                                [{x:1.5, y:10.5}, {x:4.5, y:10.5}, {x:1.5, y:13.5}, {x:4.5, y:13.5}]
+                            ];
+                            const yard = baseOffsets[s.player][s.id]; this.setPawnPosition(pawn, yard.x, yard.y);
+                        } else if (s.pos === 999) { this.placeOnWinnerRack(pawn);
+                        } else { const coords = this.getPawnCoords(s.player, s.stepsTaken); this.setPawnPosition(pawn, coords.x, coords.y); }
+                    }
+                });
+                this.rearrangeAllStacks(); 
+                this.availableDice = savedData.dice.availableDice; this.doublesRolled = savedData.dice.doublesRolled; 
+                this.selectedDieIndex = savedData.dice.selectedDieIndex || -1;
+                this.gameState = savedData.gameState;
+                
+                // RESTORE UI WITHOUT RESETTING STATE
+                const playerName = this.playerNames[this.currentPlayerIndex];
+                const ownedColors = this.playerColors[this.currentPlayerIndex];
+                const mainColorHex = COLOR_HEX[ownedColors[0]];
+                const turnTxt = document.getElementById('turn-text');
+                turnTxt.innerText = `${playerName}'s Turn`; turnTxt.style.color = mainColorHex;
+                
+                if(this.gameState === 'SELECT_DICE' || this.gameState === 'SELECT_PIECE') {
+                    this.renderDiceUI(); 
+                    document.getElementById('roll-btn').innerText = "Select Number"; 
+                    document.getElementById('status-text').innerText = "Resume your turn";
+                    if (this.selectedDieIndex !== -1 && this.availableDice[this.selectedDieIndex]) {
+                        this.highlightValidPawns(this.availableDice[this.selectedDieIndex].val);
+                    }
+                } else {
+                    this.updateTurnUI();
+                }
+            }
+
+            createDice() {
+                const geometry = new THREE.BoxGeometry(2, 2, 2); geometry.computeVertexNormals();
+                const initialMats = Array(6).fill(this.diceMaterials[0]); 
+                for(let i=0; i<2; i++) {
+                    const die = new THREE.Mesh(geometry, initialMats);
+                    die.castShadow = true; die.receiveShadow = true; die.position.set(i*3 - 1.5, 1.35, 0); // Fixed clipping
+                    const randomStart = Math.floor(Math.random() * 6) + 1; this.updateDiceVisuals(die, randomStart);
+                    this.scene.add(die); this.dices.push(die);
+                }
+            }
+
+            gridToWorld(gx, gy) { return {x: (gx * 2) - 14, z: (gy * 2) - 14}; }
+            setPawnPosition(pawn, gx, gy) { const world = this.gridToWorld(gx, gy); pawn.position.set(world.x, 1, world.z); }
+
+            rearrangeAllStacks() {
+                const occupancy = {}; 
+                this.pawns.forEach(p => {
+                    if (p.userData.pos === -1 || p.userData.pos === 999) return;
+                    const coords = this.getPawnCoords(p.userData.player, p.userData.stepsTaken);
+                    const key = `${coords.x},${coords.y}`;
+                    if(!occupancy[key]) occupancy[key] = []; occupancy[key].push(p);
+                });
+                for (const key in occupancy) {
+                    const stack = occupancy[key];
+                    if (stack.length > 1) this.applyStackOffsets(stack, key);
+                    else { const [gx, gy] = key.split(',').map(Number); this.setPawnPosition(stack[0], gx, gy); }
+                }
+            }
+
+            applyStackOffsets(stack, key) {
+                const [gx, gy] = key.split(',').map(Number); const center = this.gridToWorld(gx, gy);
+                const offsetAmount = 0.5;
+                const offsets = [{x: -offsetAmount, z: -offsetAmount}, {x: offsetAmount, z: offsetAmount}, {x: -offsetAmount, z: offsetAmount}, {x: offsetAmount, z: -offsetAmount}];
+                stack.forEach((p, i) => { if (i < 4) p.position.set(center.x + offsets[i].x, 1, center.z + offsets[i].z); });
+            }
+
+            rollDice() {
+                if(this.gameState !== 'WAITING_ROLL') return;
+                window.soundManager.resume();
+                this.gameState = 'ANIMATING'; const btn = document.getElementById('roll-btn'); btn.disabled = true; btn.innerText = "ROLLING...";
+                this.clearDiceUI(); window.soundManager.playRoll();
+                const rolls = [Math.floor(Math.random()*6)+1, Math.floor(Math.random()*6)+1]; let frame = 0;
+                const interval = setInterval(() => {
+                    this.dices.forEach(d => { d.rotation.x += Math.random(); d.rotation.y += Math.random(); d.position.y = 1.35 + Math.abs(Math.sin(frame/2)) * 2; });
+                    frame++;
+                    if(frame > 20) { clearInterval(interval); this.finalizeDice(rolls); }
+                }, 50);
+            }
+
+            finalizeDice(rolls) {
+                this.dices.forEach((d, i) => { d.position.y = 1.35; d.rotation.set(0,0,0); this.updateDiceVisuals(d, rolls[i]); });
+                this.availableDice = [{ id: 0, val: rolls[0], used: false }, { id: 1, val: rolls[1], used: false }];
+                this.doublesRolled = (rolls[0] === 6 && rolls[1] === 6);
+                
+                // Smart Assistant Logic
+                const currentPlayerType = this.playerTypes[this.currentPlayerIndex];
+                const currentPlayerName = this.playerNames[this.currentPlayerIndex];
+
+                // Only assist human players
+                if (currentPlayerType === 'human') {
+                    if(this.doublesRolled) this.assistant.show(`Double 6, ${currentPlayerName}! Roll again!`, true);
+                    else if(rolls[0] === 6 || rolls[1] === 6) this.assistant.onRoll6(currentPlayerName);
+                    else this.assistant.triggerRandomTip(currentPlayerName);
+                }
+
+                this.selectedDieIndex = -1; this.isSwitchingTurn = false;
+                document.getElementById('status-text').innerText = "Select a Dice Number to Move";
+                document.getElementById('roll-btn').innerText = "Select Number";
+                this.gameState = 'SELECT_DICE'; this.renderDiceUI(); this.saveGame();
+                
+                // --- COMPUTER AI HOOK ---
+                if (this.playerTypes[this.currentPlayerIndex] === 'cpu' && !this.paused) {
+                    TimerManager.set(() => this.aiMakeMove(), 1000);
+                }
+            }
+
+            // --- AI LOGIC ---
+            aiMakeMove() {
+                if (this.paused || this.gameState !== 'SELECT_DICE') return;
+                
+                let possibleMoves = [];
+                const ownedColors = this.playerColors[this.currentPlayerIndex];
+                const playerPawns = this.pawns.filter(p => ownedColors.includes(p.userData.player) && p.userData.active && p.userData.pos !== 999);
+
+                // Collect all valid moves
+                this.availableDice.forEach((d, dIdx) => {
+                    if (!d.used) {
+                        playerPawns.forEach(p => {
+                            let isValid = false;
+                            let moveType = '';
+                            if (p.userData.pos === -1) {
+                                if (d.val === 6) { isValid = true; moveType = 'ENTER'; }
+                            } else if (p.userData.pos < 56) {
+                                if (p.userData.stepsTaken + d.val <= 56) { isValid = true; moveType = 'MOVE'; }
+                            }
+                            if (isValid) {
+                                possibleMoves.push({
+                                    dieIndex: dIdx,
+                                    pawn: p,
+                                    val: d.val,
+                                    type: moveType,
+                                    score: 0
+                                });
+                            }
+                        });
+                    }
+                });
+
+                if (possibleMoves.length === 0) {
+                    // No moves possible? renderDiceUI handles timeout transition
+                    return; 
+                }
+
+                // Decision Making
+                let selectedMove = null;
+                if (this.config.difficulty === 'easy') {
+                    selectedMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                } else {
+                    // Hard Mode Heuristics
+                    possibleMoves.forEach(m => {
+                        m.score = this.evaluateMoveScore(m);
+                    });
+                    // Sort by score descending
+                    possibleMoves.sort((a,b) => b.score - a.score);
+                    selectedMove = possibleMoves[0];
+                }
+
+                // Execute
+                this.selectedDieIndex = selectedMove.dieIndex;
+                this.highlightValidPawns(selectedMove.val); 
+                this.gameState = 'SELECT_PIECE'; 
+                
+                // Simulate selection delay
+                this.showToast(`CPU chose ${selectedMove.val} for pawn`);
+                this.executeMove(selectedMove.pawn);
+            }
+
+            evaluateMoveScore(move) {
+                let score = 0;
+                
+                // 1. Entering Board
+                if (move.type === 'ENTER') score += 50;
+
+                // Simulate landing position
+                let steps = move.pawn.userData.stepsTaken;
+                let finalCoords = this.getPawnCoords(move.pawn.userData.player, steps + move.val);
+                
+                let landX = finalCoords.x;
+                let landY = finalCoords.y;
+                let isSafeSquare = this.isSafeSquare(landX, landY);
+                
+                // 2. Safety (Star/Globe)
+                if (isSafeSquare) score += 20;
+
+                // 3. Capture Enemy & Blockade Logic
+                let enemiesAtDest = 0;
+                let friendsAtDest = 0;
+                
+                this.pawns.forEach(p => {
+                    if(p.userData.active && p.userData.pos !== -1 && p.userData.pos !== 999 && p !== move.pawn) {
+                        let eCoords = this.getPawnCoords(p.userData.player, p.userData.stepsTaken);
+                        if(eCoords.x === landX && eCoords.y === landY) {
+                            if(!this.playerColors[this.currentPlayerIndex].includes(p.userData.player)) {
+                                enemiesAtDest++;
+                            } else {
+                                friendsAtDest++;
+                            }
+                        }
+                    }
+                });
+                
+                // Kill check
+                if (enemiesAtDest > 0 && !isSafeSquare) {
+                    score += 100;
+                }
+                
+                // Blockade formation bonus
+                if (friendsAtDest > 0 && !isSafeSquare) {
+                    score += 15; // Form a safe pair
+                }
+                
+                // Avoid breaking own blockade if possible
+                let currentX = 0, currentY = 0;
+                if(move.pawn.userData.pos !== -1) {
+                    let c = this.getPawnCoords(move.pawn.userData.player, steps);
+                    currentX = c.x; currentY = c.y;
+                    let friendsAtSource = this.pawns.filter(p => p !== move.pawn && p.userData.active && p.userData.pos === move.pawn.userData.pos && this.playerColors[this.currentPlayerIndex].includes(p.userData.player)).length;
+                    if(friendsAtSource > 0 && !this.isSafeSquare(currentX, currentY)) {
+                        score -= 20; // Penalty for breaking a blockade
+                    }
+                }
+
+                // 4. Reaching Home
+                if (steps + move.val === 56) score += 200; 
+                if (steps + move.val > 50) score += 10; 
+
+                // 6. Progress
+                score += move.val; 
+
+                return score;
+            }
+
+            isSafeSquare(x, y) {
+                const safeSpots = [
+                    {x:1, y:6}, {x:8, y:1}, {x:13, y:8}, {x:6, y:13}, // Starts
+                    {x:6, y:2}, {x:2, y:8}, {x:8, y:12}, {x:12, y:6} // Stars (Standard)
+                ];
+                return safeSpots.some(s => s.x === x && s.y === y);
+            }
+
+            renderDiceUI() {
+                const leftSlot = document.getElementById('dice-slot-0'); const rightSlot = document.getElementById('dice-slot-1');
+                leftSlot.innerHTML = ''; rightSlot.innerHTML = '';
+                let anyMovesPossible = false;
+                
+                const isCPU = this.playerTypes[this.currentPlayerIndex] === 'cpu';
+
+                this.availableDice.forEach((d, index) => {
+                    const btn = document.createElement('div'); 
+                    btn.className = `dice-select-btn ${d.used ? 'used' : ''}`; 
+                    btn.innerText = d.val;
+                    if(index === this.selectedDieIndex) btn.classList.add('selected');
+                    
+                    if (!isCPU) {
+                        btn.onclick = () => { setup.playClick(); this.selectDie(index); };
+                    } else {
+                        btn.style.cursor = 'default';
+                        btn.style.opacity = d.used ? '0.5' : '1';
+                    }
+                    
+                    if (index === 0) leftSlot.appendChild(btn); else rightSlot.appendChild(btn);
+                    if (!d.used && this.canAnyPawnMove(d.val)) anyMovesPossible = true;
+                });
+                
+                const remaining = this.availableDice.filter(d => !d.used);
+                
+                if (remaining.length === 0) {
+                    this.endTurnOrRepeat();
+                } else if (!anyMovesPossible) { 
+                    document.getElementById('status-text').innerText = "No moves possible!"; 
+                    this.endTurnOrRepeat(2000); 
+                }
+            }
+            
+            endTurnOrRepeat(delay = 500) {
+                if(this.isSwitchingTurn) return; 
+                this.isSwitchingTurn = true;
+                TimerManager.set(() => {
+                    if(this.doublesRolled) {
+                        document.getElementById('status-text').innerText = "Double 6! Roll Again.";
+                        // If CPU, auto-roll again
+                        if(this.playerTypes[this.currentPlayerIndex] === 'cpu' && !this.paused) {
+                            this.clearDiceUI(); 
+                            this.gameState = 'WAITING_ROLL'; 
+                            this.isSwitchingTurn = false;
+                            TimerManager.set(() => this.rollDice(), 1000);
+                        } else {
+                            document.getElementById('roll-btn').disabled = false; 
+                            document.getElementById('roll-btn').innerText = "ROLL DICE";
+                            this.clearDiceUI(); 
+                            this.gameState = 'WAITING_ROLL'; 
+                            this.isSwitchingTurn = false; 
+                        }
+                    } else this.nextTurn();
+                }, delay);
+            }
+            
+            clearDiceUI() { document.getElementById('dice-slot-0').innerHTML = ''; document.getElementById('dice-slot-1').innerHTML = ''; }
+
+            canAnyPawnMove(dieValue) {
+                const ownedColors = this.playerColors[this.currentPlayerIndex];
+                const playerPawns = this.pawns.filter(p => ownedColors.includes(p.userData.player) && p.userData.active && p.userData.pos !== 999);
+                return playerPawns.some(p => {
+                    if (p.userData.pos === -1) return dieValue === 6;
+                    return p.userData.pos < 56 && (p.userData.stepsTaken + dieValue <= 56);
+                });
+            }
+
+            selectDie(index) {
+                if (this.availableDice[index].used) return;
+                const val = this.availableDice[index].val;
+                if (!this.canAnyPawnMove(val)) { this.showToast(`Cannot use ${val} - No valid moves!`); window.soundManager.playError(); return; }
+                this.selectedDieIndex = index; this.renderDiceUI(); this.highlightValidPawns(val);
+                this.gameState = 'SELECT_PIECE'; document.getElementById('status-text').innerText = `Select a piece to move ${val} steps`;
+                this.saveGame();
+            }
+
+            showToast(msg) {
+                const toast = document.getElementById('toast'); toast.innerText = msg;
+                toast.style.opacity = 1; TimerManager.set(() => toast.style.opacity = 0, 2000);
+            }
+
+            highlightValidPawns(dieValue) {
+                const ownedColors = this.playerColors[this.currentPlayerIndex];
+                const playerPawns = this.pawns.filter(p => ownedColors.includes(p.userData.player) && p.userData.active && p.userData.pos !== 999);
+                this.pawns.forEach(p => {
+                   p.userData.canMove = false; p.scale.set(1, 1, 1);
+                   p.traverse(child => { if(child.material) { child.material.emissive.setHex(0x000000); child.material.emissiveIntensity = child.material.color === 0xffd700 ? 0.2 : 0.1; } });
+                });
+                
+                // Clear existing labels
+                this.clearPawnLabels();
+                this.validPawnMap = {};
+                
+                this.tweens.forEach(t => t.stop()); this.tweens = [];
+                let counter = 1;
+                playerPawns.forEach(p => {
+                    let isValid = false;
+                    if(p.userData.pos === -1) { if(dieValue === 6) { p.userData.canMove = true; p.userData.moveType = 'ENTER'; isValid = true; } }
+                    else if (p.userData.pos < 56) { if(p.userData.stepsTaken + dieValue <= 56) { p.userData.canMove = true; p.userData.moveType = 'MOVE'; isValid = true; } }
+                    if(isValid) {
+                        p.traverse(child => { if(child.material) { child.material.emissive.setHex(0xffd700); child.material.emissiveIntensity = 0.7; } });
+                        const scaleUp = new TWEEN.Tween(p.scale).to({ x: 1.2, y: 1.2, z: 1.2 }, 500).easing(TWEEN.Easing.Quadratic.Out);
+                        const scaleDown = new TWEEN.Tween(p.scale).to({ x: 1, y: 1, z: 1 }, 500).easing(TWEEN.Easing.Quadratic.In);
+                        scaleUp.chain(scaleDown); scaleDown.chain(scaleUp); scaleUp.start(); this.tweens.push(scaleUp, scaleDown);
+                        
+                        // Setup Label - Now Supports up to 8
+                        if(counter <= 8) {
+                            this.validPawnMap[counter.toString()] = p;
+                            const label = document.createElement('div');
+                            label.className = 'pawn-badge';
+                            label.innerText = counter;
+                            document.getElementById('pawn-labels').appendChild(label);
+                            p.userData.labelElement = label;
+                            counter++;
+                        }
+                    }
+                });
+            }
+            
+            clearPawnLabels() {
+                const container = document.getElementById('pawn-labels');
+                container.innerHTML = '';
+                this.pawns.forEach(p => p.userData.labelElement = null);
+            }
+            
+            updatePawnLabels() {
+                // Update 2D positions of labels
+                this.pawns.forEach(p => {
+                    if (p.userData.labelElement) {
+                        const vector = p.position.clone();
+                        vector.y += 2.5; // Offset above head
+                        vector.project(this.camera);
+                        const x = (vector.x * .5 + .5) * window.innerWidth;
+                        const y = (-(vector.y * .5) + .5) * window.innerHeight;
+                        p.userData.labelElement.style.left = `${x}px`;
+                        p.userData.labelElement.style.top = `${y}px`;
+                    }
+                });
+            }
+
+            onClick(event) {
+                if(this.gameState !== 'SELECT_PIECE') return;
+                // Block clicks if CPU turn
+                if(this.playerTypes[this.currentPlayerIndex] === 'cpu') return;
+
+                this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1; this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.pawns, true);
+                if(intersects.length > 0) {
+                    let target = intersects[0].object; while (target && !this.pawns.includes(target) && target.parent) target = target.parent;
+                    if (target && this.pawns.includes(target)) {
+                        const pawn = target; const ownedColors = this.playerColors[this.currentPlayerIndex];
+                        if(ownedColors.includes(pawn.userData.player) && pawn.userData.canMove) this.executeMove(pawn);
+                    }
+                }
+            }
+
+            executeMove(pawn) {
+                this.gameState = 'ANIMATING';
+                this.clearPawnLabels(); // Remove labels once move starts
+                this.tweens.forEach(t => t.stop()); this.tweens = [];
+                this.pawns.forEach(p => { 
+                    p.scale.set(1, 1, 1);
+                    p.traverse(child => { if(child.material) { child.material.emissive.setHex(0x000000); child.material.emissiveIntensity = child.material.color === 0xffd700 ? 0.2 : 0.1; } });
+                });
+                
+                const dieObj = this.availableDice[this.selectedDieIndex]; dieObj.used = true; const moveVal = dieObj.val;
+                if(pawn.userData.moveType === 'ENTER') {
+                    const colorIndex = pawn.userData.player; const startIndices = [0, 13, 26, 39]; const startIdx = startIndices[colorIndex];
+                    pawn.userData.pos = startIdx; pawn.userData.stepsTaken = 0;
+                    this.animateHop(pawn, startIdx, () => this.finishMove(pawn));
+                    const coords = this.getPawnCoords(pawn.userData.player, 0);
+                    const w = this.gridToWorld(coords.x, coords.y);
+                    this.particleSystem.spawn(new THREE.Vector3(w.x, 2, w.z));
+                } else {
+                    const oldSteps = pawn.userData.stepsTaken; pawn.userData.stepsTaken += moveVal;
+                    this.animateStepSequence(pawn, oldSteps, moveVal, () => this.finishMove(pawn));
+                }
+            }
+
+            getPawnCoords(colorIndex, stepsTaken) {
+                const main = this.pathMap.main; const offset = colorIndex * 13; let gx, gy;
+                if(stepsTaken < 51) { const globalIdx = (offset + stepsTaken) % 52; gx = main[globalIdx].x; gy = main[globalIdx].y; } 
+                else { const homeIdx = stepsTaken - 51; const h = this.pathMap.homes[colorIndex]; const idx = Math.min(homeIdx, h.length-1); gx = h[idx].x; gy = h[idx].y; }
+                return {x: gx, y: gy};
+            }
+
+            animateHop(pawn, globalIdx, onComplete) {
+                const coords = this.getPawnCoords(pawn.userData.player, 0); const w = this.gridToWorld(coords.x, coords.y);
+                new TWEEN.Tween(pawn.position).to({ x: w.x, z: w.z, y: [4, 1] }, 600).easing(TWEEN.Easing.Quadratic.Out).onComplete(() => { window.soundManager.playMove(); onComplete(); }).start();
+            }
+
+            animateStepSequence(pawn, currentSteps, stepsToAdd, onComplete) {
+                let chain = null; let firstTween = null;
+                for(let i=1; i<=stepsToAdd; i++) {
+                    const coords = this.getPawnCoords(pawn.userData.player, currentSteps + i);
+                    const w = this.gridToWorld(coords.x, coords.y);
+                    const tween = new TWEEN.Tween(pawn.position).to({ x: w.x, z: w.z, y: [2.5, 1] }, 250).easing(TWEEN.Easing.Quadratic.InOut).onStart(() => window.soundManager.playMove());
+                    if(!firstTween) { firstTween = tween; chain = tween; } else { chain.chain(tween); chain = tween; }
+                }
+                chain.onComplete(onComplete); firstTween.start();
+            }
+
+            finishMove(movedPawn) {
+                const ownedColors = this.playerColors[this.currentPlayerIndex];
+                // Capture Logic
+                this.pawns.forEach(p => {
+                    if(!ownedColors.includes(p.userData.player) && p.userData.pos !== -1 && p.userData.pos !== 999 && p.userData.active) {
+                        const dist = p.position.distanceTo(movedPawn.position);
+                        if(dist < 1.0) { 
+                            window.soundManager.playCapture(); 
+                            // Only assist human
+                            if (this.playerTypes[this.currentPlayerIndex] === 'human') {
+                                this.assistant.onCapture(this.playerNames[this.currentPlayerIndex]);
+                            }
+                            this.sendHome(p); 
+                        }
+                    }
+                });
+
+                // Win Check for Moved Pawn
+                if(movedPawn.userData.stepsTaken >= 56) {
+                    movedPawn.userData.pos = 999; this.placeOnWinnerRack(movedPawn);
+                    // Check if Player has finished ALL pawns
+                    const myPawns = this.pawns.filter(p => ownedColors.includes(p.userData.player));
+                    if(myPawns.every(p => p.userData.pos === 999)) {
+                        this.handleWin(this.currentPlayerIndex);
+                        return; // HandleWin will decide next steps
+                    } else {
+                        window.soundManager.playWin();
+                    }
+                }
+
+                this.rearrangeAllStacks(); 
+                this.gameState = 'SELECT_DICE'; this.selectedDieIndex = -1;
+                this.saveGame(); this.renderDiceUI();
+                
+                // --- CONTINUATION FOR CPU AI ---
+                if (this.playerTypes[this.currentPlayerIndex] === 'cpu' && this.gameState === 'SELECT_DICE' && !this.paused) {
+                    const remaining = this.availableDice.filter(d => !d.used);
+                    if (remaining.length > 0) {
+                        TimerManager.set(() => this.aiMakeMove(), 1000);
+                    }
+                }
+            }
+
+            handleWin(playerIndex) {
+                if(this.winners.includes(playerIndex)) return;
+                this.winners.push(playerIndex);
+                window.soundManager.playWin();
+                
+                // Assistant Trigger - Only for human winner
+                if (this.playerTypes[playerIndex] === 'human') {
+                    this.assistant.onWin(this.playerNames[playerIndex]);
+                }
+
+                const winnerName = this.playerNames[playerIndex];
+                const rank = this.winners.length;
+                const suffix = rank===1?'st':rank===2?'nd':rank===3?'rd':'th';
+                
+                // Specific message logic for Human vs CPU
+                let mainMsg = `${winnerName} finishes ${rank}${suffix}!`;
+                
+                // If Single Player Mode
+                if (this.config.mode === 'computer') {
+                    // Check if the winner is the human player (Index 0)
+                    if (this.playerTypes[playerIndex] === 'human') {
+                        mainMsg = "YOU WIN!";
+                    }
+                }
+                
+                this.showToast(mainMsg);
+                document.getElementById('results-btn').style.display = 'block';
+
+                const activePlayersCount = this.playerCount - this.winners.length;
+                
+                if (activePlayersCount < 2) {
+                    // Game Over Logic
+                    if (this.config.mode === 'computer' && this.playerTypes[0] === 'human') {
+                        if (!this.winners.includes(0)) mainMsg = "YOU LOSE!";
+                    } else {
+                        mainMsg = "Game Over!";
+                    }
+                    
+                    document.getElementById('message-text').innerText = mainMsg;
+                    document.getElementById('continue-playing-btn').style.display = 'none';
+                    document.getElementById('message-overlay').style.display = 'flex';
+                    this.showResults();
+                    Storage.clear(); // Clear save so reset happens
+                } else {
+                    // Round Winner
+                    document.getElementById('message-text').innerText = mainMsg;
+                    document.getElementById('continue-playing-btn').style.display = 'inline-block';
+                    document.getElementById('message-overlay').style.display = 'flex';
+                }
+            }
+            
+            showResults() {
+                const list = document.getElementById('results-list');
+                list.innerHTML = '';
+                this.winners.forEach((pid, idx) => {
+                    const div = document.createElement('div'); div.className = 'result-item';
+                    const suffix = (idx+1)===1?'st':(idx+1)===2?'nd':(idx+1)===3?'rd':'th';
+                    div.innerHTML = `<span class="result-rank">${idx+1}${suffix}</span> <span>${this.playerNames[pid]}</span>`;
+                    list.appendChild(div);
+                });
+                document.getElementById('results-overlay').style.display = 'flex';
+            }
+            
+            continueAfterWin() {
+                document.getElementById('message-overlay').style.display = 'none';
+                this.nextTurn();
+            }
+
+            placeOnWinnerRack(pawn) {
+                const pid = pawn.userData.player;
+                const rackPositions = [{x: -18, z: -18}, {x: 18, z: -18}, {x: 18, z: 18}, {x: -18, z: 18}];
+                const basePos = rackPositions[pid];
+                const offsetZ = (pawn.userData.id * 1.5); 
+                new TWEEN.Tween(pawn.position).to({ x: basePos.x, z: basePos.z + offsetZ, y: 1 }, 1000).easing(TWEEN.Easing.Cubic.Out).start();
+            }
+
+            sendHome(pawn) {
+                // Assistant Trigger: Only trigger if the victim is a human player
+                if(this.playerTypes[pawn.userData.player] === 'human') {
+                    this.assistant.onCaptured(this.playerNames[pawn.userData.player]);
+                }
+
+                pawn.userData.pos = -1; pawn.userData.stepsTaken = 0;
+                new TWEEN.Tween(pawn.position).to({ y: 10, opacity: 0}, 500).onComplete(() => {
+                    const baseOffsets = [
+                        [{x:1.5, y:1.5}, {x:4.5, y:1.5}, {x:1.5, y:4.5}, {x:4.5, y:4.5}], 
+                        [{x:10.5, y:1.5}, {x:13.5, y:1.5}, {x:10.5, y:4.5}, {x:13.5, y:4.5}],
+                        [{x:10.5, y:10.5}, {x:13.5, y:10.5}, {x:10.5, y:13.5}, {x:13.5, y:13.5}],
+                        [{x:1.5, y:10.5}, {x:4.5, y:10.5}, {x:1.5, y:13.5}, {x:4.5, y:13.5}]
+                    ];
+                    const yard = baseOffsets[pawn.userData.player][pawn.userData.id];
+                    const w = this.gridToWorld(yard.x, yard.y);
+                    pawn.position.set(w.x, 1, w.z);
+                }).start();
+            }
+
+            nextTurn() {
+                let nextIdx = this.currentPlayerIndex;
+                let attempts = 0;
+                do {
+                    nextIdx = (nextIdx + 1) % this.playerCount;
+                    attempts++;
+                } while (this.winners.includes(nextIdx) && attempts < this.playerCount);
+
+                this.currentPlayerIndex = nextIdx;
+                this.isSwitchingTurn = false; 
+                this.doublesRolled = false;
+                this.updateTurnUI();
+                this.saveGame();
+                
+                // --- TRIGGER CPU TURN ---
+                if (this.playerTypes[this.currentPlayerIndex] === 'cpu' && !this.paused) {
+                    // Delay slightly before rolling
+                    TimerManager.set(() => {
+                        this.rollDice();
+                    }, 1500);
+                }
+            }
+
+            saveGame() {
+                const pawnData = this.pawns.map(p => ({ player: p.userData.player, id: p.userData.id, pos: p.userData.pos, stepsTaken: p.userData.stepsTaken, active: p.userData.active }));
+                const diceData = { 
+                    availableDice: this.availableDice, 
+                    diceValues: this.dices.map(d => 1), 
+                    doublesRolled: this.doublesRolled,
+                    selectedDieIndex: this.selectedDieIndex 
+                };
+                const currentDiceVals = [this.availableDice[0]?.val || 1, this.availableDice[1]?.val || 1]; diceData.diceValues = currentDiceVals;
+                const data = { config: this.config, turn: this.currentPlayerIndex, winners: this.winners, pawns: pawnData, dice: diceData, gameState: this.gameState };
+                Storage.save(data);
+            }
+            
+            exitToMenu() {
+                this.saveGame();
+                
+                // Reset music to menu theme
+                window.soundManager.playMenuMusic();
+                
+                document.getElementById('message-overlay').style.display = 'none';
+                document.getElementById('results-overlay').style.display = 'none';
+                document.getElementById('roll-btn').style.display = 'none';
+                document.getElementById('results-btn').style.display = 'none';
+                document.getElementById('setup-screen').style.display = 'flex';
+                document.getElementById('setup-screen').style.opacity = 1;
+                setup.showStep(1); 
+                
+                // Show continue ONLY if game exists
+                const saved = Storage.load();
+                document.getElementById('continue-btn').style.display = saved ? 'block' : 'none';
+                
+                this.paused = true; // Pause game loop when entering menu
+                this.cleanup(); // Clean timers
+            }
+
+            updateTurnUI() {
+                const playerName = this.playerNames[this.currentPlayerIndex];
+                const ownedColors = this.playerColors[this.currentPlayerIndex];
+                const mainColorHex = COLOR_HEX[ownedColors[0]];
+                const turnTxt = document.getElementById('turn-text');
+                turnTxt.innerText = `${playerName}'s Turn`; turnTxt.style.color = mainColorHex;
+                document.getElementById('status-text').innerText = "Waiting to Roll";
+                
+                const rollBtn = document.getElementById('roll-btn');
+                const isCPU = this.playerTypes[this.currentPlayerIndex] === 'cpu';
+                
+                if (isCPU) {
+                    rollBtn.disabled = true; 
+                    rollBtn.innerText = "CPU THINKING...";
+                } else {
+                    rollBtn.disabled = false; 
+                    rollBtn.innerText = "ROLL DICE";
+                }
+                
+                this.clearDiceUI(); this.gameState = 'WAITING_ROLL';
+            }
+
+            toggleView() {
+                if(this.camera.position.y > 50) this.resetCamera();
+                else {
+                    new TWEEN.Tween(this.camera.position).to({ x: 0, y: 70, z: 0 }, 1000).easing(TWEEN.Easing.Cubic.Out).start();
+                    new TWEEN.Tween(this.camera.rotation).to({ x: -Math.PI/2, y: 0, z: 0 }, 1000).start();
+                }
+            }
+
+            resetCamera() {
+                new TWEEN.Tween(this.camera.position).to({ x: 0, y: 40, z: 50 }, 1000).easing(TWEEN.Easing.Cubic.Out).start();
+                this.camera.lookAt(0,0,0);
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                if (this.paused) return; // Skip update logic if paused
+
+                TWEEN.update();
+                if(this.particleSystem) this.particleSystem.update();
+                this.updatePawnLabels();
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        window.onload = () => { 
+            window.soundManager = new SoundManager();
+            window.game = new LudoGame(); 
+            window.setup = setup;
+            setup.init(); 
+        };
+    </script>
+</body>
+</html>

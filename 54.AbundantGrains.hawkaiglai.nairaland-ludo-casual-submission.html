@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo Challenge - Casual Submission</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #e94560;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 60px;
+            color: #aaa;
+        }
+        
+        .section {
+            margin-bottom: 60px;
+        }
+        
+        .section h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #00d4aa;
+        }
+        
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .game-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(233, 69, 96, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            transition: all 0.3s;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-5px);
+            border-color: #e94560;
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.3);
+        }
+        
+        .game-card h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #e94560;
+        }
+        
+        .game-card p {
+            color: #ccc;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .play-btn {
+            display: inline-block;
+            background: #e94560;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .play-btn:hover {
+            background: #c73650;
+            transform: scale(1.05);
+        }
+        
+        .intro {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 60px;
+            line-height: 1.8;
+        }
+        
+        .github-link {
+            text-align: center;
+            margin-top: 60px;
+            padding: 30px;
+            background: rgba(0, 212, 170, 0.1);
+            border-radius: 15px;
+        }
+        
+        .github-link a {
+            color: #00d4aa;
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .github-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 Ludo Challenge - Casual Submission</h1>
+        <div class="subtitle">Yo Nairaland fam! Here are all my versions...</div>
+        
+        <div class="intro">
+            <p><strong>Real talk:</strong> I made way too many versions of this Ludo game lol. Couldn't decide which vibe to go with, so I just built them all.</p>
+            <p>Each one plays basically the same but has different themes, colors, and vibes. Pick whichever speaks to you, or try them all. No pressure 🤷‍♂️</p>
+        </div>
+        
+        <div class="section">
+            <h2>🎯 Basic Editions</h2>
+            <div class="games-grid">
+                <div class="game-card">
+                    <h3>Ludo v1</h3>
+                    <p>The first one I built. Simple, clean, gets the job done.</p>
+                    <a href="basic/ludo-v1.html" class="play-btn">Play Now</a>
+                </div>
+                
+                <div class="game-card">
+                    <h3>Ludo v2</h3>
+                    <p>Refined version with better UI. Second attempt, better vibes.</p>
+                    <a href="basic/ludo-v2.html" class="play-btn">Play Now</a>
+                </div>
+                
+                <div class="game-card">
+                    <h3>Vanilla Ludo</h3>
+                    <p>Pure and simple. No frameworks, just straight JavaScript.</p>
+                    <a href="basic/ludo-vanilla.html" class="play-btn">Play Now</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>💼 Attitude Collection</h2>
+            <div class="games-grid">
+                <div class="game-card">
+                    <h3>Strategic Innovator</h3>
+                    <p>Tech startup energy. Got the ₦ logo and power-up systems.</p>
+                    <a href="attitude/strategic-innovator.html" class="play-btn">Play Now</a>
+                </div>
+                
+                <div class="game-card">
+                    <h3>Unity in Diversity</h3>
+                    <p>Celebrating our differences while playing the same game.</p>
+                    <a href="attitude/unity-diversity.html" class="play-btn">Play Now</a>
+                </div>
+                
+                <div class="game-card">
+                    <h3>Innovation Edition</h3>
+                    <p>For the builders and dreamers. Future-focused vibes.</p>
+                    <a href="attitude/innovation.html" class="play-btn">Play Now</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🌍 Culture Collection</h2>
+            <div class="games-grid">
+                <div class="game-card">
+                    <h3>Ogun Heritage</h3>
+                    <p>Palm trees, Yoruba proverbs, cultural authenticity.</p>
+                    <a href="culture/ogun-heritage.html" class="play-btn">Play Now</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>✨ Flare Editions</h2>
+            <div class="games-grid">
+                <div class="game-card">
+                    <h3>Cultural Celebration</h3>
+                    <p>Celebrating Nigerian culture through gameplay.</p>
+                    <a href="flare/cultural-celebration.html" class="play-btn">Play Now</a>
+                </div>
+                
+                <div class="game-card">
+                    <h3>Musical Celebration</h3>
+                    <p>From Afrobeats to Gospel - music meets gaming.</p>
+                    <a href="flare/musical-celebration.html" class="play-btn">Play Now</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="github-link">
+            <p>📦 All source code available on GitHub</p>
+            <a href="https://github.com/YOUR-USERNAME/casual-ludo-submission" target="_blank">
+                View Repository →
+            </a>
+        </div>
+        
+        <div style="text-align: center; margin-top: 60px; color: #666;">
+            <p>Made with ❤️ for the Nairaland Ludo Challenge</p>
+            <p style="margin-top: 10px;">Yeah I know I probably overthought this. No regrets though 🎲</p>
+        </div>
+    </div>
+</body>
+</html>

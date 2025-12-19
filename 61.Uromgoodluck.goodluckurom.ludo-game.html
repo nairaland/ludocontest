@@ -1,0 +1,2976 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Ludo Game</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      }
+      #gameContainer {
+        width: 100vw;
+        height: 100vh;
+      }
+      /* Left panel - Small menu */
+      #ui {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(15, 15, 25, 0.9);
+        padding: 10px;
+        border-radius: 10px;
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      #ui button {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: bold;
+        transition: all 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+      #resetCamera {
+        background: linear-gradient(135deg, #455a64 0%, #37474f 100%);
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      #resetCamera:hover {
+        transform: translateY(-1px);
+        background: linear-gradient(135deg, #546e7a 0%, #455a64 100%);
+      }
+      #rulesBtn {
+        background: linear-gradient(135deg, #455a64 0%, #37474f 100%);
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      #rulesBtn:hover {
+        transform: translateY(-1px);
+        background: linear-gradient(135deg, #546e7a 0%, #455a64 100%);
+      }
+
+      /* Right panel - Dice display */
+      #dicePanel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(15, 15, 25, 0.9);
+        padding: 12px 16px;
+        border-radius: 10px;
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        text-align: center;
+      }
+      #dicePanel h3 {
+        margin: 0 0 10px 0;
+        font-size: 11px;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      #diceContainer {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+      .dice-display {
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(145deg, #ffffff, #e6e6e6);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        font-weight: bold;
+        color: #222;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3),
+          inset 0 2px 4px rgba(255, 255, 255, 0.5);
+      }
+
+      #cameraHint {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 8px 12px;
+        border-radius: 6px;
+        color: #666;
+        font-size: 10px;
+        backdrop-filter: blur(5px);
+      }
+
+      /* Roll Button - Bottom Right - Big & Beautiful */
+      #rollBtn {
+        position: absolute;
+        bottom: 30px;
+        right: 30px;
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: white;
+        background: linear-gradient(145deg, #4caf50, #2e7d32);
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5),
+          0 3px 6px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+      #rollBtn::before {
+        content: "🎲";
+        font-size: 28px;
+      }
+      #rollBtn:hover {
+        transform: scale(1.08);
+        box-shadow: 0 8px 30px rgba(76, 175, 80, 0.6),
+          0 4px 8px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.3),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+      }
+      #rollBtn:active {
+        transform: scale(0.95);
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4),
+          0 2px 4px rgba(0, 0, 0, 0.3), inset 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      /* ============================================
+         RULES MODAL STYLES
+         ============================================ */
+      #rulesModal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(5px);
+      }
+      #rulesModal.active {
+        display: flex;
+      }
+      .rules-content {
+        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
+        border-radius: 20px;
+        max-width: 700px;
+        max-height: 85vh;
+        width: 90%;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        animation: modalSlideIn 0.3s ease-out;
+      }
+      @keyframes modalSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-30px) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      .rules-header {
+        background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+        padding: 20px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .rules-header h2 {
+        margin: 0;
+        font-size: 24px;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      .close-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        min-width: 40px;
+      }
+      .close-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+      }
+      .rules-body {
+        padding: 25px;
+        overflow-y: auto;
+        max-height: calc(85vh - 80px);
+        color: #e0e0e0;
+      }
+      .rules-body::-webkit-scrollbar {
+        width: 8px;
+      }
+      .rules-body::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .rules-body::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+      }
+      .rule-section {
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .rule-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+      .rule-section h3 {
+        color: #4caf50;
+        font-size: 18px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .rule-section h3 .icon {
+        font-size: 22px;
+      }
+      .rule-section p {
+        line-height: 1.7;
+        color: #bbb;
+        margin-bottom: 8px;
+      }
+      .rule-section ul {
+        list-style: none;
+        padding-left: 0;
+      }
+      .rule-section li {
+        padding: 8px 0 8px 25px;
+        position: relative;
+        color: #bbb;
+        line-height: 1.5;
+      }
+      .rule-section li::before {
+        content: "▸";
+        position: absolute;
+        left: 5px;
+        color: #4caf50;
+      }
+      .highlight {
+        color: #ffd700;
+        font-weight: bold;
+      }
+      .color-red {
+        color: #e53935;
+      }
+      .color-green {
+        color: #43a047;
+      }
+      .color-blue {
+        color: #1e88e5;
+      }
+      .color-yellow {
+        color: #ffd600;
+      }
+
+      /* ============================================
+         COLOR SELECTION MODAL
+         ============================================ */
+      #colorSelectModal {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 1001;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(8px);
+      }
+      #colorSelectModal.hidden {
+        display: none;
+      }
+      .color-select-content {
+        background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
+        border-radius: 20px;
+        padding: 30px 40px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        max-width: 500px;
+      }
+      .color-select-content h2 {
+        color: #4caf50;
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+      .color-select-content p {
+        color: #aaa;
+        margin-bottom: 25px;
+        font-size: 14px;
+      }
+      .color-options {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-bottom: 25px;
+      }
+      .color-option {
+        padding: 20px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 3px solid transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-weight: bold;
+        font-size: 16px;
+        text-transform: uppercase;
+      }
+      .color-option.red {
+        background: rgba(229, 57, 53, 0.3);
+        color: #e53935;
+      }
+      .color-option.green {
+        background: rgba(67, 160, 71, 0.3);
+        color: #43a047;
+      }
+      .color-option.blue {
+        background: rgba(30, 136, 229, 0.3);
+        color: #1e88e5;
+      }
+      .color-option.yellow {
+        background: rgba(255, 214, 0, 0.3);
+        color: #ffd600;
+      }
+      .color-option:hover {
+        transform: scale(1.05);
+      }
+      .color-option.selected {
+        border-color: currentColor;
+        box-shadow: 0 0 20px currentColor;
+      }
+      .color-option .checkmark {
+        display: none;
+        font-size: 20px;
+      }
+      .color-option.selected .checkmark {
+        display: inline;
+      }
+      #startGameBtn {
+        padding: 15px 40px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.3s;
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      #startGameBtn.ready {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #startGameBtn.ready:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
+      }
+      .team-preview {
+        display: flex;
+        justify-content: space-around;
+        margin: 20px 0;
+        padding: 15px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 10px;
+      }
+      .team-preview div {
+        text-align: center;
+      }
+      .team-preview h4 {
+        color: #888;
+        font-size: 12px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      .team-preview .colors {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+      }
+      .team-preview .color-dot {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+      .team-preview .color-dot.empty {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* ============================================
+         GAME STATUS DISPLAY
+         ============================================ */
+      #gameStatus {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(15, 15, 25, 0.95);
+        padding: 12px 25px;
+        border-radius: 25px;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        display: none;
+        align-items: center;
+        gap: 10px;
+      }
+      #gameStatus.active {
+        display: flex;
+      }
+      #gameStatus .turn-indicator {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid white;
+      }
+
+      /* ============================================
+         TEAM DISPLAY PANEL
+         ============================================ */
+      #teamDisplay {
+        position: absolute;
+        top: 80px;
+        left: 20px;
+        background: rgba(15, 15, 25, 0.9);
+        padding: 15px;
+        border-radius: 12px;
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        display: none;
+        min-width: 120px;
+      }
+      #teamDisplay.active {
+        display: block;
+      }
+      .team-section {
+        margin-bottom: 15px;
+      }
+      .team-section:last-child {
+        margin-bottom: 0;
+      }
+      .team-section h4 {
+        font-size: 11px;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .team-colors {
+        display: flex;
+        gap: 8px;
+      }
+      .team-color-badge {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .team-color-badge.red {
+        background: rgba(229, 57, 53, 0.3);
+        color: #e53935;
+      }
+      .team-color-badge.green {
+        background: rgba(67, 160, 71, 0.3);
+        color: #43a047;
+      }
+      .team-color-badge.blue {
+        background: rgba(30, 136, 229, 0.3);
+        color: #1e88e5;
+      }
+      .team-color-badge.yellow {
+        background: rgba(255, 214, 0, 0.3);
+        color: #ffd600;
+      }
+      .team-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .team-color-dot.red {
+        background: #e53935;
+      }
+      .team-color-dot.green {
+        background: #43a047;
+      }
+      .team-color-dot.blue {
+        background: #1e88e5;
+      }
+      .team-color-dot.yellow {
+        background: #ffd600;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameContainer"></div>
+
+    <!-- Color Selection Modal -->
+    <div id="colorSelectModal">
+      <div class="color-select-content">
+        <h2>🎮 Choose Your Colors</h2>
+        <p>Select 2 colors for your team. AI will take the remaining colors.</p>
+
+        <div class="color-options">
+          <div class="color-option red" data-color="RED">
+            <span class="checkmark">✓</span> Red
+          </div>
+          <div class="color-option green" data-color="GREEN">
+            <span class="checkmark">✓</span> Green
+          </div>
+          <div class="color-option blue" data-color="BLUE">
+            <span class="checkmark">✓</span> Blue
+          </div>
+          <div class="color-option yellow" data-color="YELLOW">
+            <span class="checkmark">✓</span> Yellow
+          </div>
+        </div>
+
+        <div class="team-preview">
+          <div>
+            <h4>👤 Your Team</h4>
+            <div class="colors" id="humanTeamPreview">
+              <div class="color-dot empty"></div>
+              <div class="color-dot empty"></div>
+            </div>
+          </div>
+          <div>
+            <h4>🤖 AI Team</h4>
+            <div class="colors" id="aiTeamPreview">
+              <div class="color-dot empty"></div>
+              <div class="color-dot empty"></div>
+            </div>
+          </div>
+        </div>
+
+        <button id="startGameBtn">Start Game</button>
+        <button
+          id="continueGameBtn"
+          style="
+            display: none;
+            margin-top: 10px;
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+          "
+        >
+          ▶️ Continue Saved Game
+        </button>
+      </div>
+    </div>
+
+    <!-- Game Status Display -->
+    <div id="gameStatus">
+      <div class="turn-indicator" id="turnIndicator"></div>
+      <span id="statusText">Red's Turn</span>
+    </div>
+
+    <!-- Team Display Panel -->
+    <div id="teamDisplay">
+      <div class="team-section">
+        <h4>👤 You</h4>
+        <div class="team-colors" id="humanTeamDisplay"></div>
+      </div>
+      <div class="team-section">
+        <h4>🤖 AI</h4>
+        <div class="team-colors" id="aiTeamDisplay"></div>
+      </div>
+    </div>
+
+    <!-- Left Panel - Menu Buttons -->
+    <div id="ui">
+      <button id="resetCamera">🔄 View</button>
+      <button id="rulesBtn">📖 Rules</button>
+    </div>
+
+    <!-- Right Panel - Dice Values -->
+    <div id="dicePanel">
+      <h3>Dice</h3>
+      <div id="diceContainer">
+        <div class="dice-display" id="dice1">-</div>
+        <div class="dice-display" id="dice2">-</div>
+      </div>
+    </div>
+
+    <!-- Roll Button - Bottom Right -->
+    <button id="rollBtn">Roll</button>
+
+    <div id="cameraHint">
+      🖱️ Left-drag: Rotate • Scroll: Zoom • Right-drag: Pan
+    </div>
+
+    <!-- ============================================
+         RULES MODAL
+         ============================================ -->
+    <div id="rulesModal">
+      <div class="rules-content">
+        <div class="rules-header">
+          <h2>📜 Ludo Game Rules</h2>
+          <button class="close-btn" id="closeRules">×</button>
+        </div>
+        <div class="rules-body">
+          <!-- Objective -->
+          <div class="rule-section">
+            <h3><span class="icon">🎯</span> Objective</h3>
+            <p>
+              Be the <span class="highlight">first player</span> to move all 4
+              of your tokens from your home base, around the board, and into
+              your center home triangle!
+            </p>
+          </div>
+
+          <!-- Setup -->
+          <div class="rule-section">
+            <h3><span class="icon">🎮</span> Setup</h3>
+            <ul>
+              <li>
+                2-4 players, each with
+                <span class="highlight">4 tokens</span> of their color
+              </li>
+              <li>
+                Colors: <span class="color-red">RED</span>,
+                <span class="color-green">GREEN</span>,
+                <span class="color-blue">BLUE</span>,
+                <span class="color-yellow">YELLOW</span>
+              </li>
+              <li>All tokens start in their colored home base (corners)</li>
+              <li>Game uses <span class="highlight">2 dice</span></li>
+            </ul>
+          </div>
+
+          <!-- Turn Order -->
+          <div class="rule-section">
+            <h3><span class="icon">🔄</span> Turn Order</h3>
+            <ul>
+              <li>Players take turns in clockwise order</li>
+              <li>On your turn: Roll both dice</li>
+              <li>
+                Use each die value separately OR combine them for one token
+              </li>
+            </ul>
+          </div>
+
+          <!-- Getting Out -->
+          <div class="rule-section">
+            <h3><span class="icon">🚀</span> Getting Out of Home Base</h3>
+            <ul>
+              <li>
+                Tokens can <span class="highlight">only leave</span> home base
+                when you roll a <span class="highlight">6</span>
+              </li>
+              <li>
+                When leaving, token goes to your colored START square (marked
+                with ⭐)
+              </li>
+              <li>
+                Rolling a 6 gives you an
+                <span class="highlight">extra turn!</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Movement -->
+          <div class="rule-section">
+            <h3><span class="icon">➡️</span> Movement</h3>
+            <ul>
+              <li>
+                Tokens move <span class="highlight">clockwise</span> around the
+                outer track
+              </li>
+              <li>Move exactly the number shown on the die</li>
+              <li>You must move if you have a valid move</li>
+              <li>If no valid moves, turn passes to next player</li>
+            </ul>
+          </div>
+
+          <!-- Capturing -->
+          <div class="rule-section">
+            <h3><span class="icon">⚔️</span> Capturing (Killing)</h3>
+            <ul>
+              <li>
+                Land on an opponent's token →
+                <span class="highlight"
+                  >send them back to their home base!</span
+                >
+              </li>
+              <li>
+                You <span class="highlight">cannot capture</span> on safe
+                squares (⭐ stars)
+              </li>
+              <li>START squares are safe for that color only</li>
+            </ul>
+          </div>
+
+          <!-- Safe Squares -->
+          <div class="rule-section">
+            <h3><span class="icon">⭐</span> Safe Squares</h3>
+            <ul>
+              <li>
+                Squares marked with
+                <span class="highlight">stars (⭐)</span> are safe zones
+              </li>
+              <li>No captures allowed on safe squares</li>
+              <li>Multiple tokens can share a safe square</li>
+            </ul>
+          </div>
+
+          <!-- Home Path -->
+          <div class="rule-section">
+            <h3><span class="icon">🏠</span> Entering the Home Path</h3>
+            <ul>
+              <li>
+                After going around the board, enter your
+                <span class="highlight">colored home path</span>
+              </li>
+              <li>Only YOUR tokens can enter YOUR home path</li>
+              <li>
+                Tokens on the home path
+                <span class="highlight">cannot be captured</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Finishing -->
+          <div class="rule-section">
+            <h3><span class="icon">🏁</span> Reaching Home (Finishing)</h3>
+            <ul>
+              <li>
+                Token must land <span class="highlight">exactly</span> on the
+                center to finish
+              </li>
+              <li>If you roll more than needed, you cannot move that token</li>
+              <li>Once a token reaches home, it's safe and done!</li>
+            </ul>
+          </div>
+
+          <!-- Special Rules -->
+          <div class="rule-section">
+            <h3><span class="icon">✨</span> Special Rules</h3>
+            <ul>
+              <li>Rolling a <span class="highlight">6</span> = Extra turn!</li>
+              <li>
+                Rolling <span class="highlight">double 6s</span> = Extra turn!
+              </li>
+              <li>Use dice values strategically - capture or advance!</li>
+            </ul>
+          </div>
+
+          <!-- Winning -->
+          <div class="rule-section">
+            <h3><span class="icon">🏆</span> Winning</h3>
+            <p>
+              <span class="highlight"
+                >First player to get all 4 tokens to the center home WINS!</span
+              >
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script>
+      // ============================================
+      // SCENE SETUP
+      // ============================================
+      let scene, camera, renderer;
+      let dice1Mesh, dice2Mesh;
+      let isRolling = false;
+      let tokenMeshes = {}; // Store token meshes by color and index
+
+      // Board dimensions
+      const CELL_SIZE = 2;
+      const BOARD_SIZE = 15;
+      const TOTAL_SIZE = BOARD_SIZE * CELL_SIZE;
+      const BOARD_HEIGHT = 8;
+
+      // Colors - More vibrant
+      const COLORS = {
+        RED: 0xe53935,
+        GREEN: 0x43a047,
+        BLUE: 0x1e88e5,
+        YELLOW: 0xffd600,
+        WHITE: 0xfafafa,
+        BOARD_BASE: 0xfff8e1,
+        BOARD_BORDER: 0x5d4037,
+        FLOOR: 0x2c2c3e,
+      };
+
+      // ============================================
+      // GAME STATE
+      // ============================================
+      const gameState = {
+        phase: "COLOR_SELECT", // COLOR_SELECT, ROLLING, MOVING, AI_TURN, GAME_OVER
+        humanColors: [],
+        aiColors: [],
+        currentColor: null,
+        turnOrder: ["RED", "GREEN", "YELLOW", "BLUE"],
+        currentTurnIndex: 0,
+        dice: [0, 0],
+        diceUsed: [false, false],
+        selectedToken: null,
+        tokens: {
+          RED: [
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+          ],
+          GREEN: [
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+          ],
+          BLUE: [
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+          ],
+          YELLOW: [
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+            { pos: -1, home: false },
+          ],
+        },
+        // pos: -1 = in home base, 0-51 = main track position, 100-105 = home path, 106 = finished
+        consecutiveSixes: 0,
+      };
+
+      // ============================================
+      // LOCAL STORAGE PERSISTENCE
+      // ============================================
+      const STORAGE_KEY = "ludo_game_state";
+
+      function saveGameState() {
+        const stateToSave = {
+          phase: gameState.phase,
+          humanColors: gameState.humanColors,
+          aiColors: gameState.aiColors,
+          currentColor: gameState.currentColor,
+          currentTurnIndex: gameState.currentTurnIndex,
+          dice: gameState.dice,
+          diceUsed: gameState.diceUsed,
+          tokens: gameState.tokens,
+          consecutiveSixes: gameState.consecutiveSixes,
+          savedAt: Date.now(),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+      }
+
+      function loadGameState() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return false;
+
+        try {
+          const savedState = JSON.parse(saved);
+
+          // Check if save is too old (24 hours)
+          if (Date.now() - savedState.savedAt > 24 * 60 * 60 * 1000) {
+            clearSavedGame();
+            return false;
+          }
+
+          // Restore state
+          gameState.phase = savedState.phase;
+          gameState.humanColors = savedState.humanColors;
+          gameState.aiColors = savedState.aiColors;
+          gameState.currentColor = savedState.currentColor;
+          gameState.currentTurnIndex = savedState.currentTurnIndex;
+          gameState.dice = savedState.dice;
+          gameState.diceUsed = savedState.diceUsed;
+          gameState.tokens = savedState.tokens;
+          gameState.consecutiveSixes = savedState.consecutiveSixes;
+
+          return true;
+        } catch (e) {
+          console.error("Failed to load saved game:", e);
+          clearSavedGame();
+          return false;
+        }
+      }
+
+      function clearSavedGame() {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+
+      function hasSavedGame() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return false;
+
+        try {
+          const savedState = JSON.parse(saved);
+          // Check if save is valid and not too old
+          if (
+            savedState.phase &&
+            savedState.phase !== "COLOR_SELECT" &&
+            savedState.phase !== "GAME_OVER" &&
+            Date.now() - savedState.savedAt < 24 * 60 * 60 * 1000
+          ) {
+            return true;
+          }
+        } catch (e) {
+          return false;
+        }
+        return false;
+      }
+
+      // ============================================
+      // BOARD PATH COORDINATES
+      // ============================================
+      // Main track: 52 positions going clockwise
+      // Starting positions: RED=0, GREEN=13, YELLOW=26, BLUE=39
+
+      const PATH_CONFIG = {
+        RED: { start: 0, homeEntry: 50, startSquare: 0 },
+        GREEN: { start: 13, homeEntry: 11, startSquare: 13 },
+        YELLOW: { start: 26, homeEntry: 24, startSquare: 26 },
+        BLUE: { start: 39, homeEntry: 37, startSquare: 39 },
+      };
+
+      // Safe squares: start positions (0, 13, 26, 39) and star positions (8, 19, 34, 45)
+      const SAFE_SQUARES = [0, 8, 13, 19, 26, 34, 39, 45];
+
+      // Generate main track coordinates (52 positions)
+      function generateMainPath() {
+        const path = [];
+        const c = CELL_SIZE; // c = 2
+
+        // 52 positions going CLOCKWISE around the outer track
+        // Starting from RED's start position
+        // All coordinates are in WORLD units (cell * CELL_SIZE)
+
+        // Position 0: RED START at cell (-6, -1) = world (-12, -2)
+        // Going right along top row of left arm (z = -1 * c = -2)
+        path.push({ x: -12, z: -2 }); // 0 - RED START at (-6, -1)
+        path.push({ x: -10, z: -2 }); // 1 - (-5, -1)
+        path.push({ x: -8, z: -2 }); // 2 - (-4, -1)
+        path.push({ x: -6, z: -2 }); // 3 - (-3, -1)
+        path.push({ x: -4, z: -2 }); // 4 - (-2, -1)
+
+        // Turn UP into top arm left column (x = -1 = -2 world)
+        path.push({ x: -2, z: -4 }); // 5 - (-1, -2)
+        path.push({ x: -2, z: -6 }); // 6 - (-1, -3)
+        path.push({ x: -2, z: -8 }); // 7 - (-1, -4)
+        path.push({ x: -2, z: -10 }); // 8 - SAFE at (-1, -5)
+        path.push({ x: -2, z: -12 }); // 9 - (-1, -6)
+        path.push({ x: -2, z: -14 }); // 10 - (-1, -7)
+
+        // Turn RIGHT along top edge
+        path.push({ x: 0, z: -14 }); // 11 - GREEN HOME ENTRY at (0, -7)
+        path.push({ x: 2, z: -14 }); // 12 - (1, -7)
+
+        // Continue DOWN top arm right column (x = 1 = 2 world)
+        path.push({ x: 2, z: -12 }); // 13 - GREEN START at (1, -6)
+        path.push({ x: 2, z: -10 }); // 14 - (1, -5)
+        path.push({ x: 2, z: -8 }); // 15 - (1, -4)
+        path.push({ x: 2, z: -6 }); // 16 - (1, -3)
+        path.push({ x: 2, z: -4 }); // 17 - (1, -2)
+
+        // Turn RIGHT into right arm top row (z = -1 = -2 world)
+        path.push({ x: 4, z: -2 }); // 18 - (2, -1)
+        path.push({ x: 6, z: -2 }); // 19 - SAFE at (3, -1)
+        path.push({ x: 8, z: -2 }); // 20 - (4, -1)
+        path.push({ x: 10, z: -2 }); // 21 - (5, -1)
+        path.push({ x: 12, z: -2 }); // 22 - (6, -1)
+        path.push({ x: 14, z: -2 }); // 23 - (7, -1)
+
+        // Turn DOWN along right edge
+        path.push({ x: 14, z: 0 }); // 24 - YELLOW HOME ENTRY at (7, 0)
+        path.push({ x: 14, z: 2 }); // 25 - (7, 1)
+
+        // Continue LEFT along right arm bottom row (z = 1 = 2 world)
+        path.push({ x: 12, z: 2 }); // 26 - YELLOW START at (6, 1)
+        path.push({ x: 10, z: 2 }); // 27 - (5, 1)
+        path.push({ x: 8, z: 2 }); // 28 - (4, 1)
+        path.push({ x: 6, z: 2 }); // 29 - (3, 1)
+        path.push({ x: 4, z: 2 }); // 30 - (2, 1)
+
+        // Turn DOWN into bottom arm right column (x = 1 = 2 world)
+        path.push({ x: 2, z: 4 }); // 31 - (1, 2)
+        path.push({ x: 2, z: 6 }); // 32 - (1, 3)
+        path.push({ x: 2, z: 8 }); // 33 - (1, 4)
+        path.push({ x: 2, z: 10 }); // 34 - SAFE at (1, 5)
+        path.push({ x: 2, z: 12 }); // 35 - (1, 6)
+        path.push({ x: 2, z: 14 }); // 36 - (1, 7)
+
+        // Turn LEFT along bottom edge
+        path.push({ x: 0, z: 14 }); // 37 - BLUE HOME ENTRY at (0, 7)
+        path.push({ x: -2, z: 14 }); // 38 - (-1, 7)
+
+        // Continue UP bottom arm left column (x = -1 = -2 world)
+        path.push({ x: -2, z: 12 }); // 39 - BLUE START at (-1, 6)
+        path.push({ x: -2, z: 10 }); // 40 - (-1, 5)
+        path.push({ x: -2, z: 8 }); // 41 - (-1, 4)
+        path.push({ x: -2, z: 6 }); // 42 - (-1, 3)
+        path.push({ x: -2, z: 4 }); // 43 - (-1, 2)
+
+        // Turn LEFT into left arm bottom row (z = 1 = 2 world)
+        path.push({ x: -4, z: 2 }); // 44 - (-2, 1)
+        path.push({ x: -6, z: 2 }); // 45 - SAFE at (-3, 1)
+        path.push({ x: -8, z: 2 }); // 46 - (-4, 1)
+        path.push({ x: -10, z: 2 }); // 47 - (-5, 1)
+        path.push({ x: -12, z: 2 }); // 48 - (-6, 1)
+        path.push({ x: -14, z: 2 }); // 49 - (-7, 1)
+
+        // Turn UP along left edge
+        path.push({ x: -14, z: 0 }); // 50 - RED HOME ENTRY at (-7, 0)
+        path.push({ x: -14, z: -2 }); // 51 - (-7, -1)
+
+        // Position 0 wraps back to RED START at (-6, -1) = (-12, -2) world
+
+        return path;
+      }
+
+      // Home path coordinates for each color (6 positions each)
+      // These are the colored cells leading to the center
+      // All coordinates are in WORLD units (cell * 2)
+      function getHomePath(color) {
+        const paths = {
+          // RED home path: horizontal from left, middle row (z=0)
+          // Entry from (-7, 0), path goes (-6, 0) to (-1, 0)
+          RED: [
+            { x: -12, z: 0 }, // (-6, 0)
+            { x: -10, z: 0 }, // (-5, 0)
+            { x: -8, z: 0 }, // (-4, 0)
+            { x: -6, z: 0 }, // (-3, 0)
+            { x: -4, z: 0 }, // (-2, 0)
+            { x: -2, z: 0 }, // (-1, 0)
+          ],
+          // GREEN home path: vertical from top, middle column (x=0)
+          // Entry from (0, -7), path goes (0, -6) to (0, -1)
+          GREEN: [
+            { x: 0, z: -12 }, // (0, -6)
+            { x: 0, z: -10 }, // (0, -5)
+            { x: 0, z: -8 }, // (0, -4)
+            { x: 0, z: -6 }, // (0, -3)
+            { x: 0, z: -4 }, // (0, -2)
+            { x: 0, z: -2 }, // (0, -1)
+          ],
+          // YELLOW home path: horizontal from right, middle row (z=0)
+          // Entry from (7, 0), path goes (6, 0) to (1, 0)
+          YELLOW: [
+            { x: 12, z: 0 }, // (6, 0)
+            { x: 10, z: 0 }, // (5, 0)
+            { x: 8, z: 0 }, // (4, 0)
+            { x: 6, z: 0 }, // (3, 0)
+            { x: 4, z: 0 }, // (2, 0)
+            { x: 2, z: 0 }, // (1, 0)
+          ],
+          // BLUE home path: vertical from bottom, middle column (x=0)
+          // Entry from (0, 7), path goes (0, 6) to (0, 1)
+          BLUE: [
+            { x: 0, z: 12 }, // (0, 6)
+            { x: 0, z: 10 }, // (0, 5)
+            { x: 0, z: 8 }, // (0, 4)
+            { x: 0, z: 6 }, // (0, 3)
+            { x: 0, z: 4 }, // (0, 2)
+            { x: 0, z: 2 }, // (0, 1)
+          ],
+        };
+        return paths[color];
+      }
+
+      // Home base positions for each color (where tokens start)
+      function getHomeBasePositions(color) {
+        // Home base center is at ±4.5 cells = ±9 world units
+        // Token positions are offset by ±1.3 cells = ±2.6 world units from center
+        const positions = {
+          RED: [
+            { x: -9 - 2.6, z: -9 - 2.6 }, // top-left slot
+            { x: -9 + 2.6, z: -9 - 2.6 }, // top-right slot
+            { x: -9 - 2.6, z: -9 + 2.6 }, // bottom-left slot
+            { x: -9 + 2.6, z: -9 + 2.6 }, // bottom-right slot
+          ],
+          GREEN: [
+            { x: 9 - 2.6, z: -9 - 2.6 },
+            { x: 9 + 2.6, z: -9 - 2.6 },
+            { x: 9 - 2.6, z: -9 + 2.6 },
+            { x: 9 + 2.6, z: -9 + 2.6 },
+          ],
+          BLUE: [
+            { x: -9 - 2.6, z: 9 - 2.6 },
+            { x: -9 + 2.6, z: 9 - 2.6 },
+            { x: -9 - 2.6, z: 9 + 2.6 },
+            { x: -9 + 2.6, z: 9 + 2.6 },
+          ],
+          YELLOW: [
+            { x: 9 - 2.6, z: 9 - 2.6 },
+            { x: 9 + 2.6, z: 9 - 2.6 },
+            { x: 9 - 2.6, z: 9 + 2.6 },
+            { x: 9 + 2.6, z: 9 + 2.6 },
+          ],
+        };
+        return positions[color];
+      }
+
+      let mainPath = [];
+
+      // ============================================
+      // COLOR SELECTION
+      // ============================================
+      function setupColorSelection() {
+        const options = document.querySelectorAll(".color-option");
+        const startBtn = document.getElementById("startGameBtn");
+        const continueBtn = document.getElementById("continueGameBtn");
+
+        // Check for saved game
+        if (hasSavedGame()) {
+          continueBtn.style.display = "block";
+        }
+
+        options.forEach((option) => {
+          option.addEventListener("click", () => {
+            const color = option.dataset.color;
+
+            if (option.classList.contains("selected")) {
+              option.classList.remove("selected");
+              gameState.humanColors = gameState.humanColors.filter(
+                (c) => c !== color
+              );
+            } else if (gameState.humanColors.length < 2) {
+              option.classList.add("selected");
+              gameState.humanColors.push(color);
+            }
+
+            updateTeamPreview();
+
+            if (gameState.humanColors.length === 2) {
+              startBtn.classList.add("ready");
+            } else {
+              startBtn.classList.remove("ready");
+            }
+          });
+        });
+
+        startBtn.addEventListener("click", () => {
+          if (gameState.humanColors.length === 2) {
+            clearSavedGame(); // Clear any old saved game
+            startGame();
+          }
+        });
+
+        continueBtn.addEventListener("click", () => {
+          resumeSavedGame();
+        });
+      }
+
+      function resumeSavedGame() {
+        if (!loadGameState()) {
+          alert("Could not load saved game. Starting new game.");
+          return;
+        }
+
+        // Hide color selection modal
+        document.getElementById("colorSelectModal").classList.add("hidden");
+        document.getElementById("gameStatus").classList.add("active");
+        document.getElementById("teamDisplay").classList.add("active");
+
+        // Update team display
+        updateTeamDisplay();
+
+        // Update dice display
+        document.getElementById("dice1").textContent = gameState.dice[0] || "-";
+        document.getElementById("dice2").textContent = gameState.dice[1] || "-";
+
+        // Restore token positions visually
+        setTimeout(() => {
+          restoreTokenPositions();
+          updateGameStatus();
+
+          // If it's AI's turn, continue AI play
+          if (gameState.aiColors.includes(gameState.currentColor)) {
+            if (gameState.phase === "ROLLING") {
+              setTimeout(doAITurn, 1000);
+            }
+          } else if (gameState.phase === "MOVING") {
+            highlightValidTokens();
+          }
+        }, 500);
+      }
+
+      function restoreTokenPositions() {
+        for (const color of Object.keys(gameState.tokens)) {
+          for (let i = 0; i < 4; i++) {
+            updateTokenMesh(color, i);
+          }
+        }
+      }
+
+      function updateTeamPreview() {
+        const humanPreview = document.getElementById("humanTeamPreview");
+        const aiPreview = document.getElementById("aiTeamPreview");
+        const allColors = ["RED", "GREEN", "BLUE", "YELLOW"];
+
+        gameState.aiColors = allColors.filter(
+          (c) => !gameState.humanColors.includes(c)
+        );
+
+        const colorHex = {
+          RED: "#e53935",
+          GREEN: "#43a047",
+          BLUE: "#1e88e5",
+          YELLOW: "#ffd600",
+        };
+
+        humanPreview.innerHTML =
+          gameState.humanColors
+            .map(
+              (c) =>
+                `<div class="color-dot" style="background: ${colorHex[c]}"></div>`
+            )
+            .join("") +
+          (gameState.humanColors.length < 2
+            ? '<div class="color-dot empty"></div>'.repeat(
+                2 - gameState.humanColors.length
+              )
+            : "");
+
+        aiPreview.innerHTML =
+          gameState.aiColors
+            .map(
+              (c) =>
+                `<div class="color-dot" style="background: ${colorHex[c]}"></div>`
+            )
+            .join("") +
+          (gameState.aiColors.length < 2
+            ? '<div class="color-dot empty"></div>'.repeat(
+                2 - gameState.aiColors.length
+              )
+            : "");
+      }
+
+      function startGame() {
+        document.getElementById("colorSelectModal").classList.add("hidden");
+        document.getElementById("gameStatus").classList.add("active");
+        document.getElementById("teamDisplay").classList.add("active");
+
+        // Populate team display
+        updateTeamDisplay();
+
+        gameState.phase = "ROLLING";
+        gameState.currentTurnIndex = 0;
+        gameState.currentColor = gameState.turnOrder[0];
+
+        updateGameStatus();
+        saveGameState(); // Save initial game state
+
+        // If first player is AI, start AI turn
+        if (gameState.aiColors.includes(gameState.currentColor)) {
+          setTimeout(doAITurn, 1000);
+        }
+      }
+
+      function updateTeamDisplay() {
+        const humanDisplay = document.getElementById("humanTeamDisplay");
+        const aiDisplay = document.getElementById("aiTeamDisplay");
+
+        humanDisplay.innerHTML = gameState.humanColors
+          .map(
+            (color) =>
+              `<div class="team-color-badge ${color.toLowerCase()}">
+                <div class="team-color-dot ${color.toLowerCase()}"></div>
+                ${color}
+              </div>`
+          )
+          .join("");
+
+        aiDisplay.innerHTML = gameState.aiColors
+          .map(
+            (color) =>
+              `<div class="team-color-badge ${color.toLowerCase()}">
+                <div class="team-color-dot ${color.toLowerCase()}"></div>
+                ${color}
+              </div>`
+          )
+          .join("");
+      }
+
+      function updateGameStatus() {
+        const indicator = document.getElementById("turnIndicator");
+        const statusText = document.getElementById("statusText");
+        const colorHex = {
+          RED: "#e53935",
+          GREEN: "#43a047",
+          BLUE: "#1e88e5",
+          YELLOW: "#ffd600",
+        };
+
+        indicator.style.background = colorHex[gameState.currentColor];
+
+        const isHuman = gameState.humanColors.includes(gameState.currentColor);
+        statusText.textContent = `${gameState.currentColor}'s Turn ${
+          isHuman ? "(You)" : "(AI)"
+        }`;
+
+        if (gameState.phase === "ROLLING") {
+          statusText.textContent += " - Roll!";
+        } else if (gameState.phase === "MOVING") {
+          statusText.textContent += " - Select token";
+        }
+      }
+
+      // ============================================
+      // GAME LOGIC
+      // ============================================
+      function getTokenPosition(color, tokenIndex) {
+        const token = gameState.tokens[color][tokenIndex];
+        const pos = token.pos;
+
+        if (token.home) {
+          return { x: 0, z: 0, finished: true }; // Center
+        }
+
+        if (pos === -1) {
+          // In home base
+          return getHomeBasePositions(color)[tokenIndex];
+        }
+
+        if (pos >= 100 && pos <= 105) {
+          // On home path
+          return getHomePath(color)[pos - 100];
+        }
+
+        // On main track - convert to actual position for this color
+        const actualPos = (pos + PATH_CONFIG[color].start) % 52;
+        return mainPath[actualPos];
+      }
+
+      function canMoveToken(color, tokenIndex, diceValue) {
+        const token = gameState.tokens[color][tokenIndex];
+
+        if (token.home) return false; // Already finished
+
+        if (token.pos === -1) {
+          // In home base - need a 6 to get out
+          return diceValue === 6;
+        }
+
+        const currentPos = token.pos;
+        const newPos = currentPos + diceValue;
+
+        // Check if entering home path
+        const config = PATH_CONFIG[color];
+        const distanceToHomeEntry = (config.homeEntry - config.start + 52) % 52;
+        const currentDistance = currentPos;
+        const newDistance = currentPos + diceValue;
+
+        if (
+          currentDistance <= distanceToHomeEntry &&
+          newDistance > distanceToHomeEntry
+        ) {
+          // Entering home path
+          const stepsIntoHome = newDistance - distanceToHomeEntry - 1;
+          if (stepsIntoHome > 5) return false; // Can't overshoot
+          return true;
+        }
+
+        if (currentPos >= 100) {
+          // Already on home path
+          const homePos = currentPos - 100;
+          const newHomePos = homePos + diceValue;
+          if (newHomePos > 6) return false; // Can't overshoot center
+          return true;
+        }
+
+        // Normal movement on main track
+        return true;
+      }
+
+      function getValidMoves(color, diceValues) {
+        const moves = [];
+
+        diceValues.forEach((dice, diceIndex) => {
+          if (gameState.diceUsed[diceIndex]) return;
+
+          for (let i = 0; i < 4; i++) {
+            if (canMoveToken(color, i, dice)) {
+              moves.push({ tokenIndex: i, diceIndex, diceValue: dice });
+            }
+          }
+        });
+
+        // Also check combined dice (if both unused and not doubles)
+        // NOTE: Combined dice CANNOT be used to bring tokens out of home base!
+        // You must roll an actual 6 on one die to exit home.
+        if (
+          !gameState.diceUsed[0] &&
+          !gameState.diceUsed[1] &&
+          diceValues[0] !== diceValues[1]
+        ) {
+          const combined = diceValues[0] + diceValues[1];
+          for (let i = 0; i < 4; i++) {
+            const token = gameState.tokens[color][i];
+            // Skip tokens in home base - they need an actual 6, not combined
+            if (token.pos === -1) continue;
+
+            if (canMoveToken(color, i, combined)) {
+              moves.push({
+                tokenIndex: i,
+                diceIndex: -1,
+                diceValue: combined,
+                combined: true,
+              });
+            }
+          }
+        }
+
+        return moves;
+      }
+
+      function moveToken(color, tokenIndex, diceValue, diceIndex) {
+        const token = gameState.tokens[color][tokenIndex];
+
+        if (token.pos === -1) {
+          // Moving out of home base
+          token.pos = 0; // Start position
+        } else if (token.pos >= 100) {
+          // On home path
+          const homePos = token.pos - 100 + diceValue;
+          if (homePos >= 6) {
+            token.home = true;
+            token.pos = 106;
+          } else {
+            token.pos = 100 + homePos;
+          }
+        } else {
+          // On main track
+          const config = PATH_CONFIG[color];
+          const distanceToHomeEntry =
+            (config.homeEntry - config.start + 52) % 52;
+          const currentDistance = token.pos;
+          const newDistance = token.pos + diceValue;
+
+          if (
+            currentDistance <= distanceToHomeEntry &&
+            newDistance > distanceToHomeEntry
+          ) {
+            // Entering home path
+            const stepsIntoHome = newDistance - distanceToHomeEntry - 1;
+            token.pos = 100 + stepsIntoHome;
+          } else {
+            token.pos = (token.pos + diceValue) % 52;
+          }
+        }
+
+        // Mark dice as used
+        if (diceIndex === -1) {
+          gameState.diceUsed = [true, true];
+        } else {
+          gameState.diceUsed[diceIndex] = true;
+        }
+
+        // Check for capture (only on main track, not on safe squares)
+        if (token.pos >= 0 && token.pos < 52) {
+          const actualPos = (token.pos + PATH_CONFIG[color].start) % 52;
+
+          if (!SAFE_SQUARES.includes(actualPos)) {
+            // Check for other tokens at this position
+            for (const otherColor of Object.keys(gameState.tokens)) {
+              if (otherColor === color) continue;
+
+              for (let i = 0; i < 4; i++) {
+                const otherToken = gameState.tokens[otherColor][i];
+                if (otherToken.pos >= 0 && otherToken.pos < 52) {
+                  const otherActualPos =
+                    (otherToken.pos + PATH_CONFIG[otherColor].start) % 52;
+                  if (otherActualPos === actualPos) {
+                    // Capture!
+                    otherToken.pos = -1;
+                    updateTokenMesh(otherColor, i);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Update visual
+        updateTokenMesh(color, tokenIndex);
+
+        // Save game state after move
+        saveGameState();
+
+        return true;
+      }
+
+      function updateTokenMesh(color, tokenIndex) {
+        const mesh = tokenMeshes[color][tokenIndex];
+        if (!mesh) return;
+
+        const pos = getTokenPosition(color, tokenIndex);
+
+        if (pos.finished) {
+          mesh.visible = false;
+        } else {
+          mesh.visible = true;
+          animateTokenTo(mesh, pos.x, pos.z, 0.3); // Y relative to boardGroup
+        }
+      }
+
+      function animateTokenTo(mesh, targetX, targetZ, targetY) {
+        const startX = mesh.position.x;
+        const startZ = mesh.position.z;
+        const baseY = targetY || mesh.position.y;
+        const duration = 400;
+        const startTime = Date.now();
+
+        function animate() {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const ease = 1 - Math.pow(1 - progress, 3);
+
+          mesh.position.x = startX + (targetX - startX) * ease;
+          mesh.position.z = startZ + (targetZ - startZ) * ease;
+
+          // Add hop effect
+          const hop = Math.sin(progress * Math.PI) * 3;
+          mesh.position.y = baseY + hop;
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            mesh.position.y = baseY;
+          }
+        }
+
+        animate();
+      }
+
+      function endTurn() {
+        // Check for win
+        const humanFinished = gameState.humanColors.every((color) =>
+          gameState.tokens[color].every((t) => t.home)
+        );
+        const aiFinished = gameState.aiColors.every((color) =>
+          gameState.tokens[color].every((t) => t.home)
+        );
+
+        if (humanFinished) {
+          gameState.phase = "GAME_OVER";
+          clearSavedGame(); // Clear saved game on win
+          alert("🎉 Congratulations! You WIN!");
+          return;
+        }
+        if (aiFinished) {
+          gameState.phase = "GAME_OVER";
+          clearSavedGame(); // Clear saved game on win
+          alert("🤖 AI Wins! Better luck next time!");
+          return;
+        }
+
+        // Check for extra turn (rolled 6 or double 6)
+        const hasExtra = gameState.dice[0] === 6 || gameState.dice[1] === 6;
+
+        if (hasExtra && gameState.consecutiveSixes < 3) {
+          gameState.consecutiveSixes++;
+          gameState.phase = "ROLLING";
+          gameState.diceUsed = [false, false];
+          updateGameStatus();
+          saveGameState(); // Save after turn change
+
+          if (gameState.aiColors.includes(gameState.currentColor)) {
+            setTimeout(doAITurn, 1000);
+          }
+          return;
+        }
+
+        // Next player
+        gameState.consecutiveSixes = 0;
+        gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % 4;
+        gameState.currentColor =
+          gameState.turnOrder[gameState.currentTurnIndex];
+        gameState.phase = "ROLLING";
+        gameState.diceUsed = [false, false];
+
+        updateGameStatus();
+        saveGameState(); // Save after turn change
+
+        if (gameState.aiColors.includes(gameState.currentColor)) {
+          setTimeout(doAITurn, 1000);
+        }
+      }
+
+      // ============================================
+      // AI LOGIC
+      // ============================================
+      function doAITurn() {
+        if (gameState.phase !== "ROLLING") return;
+
+        // Show AI is rolling - use animated dice roll so player can see
+        rollDice(); // This shows the animation
+
+        // Wait for dice animation to finish (1.3 seconds)
+        setTimeout(() => {
+          const moves = getValidMoves(gameState.currentColor, gameState.dice);
+
+          if (moves.length === 0) {
+            setTimeout(endTurn, 800);
+            return;
+          }
+
+          // AI strategy: prioritize captures, then getting out, then advancing
+          let bestMove = moves[0];
+          let bestScore = -Infinity;
+
+          for (const move of moves) {
+            let score = 0;
+            const token =
+              gameState.tokens[gameState.currentColor][move.tokenIndex];
+
+            // Prefer getting tokens out
+            if (token.pos === -1 && move.diceValue === 6) {
+              score += 50;
+            }
+
+            // Prefer moving tokens close to home
+            if (token.pos >= 0) {
+              score += token.pos; // Higher position = closer to home
+            }
+
+            // Prefer captures (check if landing on opponent)
+            if (token.pos >= 0 && token.pos < 52) {
+              const newPos = (token.pos + move.diceValue) % 52;
+              const actualNewPos =
+                (newPos + PATH_CONFIG[gameState.currentColor].start) % 52;
+
+              if (!SAFE_SQUARES.includes(actualNewPos)) {
+                for (const otherColor of gameState.humanColors) {
+                  for (let i = 0; i < 4; i++) {
+                    const otherToken = gameState.tokens[otherColor][i];
+                    if (otherToken.pos >= 0 && otherToken.pos < 52) {
+                      const otherActualPos =
+                        (otherToken.pos + PATH_CONFIG[otherColor].start) % 52;
+                      if (otherActualPos === actualNewPos) {
+                        score += 100; // Big bonus for capture
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            // Prefer moving into home path
+            if (token.pos >= 100) {
+              score += 30;
+            }
+
+            if (score > bestScore) {
+              bestScore = score;
+              bestMove = move;
+            }
+          }
+
+          // Wait a moment so player can see the dice values, then move
+          setTimeout(() => {
+            // Execute move
+            moveToken(
+              gameState.currentColor,
+              bestMove.tokenIndex,
+              bestMove.diceValue,
+              bestMove.diceIndex
+            );
+
+            // Check if more moves available
+            const remainingMoves = getValidMoves(
+              gameState.currentColor,
+              gameState.dice
+            );
+            if (
+              remainingMoves.length > 0 &&
+              (!gameState.diceUsed[0] || !gameState.diceUsed[1])
+            ) {
+              // AI has more moves with unused dice
+              setTimeout(() => doAITurn(), 800);
+            } else {
+              setTimeout(endTurn, 500);
+            }
+          }, 800); // Wait after seeing dice
+        }, 1500); // Wait for dice animation
+      }
+
+      function rollDiceLogic() {
+        const dice1 = Math.floor(Math.random() * 6) + 1;
+        const dice2 = Math.floor(Math.random() * 6) + 1;
+        gameState.dice = [dice1, dice2];
+        gameState.diceUsed = [false, false];
+
+        document.getElementById("dice1").textContent = dice1;
+        document.getElementById("dice2").textContent = dice2;
+
+        saveGameState(); // Save after dice roll
+
+        return [dice1, dice2];
+      }
+
+      function init() {
+        // Scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+
+        // Add fog for depth
+        scene.fog = new THREE.Fog(0x1a1a2e, 80, 200);
+
+        // Camera
+        camera = new THREE.PerspectiveCamera(
+          50,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(0, 50, 50);
+        camera.lookAt(0, BOARD_HEIGHT, 0);
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document
+          .getElementById("gameContainer")
+          .appendChild(renderer.domElement);
+
+        // Lights - Better lighting setup
+        setupLighting();
+
+        // Create floor/table
+        createFloor();
+
+        // Create the board with legs
+        createLudoBoard();
+
+        // Create dice
+        createDice();
+
+        // Setup controls
+        setupCameraControls();
+
+        // Initialize game path
+        mainPath = generateMainPath();
+
+        // Setup color selection
+        setupColorSelection();
+
+        // Setup token click detection
+        setupTokenSelection();
+
+        // Event listeners
+        window.addEventListener("resize", onWindowResize);
+        document
+          .getElementById("rollBtn")
+          .addEventListener("click", handleRollClick);
+        document
+          .getElementById("resetCamera")
+          .addEventListener("click", resetCamera);
+
+        // Rules modal event listeners
+        document
+          .getElementById("rulesBtn")
+          .addEventListener("click", showRules);
+        document
+          .getElementById("closeRules")
+          .addEventListener("click", hideRules);
+        document.getElementById("rulesModal").addEventListener("click", (e) => {
+          if (e.target.id === "rulesModal") hideRules();
+        });
+
+        // Start animation
+        animate();
+      }
+
+      // ============================================
+      // HUMAN PLAYER INPUT
+      // ============================================
+      function handleRollClick() {
+        if (gameState.phase !== "ROLLING") return;
+        if (!gameState.humanColors.includes(gameState.currentColor)) return;
+
+        rollDice();
+
+        setTimeout(() => {
+          const moves = getValidMoves(gameState.currentColor, gameState.dice);
+          if (moves.length === 0) {
+            setTimeout(endTurn, 500);
+          } else {
+            gameState.phase = "MOVING";
+            updateGameStatus();
+            highlightValidTokens();
+            saveGameState(); // Save when entering move phase
+          }
+        }, 1300);
+      }
+
+      function highlightValidTokens() {
+        const moves = getValidMoves(gameState.currentColor, gameState.dice);
+        const validTokenIndices = [...new Set(moves.map((m) => m.tokenIndex))];
+
+        // Add visual highlight to valid tokens
+        for (let i = 0; i < 4; i++) {
+          const mesh = tokenMeshes[gameState.currentColor][i];
+          if (validTokenIndices.includes(i)) {
+            mesh.scale.set(1.2, 1.2, 1.2);
+          } else {
+            mesh.scale.set(1, 1, 1);
+          }
+        }
+      }
+
+      function clearTokenHighlights() {
+        for (const color of Object.keys(tokenMeshes)) {
+          for (let i = 0; i < 4; i++) {
+            tokenMeshes[color][i].scale.set(1, 1, 1);
+          }
+        }
+      }
+
+      function setupTokenSelection() {
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        renderer.domElement.addEventListener("click", (event) => {
+          if (gameState.phase !== "MOVING") return;
+          if (!gameState.humanColors.includes(gameState.currentColor)) return;
+
+          mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+          mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+          raycaster.setFromCamera(mouse, camera);
+
+          // Get all token meshes for current color
+          const currentTokens = tokenMeshes[gameState.currentColor];
+          const allMeshes = [];
+          currentTokens.forEach((tokenGroup, index) => {
+            tokenGroup.traverse((child) => {
+              if (child.isMesh) {
+                child.userData.tokenIndex = index;
+                allMeshes.push(child);
+              }
+            });
+          });
+
+          const intersects = raycaster.intersectObjects(allMeshes);
+
+          if (intersects.length > 0) {
+            const tokenIndex = intersects[0].object.userData.tokenIndex;
+            handleTokenClick(tokenIndex);
+          }
+        });
+      }
+
+      function handleTokenClick(tokenIndex) {
+        const moves = getValidMoves(gameState.currentColor, gameState.dice);
+        const validMoves = moves.filter((m) => m.tokenIndex === tokenIndex);
+
+        if (validMoves.length === 0) return;
+
+        // Use first valid move for this token (prioritize single dice over combined)
+        const move = validMoves.find((m) => !m.combined) || validMoves[0];
+
+        clearTokenHighlights();
+        moveToken(
+          gameState.currentColor,
+          move.tokenIndex,
+          move.diceValue,
+          move.diceIndex
+        );
+
+        // Check if more moves available
+        setTimeout(() => {
+          const remainingMoves = getValidMoves(
+            gameState.currentColor,
+            gameState.dice
+          );
+          if (
+            remainingMoves.length > 0 &&
+            (!gameState.diceUsed[0] || !gameState.diceUsed[1])
+          ) {
+            gameState.phase = "MOVING";
+            highlightValidTokens();
+          } else {
+            endTurn();
+          }
+        }, 400);
+      }
+
+      // ============================================
+      // RULES MODAL FUNCTIONS
+      // ============================================
+      function showRules() {
+        document.getElementById("rulesModal").classList.add("active");
+      }
+
+      function hideRules() {
+        document.getElementById("rulesModal").classList.remove("active");
+      }
+
+      function setupLighting() {
+        // Ambient light
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        // Main directional light (sun)
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        mainLight.position.set(30, 50, 30);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 4096;
+        mainLight.shadow.mapSize.height = 4096;
+        mainLight.shadow.camera.near = 0.5;
+        mainLight.shadow.camera.far = 150;
+        mainLight.shadow.camera.left = -50;
+        mainLight.shadow.camera.right = 50;
+        mainLight.shadow.camera.top = 50;
+        mainLight.shadow.camera.bottom = -50;
+        mainLight.shadow.bias = -0.0001;
+        scene.add(mainLight);
+
+        // Fill light
+        const fillLight = new THREE.DirectionalLight(0x9bb5ff, 0.3);
+        fillLight.position.set(-20, 30, -20);
+        scene.add(fillLight);
+
+        // Rim light
+        const rimLight = new THREE.DirectionalLight(0xffe4b5, 0.2);
+        rimLight.position.set(0, 10, -40);
+        scene.add(rimLight);
+
+        // Point lights for board highlights
+        const pointLight1 = new THREE.PointLight(0xffaa00, 0.3, 40);
+        pointLight1.position.set(-15, BOARD_HEIGHT + 10, -15);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0x00aaff, 0.3, 40);
+        pointLight2.position.set(15, BOARD_HEIGHT + 10, 15);
+        scene.add(pointLight2);
+      }
+
+      function createFloor() {
+        // Large floor/table surface
+        const floorGeometry = new THREE.PlaneGeometry(200, 200);
+        const floorMaterial = new THREE.MeshStandardMaterial({
+          color: COLORS.FLOOR,
+          roughness: 0.8,
+          metalness: 0.2,
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Subtle grid pattern on floor
+        const gridHelper = new THREE.GridHelper(200, 50, 0x333344, 0x222233);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+      }
+
+      // ============================================
+      // LUDO BOARD CREATION
+      // ============================================
+      function createLudoBoard() {
+        const boardGroup = new THREE.Group();
+        boardGroup.position.y = BOARD_HEIGHT;
+
+        // Board legs
+        createBoardLegs(boardGroup);
+
+        // Main board base with frame
+        createBoardBase(boardGroup);
+
+        // Four colored home bases (corners)
+        createHomeBase(boardGroup, -4.5, -4.5, COLORS.RED, "RED");
+        createHomeBase(boardGroup, 4.5, -4.5, COLORS.GREEN, "GREEN");
+        createHomeBase(boardGroup, -4.5, 4.5, COLORS.BLUE, "BLUE");
+        createHomeBase(boardGroup, 4.5, 4.5, COLORS.YELLOW, "YELLOW");
+
+        // Create the cross-shaped path
+        createPathCells(boardGroup);
+
+        // Create center home triangle
+        createCenterHome(boardGroup);
+
+        scene.add(boardGroup);
+      }
+
+      function createBoardLegs(boardGroup) {
+        // Four elegant turned legs
+        const legPositions = [
+          [-TOTAL_SIZE / 2 + 2, -TOTAL_SIZE / 2 + 2],
+          [TOTAL_SIZE / 2 - 2, -TOTAL_SIZE / 2 + 2],
+          [-TOTAL_SIZE / 2 + 2, TOTAL_SIZE / 2 - 2],
+          [TOTAL_SIZE / 2 - 2, TOTAL_SIZE / 2 - 2],
+        ];
+
+        const legMaterial = new THREE.MeshStandardMaterial({
+          color: 0x4a3728,
+          roughness: 0.4,
+          metalness: 0.1,
+        });
+
+        legPositions.forEach(([x, z]) => {
+          const legGroup = new THREE.Group();
+
+          // Main leg shaft
+          const legGeometry = new THREE.CylinderGeometry(
+            0.8,
+            1.0,
+            BOARD_HEIGHT - 1,
+            16
+          );
+          const leg = new THREE.Mesh(legGeometry, legMaterial);
+          leg.position.y = -BOARD_HEIGHT / 2;
+          leg.castShadow = true;
+          legGroup.add(leg);
+
+          // Top connector (decorative)
+          const topGeo = new THREE.CylinderGeometry(1.2, 0.8, 0.8, 16);
+          const top = new THREE.Mesh(topGeo, legMaterial);
+          top.position.y = -0.8;
+          top.castShadow = true;
+          legGroup.add(top);
+
+          // Middle bulge (decorative)
+          const midGeo = new THREE.SphereGeometry(1.1, 16, 16);
+          const mid = new THREE.Mesh(midGeo, legMaterial);
+          mid.scale.y = 0.6;
+          mid.position.y = -BOARD_HEIGHT / 2;
+          mid.castShadow = true;
+          legGroup.add(mid);
+
+          // Foot
+          const footGeo = new THREE.CylinderGeometry(1.3, 1.5, 0.5, 16);
+          const foot = new THREE.Mesh(footGeo, legMaterial);
+          foot.position.y = -BOARD_HEIGHT + 0.25;
+          foot.castShadow = true;
+          legGroup.add(foot);
+
+          legGroup.position.set(x, 0, z);
+          boardGroup.add(legGroup);
+        });
+      }
+
+      function createBoardBase(boardGroup) {
+        const borderThickness = 2;
+        const frameHeight = 1.2;
+
+        // Main board surface (glossy)
+        const baseGeometry = new THREE.BoxGeometry(TOTAL_SIZE, 0.8, TOTAL_SIZE);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+          color: COLORS.BOARD_BASE,
+          roughness: 0.3,
+          metalness: 0.05,
+        });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        base.position.y = -0.4;
+        base.receiveShadow = true;
+        base.castShadow = true;
+        boardGroup.add(base);
+
+        // Wooden frame
+        const frameMaterial = new THREE.MeshStandardMaterial({
+          color: COLORS.BOARD_BORDER,
+          roughness: 0.4,
+          metalness: 0.1,
+        });
+
+        // Frame pieces with beveled look
+        const frameData = [
+          {
+            pos: [0, 0, -(TOTAL_SIZE / 2 + borderThickness / 2)],
+            size: [
+              TOTAL_SIZE + borderThickness * 2,
+              frameHeight,
+              borderThickness,
+            ],
+          },
+          {
+            pos: [0, 0, TOTAL_SIZE / 2 + borderThickness / 2],
+            size: [
+              TOTAL_SIZE + borderThickness * 2,
+              frameHeight,
+              borderThickness,
+            ],
+          },
+          {
+            pos: [-(TOTAL_SIZE / 2 + borderThickness / 2), 0, 0],
+            size: [borderThickness, frameHeight, TOTAL_SIZE],
+          },
+          {
+            pos: [TOTAL_SIZE / 2 + borderThickness / 2, 0, 0],
+            size: [borderThickness, frameHeight, TOTAL_SIZE],
+          },
+        ];
+
+        frameData.forEach((f) => {
+          const geo = new THREE.BoxGeometry(...f.size);
+          const mesh = new THREE.Mesh(geo, frameMaterial);
+          mesh.position.set(...f.pos);
+          mesh.position.y = frameHeight / 2 - 0.4;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          boardGroup.add(mesh);
+        });
+
+        // Corner decorations
+        const cornerGeo = new THREE.CylinderGeometry(
+          borderThickness * 0.8,
+          borderThickness * 0.8,
+          frameHeight,
+          16
+        );
+        const corners = [
+          [
+            -(TOTAL_SIZE / 2 + borderThickness / 2),
+            -(TOTAL_SIZE / 2 + borderThickness / 2),
+          ],
+          [
+            TOTAL_SIZE / 2 + borderThickness / 2,
+            -(TOTAL_SIZE / 2 + borderThickness / 2),
+          ],
+          [
+            -(TOTAL_SIZE / 2 + borderThickness / 2),
+            TOTAL_SIZE / 2 + borderThickness / 2,
+          ],
+          [
+            TOTAL_SIZE / 2 + borderThickness / 2,
+            TOTAL_SIZE / 2 + borderThickness / 2,
+          ],
+        ];
+
+        corners.forEach(([x, z]) => {
+          const corner = new THREE.Mesh(cornerGeo, frameMaterial);
+          corner.position.set(x, frameHeight / 2 - 0.4, z);
+          corner.castShadow = true;
+          boardGroup.add(corner);
+        });
+      }
+
+      function createHomeBase(boardGroup, x, z, color, colorName) {
+        const baseSize = 6 * CELL_SIZE;
+        const innerSize = 4.5 * CELL_SIZE;
+
+        // Colored base (slightly raised)
+        const baseGeo = new THREE.BoxGeometry(baseSize, 0.5, baseSize);
+        const baseMat = new THREE.MeshStandardMaterial({
+          color: color,
+          roughness: 0.4,
+          metalness: 0.1,
+        });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.set(x * CELL_SIZE, 0.25, z * CELL_SIZE);
+        base.receiveShadow = true;
+        boardGroup.add(base);
+
+        // White inner square (raised)
+        const innerGeo = new THREE.BoxGeometry(innerSize, 0.6, innerSize);
+        const innerMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.3,
+          metalness: 0.05,
+        });
+        const inner = new THREE.Mesh(innerGeo, innerMat);
+        inner.position.set(x * CELL_SIZE, 0.35, z * CELL_SIZE);
+        inner.receiveShadow = true;
+        boardGroup.add(inner);
+
+        // Colored border line inside white area
+        const borderLineGeo = new THREE.BoxGeometry(
+          innerSize - 0.5,
+          0.65,
+          innerSize - 0.5
+        );
+        const borderLineMat = new THREE.MeshStandardMaterial({
+          color: color,
+          roughness: 0.5,
+        });
+        const borderLine = new THREE.Mesh(borderLineGeo, borderLineMat);
+        borderLine.position.set(x * CELL_SIZE, 0.33, z * CELL_SIZE);
+        boardGroup.add(borderLine);
+
+        // Inner white again
+        const inner2Geo = new THREE.BoxGeometry(
+          innerSize - 1.5,
+          0.7,
+          innerSize - 1.5
+        );
+        const inner2 = new THREE.Mesh(inner2Geo, innerMat);
+        inner2.position.set(x * CELL_SIZE, 0.38, z * CELL_SIZE);
+        inner2.receiveShadow = true;
+        boardGroup.add(inner2);
+
+        // Four token circles and tokens
+        const circlePositions = [
+          [-1.3, -1.3],
+          [1.3, -1.3],
+          [-1.3, 1.3],
+          [1.3, 1.3],
+        ];
+
+        // Initialize token storage for this color
+        if (!tokenMeshes[colorName]) {
+          tokenMeshes[colorName] = [];
+        }
+
+        circlePositions.forEach(([cx, cz], index) => {
+          // Circle pit (colored depression)
+          const pitGeo = new THREE.CylinderGeometry(1.0, 1.0, 0.3, 32);
+          const pitMat = new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: 0.5,
+          });
+          const pit = new THREE.Mesh(pitGeo, pitMat);
+          pit.position.set(
+            x * CELL_SIZE + cx * CELL_SIZE,
+            0.55,
+            z * CELL_SIZE + cz * CELL_SIZE
+          );
+          boardGroup.add(pit);
+
+          // White ring around pit
+          const ringGeo = new THREE.TorusGeometry(1.0, 0.15, 8, 32);
+          const ringMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.3,
+          });
+          const ring = new THREE.Mesh(ringGeo, ringMat);
+          ring.rotation.x = -Math.PI / 2;
+          ring.position.set(
+            x * CELL_SIZE + cx * CELL_SIZE,
+            0.72,
+            z * CELL_SIZE + cz * CELL_SIZE
+          );
+          boardGroup.add(ring);
+
+          // Create token (chess-pawn style piece)
+          const token = createToken(color, colorName);
+          token.position.set(
+            x * CELL_SIZE + cx * CELL_SIZE,
+            0.3, // Sit on the base
+            z * CELL_SIZE + cz * CELL_SIZE
+          );
+          token.userData.color = colorName;
+          token.userData.index = index;
+          boardGroup.add(token);
+
+          // Store reference in tokenMeshes
+          tokenMeshes[colorName][index] = token;
+        });
+      }
+
+      // ============================================
+      // TOKEN/PIECE CREATION (Chess Pawn Style)
+      // ============================================
+      function createToken(color, colorName) {
+        const tokenGroup = new THREE.Group();
+
+        const tokenMaterial = new THREE.MeshStandardMaterial({
+          color: color,
+          roughness: 0.2,
+          metalness: 0.3,
+        });
+
+        const highlightMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.3,
+          metalness: 0.1,
+        });
+
+        // Base (wide bottom)
+        const baseGeo = new THREE.CylinderGeometry(0.7, 0.8, 0.3, 24);
+        const base = new THREE.Mesh(baseGeo, tokenMaterial);
+        base.position.y = 0.15;
+        base.castShadow = true;
+        tokenGroup.add(base);
+
+        // Base ring
+        const baseRingGeo = new THREE.TorusGeometry(0.75, 0.08, 8, 24);
+        const baseRing = new THREE.Mesh(baseRingGeo, highlightMaterial);
+        baseRing.rotation.x = -Math.PI / 2;
+        baseRing.position.y = 0.3;
+        tokenGroup.add(baseRing);
+
+        // Lower body (tapered cylinder)
+        const lowerGeo = new THREE.CylinderGeometry(0.5, 0.65, 0.6, 24);
+        const lower = new THREE.Mesh(lowerGeo, tokenMaterial);
+        lower.position.y = 0.6;
+        lower.castShadow = true;
+        tokenGroup.add(lower);
+
+        // Middle section (narrow)
+        const midGeo = new THREE.CylinderGeometry(0.35, 0.5, 0.5, 24);
+        const mid = new THREE.Mesh(midGeo, tokenMaterial);
+        mid.position.y = 1.1;
+        mid.castShadow = true;
+        tokenGroup.add(mid);
+
+        // Neck (very narrow)
+        const neckGeo = new THREE.CylinderGeometry(0.25, 0.35, 0.3, 24);
+        const neck = new THREE.Mesh(neckGeo, tokenMaterial);
+        neck.position.y = 1.45;
+        neck.castShadow = true;
+        tokenGroup.add(neck);
+
+        // Collar ring
+        const collarGeo = new THREE.TorusGeometry(0.32, 0.06, 8, 24);
+        const collar = new THREE.Mesh(collarGeo, highlightMaterial);
+        collar.rotation.x = -Math.PI / 2;
+        collar.position.y = 1.55;
+        tokenGroup.add(collar);
+
+        // Head (sphere)
+        const headGeo = new THREE.SphereGeometry(0.4, 24, 24);
+        const head = new THREE.Mesh(headGeo, tokenMaterial);
+        head.position.y = 1.9;
+        head.castShadow = true;
+        tokenGroup.add(head);
+
+        // Top highlight
+        const topHighlightGeo = new THREE.SphereGeometry(0.15, 16, 16);
+        const topHighlight = new THREE.Mesh(topHighlightGeo, highlightMaterial);
+        topHighlight.position.y = 2.2;
+        tokenGroup.add(topHighlight);
+
+        tokenGroup.userData = { color: colorName };
+        return tokenGroup;
+      }
+
+      function createPathCells(boardGroup) {
+        const cellHeight = 0.25;
+        const cellGap = 0.05;
+
+        function createCell(x, z, color = COLORS.WHITE, hasStar = false) {
+          // Cell base
+          const geo = new THREE.BoxGeometry(
+            CELL_SIZE - cellGap,
+            cellHeight,
+            CELL_SIZE - cellGap
+          );
+          const mat = new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: 0.4,
+            metalness: 0.05,
+          });
+          const cell = new THREE.Mesh(geo, mat);
+          cell.position.set(
+            x * CELL_SIZE,
+            cellHeight / 2 + 0.01,
+            z * CELL_SIZE
+          );
+          cell.receiveShadow = true;
+          cell.castShadow = true;
+          boardGroup.add(cell);
+
+          // Cell border (thin black line effect)
+          const borderGeo = new THREE.BoxGeometry(
+            CELL_SIZE - cellGap + 0.1,
+            cellHeight * 0.3,
+            CELL_SIZE - cellGap + 0.1
+          );
+          const borderMat = new THREE.MeshStandardMaterial({
+            color: 0x222222,
+            roughness: 0.8,
+          });
+          const border = new THREE.Mesh(borderGeo, borderMat);
+          border.position.set(x * CELL_SIZE, 0.02, z * CELL_SIZE);
+          boardGroup.add(border);
+
+          if (hasStar) {
+            addStar(boardGroup, x * CELL_SIZE, z * CELL_SIZE, cellHeight);
+          }
+        }
+
+        // TOP VERTICAL PATH (Green home path - connects to GREEN triangle pointing UP)
+        // Green home path in middle column, entry cell (row -7) is white
+        for (let row = -7; row <= -2; row++) {
+          // Skip creating white cell at SAFE position
+          if (row !== -5) {
+            createCell(-1, row); // Left column - outer track (white)
+          }
+          createCell(0, row, row === -7 ? COLORS.WHITE : COLORS.GREEN); // Middle column - green except entry
+          // Skip creating white cell at GREEN START position
+          if (row !== -6) {
+            createCell(1, row); // Right column - outer track (white)
+          }
+        }
+        // Add the joining cell at row -1 (connects to center triangle)
+        createCell(0, -1, COLORS.GREEN);
+        // Green START square (where tokens enter main track) - right side (x=1)
+        createCell(1, -6, COLORS.GREEN, true);
+        // Safe square on left side (x=-1)
+        createCell(-1, -5, COLORS.WHITE, true);
+
+        // BOTTOM VERTICAL PATH (Blue home path - connects to BLUE triangle pointing DOWN)
+        // Blue home path in middle column, entry cell (row 7) is white
+        for (let row = 2; row <= 7; row++) {
+          // Skip creating white cell at BLUE START position
+          if (row !== 6) {
+            createCell(-1, row); // Left column - outer track (white)
+          }
+          createCell(0, row, row === 7 ? COLORS.WHITE : COLORS.BLUE); // Middle column - blue except entry
+          // Skip creating white cell at SAFE position
+          if (row !== 5) {
+            createCell(1, row); // Right column - outer track (white)
+          }
+        }
+        // Add the joining cell at row 1 (connects to center triangle)
+        createCell(0, 1, COLORS.BLUE);
+        // Blue START square (where tokens enter main track) - left side (x=-1)
+        createCell(-1, 6, COLORS.BLUE, true);
+        // Safe square on right side (x=1)
+        createCell(1, 5, COLORS.WHITE, true);
+
+        // LEFT HORIZONTAL PATH (Red home path - connects to RED triangle pointing LEFT)
+        // Red home path in middle row, entry cell (col -7) is white
+        for (let col = -7; col <= -2; col++) {
+          // Skip creating white cell at RED START position - we'll create it as RED with star below
+          if (col !== -6) {
+            createCell(col, -1); // Top row - outer track (white)
+          }
+          createCell(col, 0, col === -7 ? COLORS.WHITE : COLORS.RED); // Middle row - red except entry
+          // Skip creating white cell at SAFE position - we'll create it with star below
+          if (col !== -3) {
+            createCell(col, 1); // Bottom row - outer track (white)
+          }
+        }
+        // Add the joining cell at col -1 (connects to center triangle)
+        createCell(-1, 0, COLORS.RED);
+        // Red START square (where tokens enter main track) - top side (z=-1)
+        createCell(-6, -1, COLORS.RED, true);
+        // Safe square on bottom side (z=1)
+        createCell(-3, 1, COLORS.WHITE, true);
+
+        // RIGHT HORIZONTAL PATH (Yellow home path - connects to YELLOW triangle pointing RIGHT)
+        // Yellow home path in middle row, entry cell (col 7) is white
+        for (let col = 2; col <= 7; col++) {
+          // Skip creating white cell at SAFE position
+          if (col !== 3) {
+            createCell(col, -1); // Top row - outer track (white)
+          }
+          createCell(col, 0, col === 7 ? COLORS.WHITE : COLORS.YELLOW); // Middle row - yellow except entry
+          // Skip creating white cell at YELLOW START position
+          if (col !== 6) {
+            createCell(col, 1); // Bottom row - outer track (white)
+          }
+        }
+        // Add the joining cell at col 1 (connects to center triangle)
+        createCell(1, 0, COLORS.YELLOW);
+        // Yellow START square (where tokens enter main track) - bottom side (z=1)
+        createCell(6, 1, COLORS.YELLOW, true);
+        // Safe square on top side (z=-1)
+        createCell(3, -1, COLORS.WHITE, true);
+      }
+
+      function createCenterHome(boardGroup) {
+        // Size from center to corner of the square
+        const L = CELL_SIZE * 1.9;
+
+        // Create 4 triangles that completely fill a square
+        // Each triangle shares the center vertex and two adjacent corners
+        // This eliminates any white gaps between triangles
+
+        // Square corners at (±L, 0, ±L):
+        // front-right: (L, 0, L), back-right: (L, 0, -L)
+        // back-left: (-L, 0, -L), front-left: (-L, 0, L)
+
+        const triangleData = [
+          {
+            // RED - fills LEFT side of square
+            color: COLORS.RED,
+            vertices: [
+              [0, 0, 0], // Center
+              [-L, 0, -L], // Back-left corner
+              [-L, 0, L], // Front-left corner
+            ],
+          },
+          {
+            // BLUE - fills TOP/BACK side of square
+            color: COLORS.BLUE,
+            vertices: [
+              [0, 0, 0], // Center
+              [L, 0, -L], // Back-right corner
+              [-L, 0, -L], // Back-left corner
+            ],
+          },
+          {
+            // YELLOW - fills RIGHT side of square
+            color: COLORS.YELLOW,
+            vertices: [
+              [0, 0, 0], // Center
+              [L, 0, L], // Front-right corner
+              [L, 0, -L], // Back-right corner
+            ],
+          },
+          {
+            // GREEN - fills BOTTOM/FRONT side of square
+            color: COLORS.GREEN,
+            vertices: [
+              [0, 0, 0], // Center
+              [-L, 0, L], // Front-left corner
+              [L, 0, L], // Front-right corner
+            ],
+          },
+        ];
+
+        triangleData.forEach((data) => {
+          // Create a 2D shape for extrusion
+          // We'll create in XY plane then rotate to XZ
+          const shape = new THREE.Shape();
+
+          // Map the XZ coordinates to a 2D shape (use X for shape X, use Z for shape Y)
+          shape.moveTo(data.vertices[0][0], data.vertices[0][2]); // Tip
+          shape.lineTo(data.vertices[1][0], data.vertices[1][2]); // Base left
+          shape.lineTo(data.vertices[2][0], data.vertices[2][2]); // Base right
+          shape.closePath();
+
+          const geometry = new THREE.ExtrudeGeometry(shape, {
+            depth: 0.4,
+            bevelEnabled: true,
+            bevelThickness: 0.05,
+            bevelSize: 0.05,
+            bevelSegments: 2,
+          });
+
+          const material = new THREE.MeshStandardMaterial({
+            color: data.color,
+            roughness: 0.4,
+            metalness: 0.15,
+          });
+
+          const mesh = new THREE.Mesh(geometry, material);
+          // Rotate to lay flat (XY shape -> XZ plane)
+          mesh.rotation.x = -Math.PI / 2;
+          mesh.position.y = 0.3;
+          mesh.castShadow = true;
+          boardGroup.add(mesh);
+        });
+
+        // Center decorative piece
+        const centerGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.6, 32);
+        const centerMat = new THREE.MeshStandardMaterial({
+          color: 0xffd700,
+          roughness: 0.2,
+          metalness: 0.6,
+        });
+        const center = new THREE.Mesh(centerGeo, centerMat);
+        center.position.y = 0.6;
+        center.castShadow = true;
+        boardGroup.add(center);
+
+        // Center dome
+        const domeGeo = new THREE.SphereGeometry(
+          0.4,
+          32,
+          32,
+          0,
+          Math.PI * 2,
+          0,
+          Math.PI / 2
+        );
+        const dome = new THREE.Mesh(domeGeo, centerMat);
+        dome.position.y = 0.9;
+        dome.castShadow = true;
+        boardGroup.add(dome);
+      }
+
+      function addStar(boardGroup, x, z, baseHeight) {
+        const starShape = new THREE.Shape();
+        const outerRadius = 0.6;
+        const innerRadius = 0.3;
+        const points = 5;
+
+        for (let i = 0; i < points * 2; i++) {
+          const radius = i % 2 === 0 ? outerRadius : innerRadius;
+          const angle = (i * Math.PI) / points - Math.PI / 2;
+          if (i === 0) {
+            starShape.moveTo(
+              Math.cos(angle) * radius,
+              Math.sin(angle) * radius
+            );
+          } else {
+            starShape.lineTo(
+              Math.cos(angle) * radius,
+              Math.sin(angle) * radius
+            );
+          }
+        }
+        starShape.closePath();
+
+        const geometry = new THREE.ExtrudeGeometry(starShape, {
+          depth: 0.2,
+          bevelEnabled: true,
+          bevelThickness: 0.03,
+          bevelSize: 0.03,
+          bevelSegments: 1,
+        });
+        const material = new THREE.MeshStandardMaterial({
+          color: 0xffd700,
+          roughness: 0.2,
+          metalness: 0.5,
+          emissive: 0x332200,
+          emissiveIntensity: 0.2,
+        });
+        const star = new THREE.Mesh(geometry, material);
+        star.rotation.x = -Math.PI / 2;
+        star.position.set(x, baseHeight + 0.2, z);
+        star.castShadow = true;
+        boardGroup.add(star);
+      }
+
+      // ============================================
+      // DICE CREATION
+      // ============================================
+      function createDice() {
+        dice1Mesh = createSingleDice(-4, BOARD_HEIGHT + 2);
+        dice2Mesh = createSingleDice(4, BOARD_HEIGHT + 2);
+        scene.add(dice1Mesh);
+        scene.add(dice2Mesh);
+      }
+
+      function createSingleDice(x, y) {
+        const diceSize = 2.5;
+        const diceGroup = new THREE.Group();
+
+        // Dice body with rounded edges
+        const geometry = new THREE.BoxGeometry(
+          diceSize,
+          diceSize,
+          diceSize,
+          4,
+          4,
+          4
+        );
+        const material = new THREE.MeshStandardMaterial({
+          color: 0xfffafa,
+          roughness: 0.15,
+          metalness: 0.05,
+        });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.castShadow = true;
+        cube.receiveShadow = true;
+        diceGroup.add(cube);
+
+        // Pips
+        const pipRadius = 0.18;
+        const pipGeometry = new THREE.SphereGeometry(pipRadius, 16, 16);
+        const pipMaterial = new THREE.MeshStandardMaterial({
+          color: 0x111111,
+          roughness: 0.4,
+        });
+
+        const offset = diceSize / 2 + 0.02;
+        const spread = 0.55;
+
+        // Add pips to each face with correct positions
+        // Face 1 - front (z+) - 1 pip center
+        addPip(0, 0, offset);
+
+        // Face 6 - back (z-) - 6 pips in 2 columns of 3
+        addPip(-spread, spread, -offset);
+        addPip(spread, spread, -offset);
+        addPip(-spread, 0, -offset);
+        addPip(spread, 0, -offset);
+        addPip(-spread, -spread, -offset);
+        addPip(spread, -spread, -offset);
+
+        // Face 2 - right (x+) - 2 pips diagonal
+        addPip(offset, spread, -spread);
+        addPip(offset, -spread, spread);
+
+        // Face 5 - left (x-) - 5 pips (4 corners + center)
+        addPip(-offset, spread, -spread);
+        addPip(-offset, spread, spread);
+        addPip(-offset, 0, 0);
+        addPip(-offset, -spread, -spread);
+        addPip(-offset, -spread, spread);
+
+        // Face 3 - top (y+) - 3 pips diagonal
+        addPip(spread, offset, -spread);
+        addPip(0, offset, 0);
+        addPip(-spread, offset, spread);
+
+        // Face 4 - bottom (y-) - 4 pips in corners
+        addPip(-spread, -offset, -spread);
+        addPip(spread, -offset, -spread);
+        addPip(-spread, -offset, spread);
+        addPip(spread, -offset, spread);
+
+        function addPip(x, y, z) {
+          const pip = new THREE.Mesh(pipGeometry, pipMaterial);
+          pip.position.set(x, y, z);
+          diceGroup.add(pip);
+        }
+
+        diceGroup.position.set(x, y, 20);
+        return diceGroup;
+      }
+
+      // Dice face rotations - which rotation shows which value on TOP
+      // Based on pip layout: 1=front(z+), 6=back(z-), 2=right(x+), 5=left(x-), 3=top(y+), 4=bottom(y-)
+      const DICE_ROTATIONS = {
+        1: { x: -Math.PI / 2, y: 0, z: 0 }, // Rotate front face to top
+        2: { x: 0, y: 0, z: Math.PI / 2 }, // Rotate right face to top
+        3: { x: 0, y: 0, z: 0 }, // Top face already showing 3
+        4: { x: Math.PI, y: 0, z: 0 }, // Flip to show bottom (4)
+        5: { x: 0, y: 0, z: -Math.PI / 2 }, // Rotate left face to top
+        6: { x: Math.PI / 2, y: 0, z: 0 }, // Rotate back face to top
+      };
+
+      async function rollDice() {
+        if (isRolling) return;
+        isRolling = true;
+
+        const dice1Value = Math.floor(Math.random() * 6) + 1;
+        const dice2Value = Math.floor(Math.random() * 6) + 1;
+
+        const duration = 1200;
+        const startTime = Date.now();
+        const startY = dice1Mesh.position.y;
+
+        // Store starting rotations
+        const start1 = {
+          x: dice1Mesh.rotation.x,
+          y: dice1Mesh.rotation.y,
+          z: dice1Mesh.rotation.z,
+        };
+        const start2 = {
+          x: dice2Mesh.rotation.x,
+          y: dice2Mesh.rotation.y,
+          z: dice2Mesh.rotation.z,
+        };
+
+        // Target rotations for final values (with some random full spins for visual effect)
+        const spins1 = Math.floor(Math.random() * 3) + 2; // 2-4 full spins
+        const spins2 = Math.floor(Math.random() * 3) + 2;
+        const target1 = {
+          x: DICE_ROTATIONS[dice1Value].x + Math.PI * 2 * spins1,
+          y: DICE_ROTATIONS[dice1Value].y + Math.PI * 2 * spins1 * 0.7,
+          z: DICE_ROTATIONS[dice1Value].z,
+        };
+        const target2 = {
+          x: DICE_ROTATIONS[dice2Value].x + Math.PI * 2 * spins2,
+          y: DICE_ROTATIONS[dice2Value].y + Math.PI * 2 * spins2 * 0.8,
+          z: DICE_ROTATIONS[dice2Value].z,
+        };
+
+        const animateDice = () => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          // Easing - ease out cubic
+          const ease = 1 - Math.pow(1 - progress, 3);
+
+          // Interpolate rotation toward target
+          dice1Mesh.rotation.x = start1.x + (target1.x - start1.x) * ease;
+          dice1Mesh.rotation.y = start1.y + (target1.y - start1.y) * ease;
+          dice1Mesh.rotation.z = start1.z + (target1.z - start1.z) * ease;
+
+          dice2Mesh.rotation.x = start2.x + (target2.x - start2.x) * ease;
+          dice2Mesh.rotation.y = start2.y + (target2.y - start2.y) * ease;
+          dice2Mesh.rotation.z = start2.z + (target2.z - start2.z) * ease;
+
+          // Bounce effect
+          const bounce = Math.sin(progress * Math.PI * 4) * (1 - progress) * 3;
+          dice1Mesh.position.y = startY + bounce;
+          dice2Mesh.position.y = startY + bounce;
+
+          if (progress < 1) {
+            requestAnimationFrame(animateDice);
+          } else {
+            // Set exact final rotation for correct face display
+            dice1Mesh.rotation.x = DICE_ROTATIONS[dice1Value].x;
+            dice1Mesh.rotation.y = DICE_ROTATIONS[dice1Value].y;
+            dice1Mesh.rotation.z = DICE_ROTATIONS[dice1Value].z;
+
+            dice2Mesh.rotation.x = DICE_ROTATIONS[dice2Value].x;
+            dice2Mesh.rotation.y = DICE_ROTATIONS[dice2Value].y;
+            dice2Mesh.rotation.z = DICE_ROTATIONS[dice2Value].z;
+
+            dice1Mesh.position.y = startY;
+            dice2Mesh.position.y = startY;
+
+            // Update game state with dice values
+            gameState.dice = [dice1Value, dice2Value];
+            gameState.diceUsed = [false, false];
+
+            document.getElementById("dice1").textContent = dice1Value;
+            document.getElementById("dice2").textContent = dice2Value;
+
+            saveGameState(); // Save after dice roll
+            isRolling = false;
+          }
+        };
+
+        animateDice();
+      }
+
+      // ============================================
+      // CAMERA CONTROLS
+      // ============================================
+      function setupCameraControls() {
+        let isDragging = false;
+        let isRightDragging = false;
+        let previousMouse = { x: 0, y: 0 };
+        let spherical = { theta: Math.PI / 4, phi: Math.PI / 3.5, radius: 65 };
+        let panOffset = { x: 0, y: BOARD_HEIGHT, z: 0 };
+
+        function updateCamera() {
+          camera.position.x =
+            spherical.radius *
+              Math.sin(spherical.phi) *
+              Math.cos(spherical.theta) +
+            panOffset.x;
+          camera.position.y =
+            spherical.radius * Math.cos(spherical.phi) + panOffset.y;
+          camera.position.z =
+            spherical.radius *
+              Math.sin(spherical.phi) *
+              Math.sin(spherical.theta) +
+            panOffset.z;
+          camera.lookAt(panOffset.x, panOffset.y, panOffset.z);
+        }
+
+        updateCamera();
+
+        const canvas = renderer.domElement;
+
+        canvas.addEventListener("mousedown", (e) => {
+          if (e.button === 0) isDragging = true;
+          else if (e.button === 2) isRightDragging = true;
+          previousMouse = { x: e.clientX, y: e.clientY };
+        });
+
+        canvas.addEventListener("mousemove", (e) => {
+          const deltaX = e.clientX - previousMouse.x;
+          const deltaY = e.clientY - previousMouse.y;
+
+          if (isDragging) {
+            spherical.theta -= deltaX * 0.008;
+            spherical.phi -= deltaY * 0.008;
+            spherical.phi = Math.max(
+              0.2,
+              Math.min(Math.PI / 2.1, spherical.phi)
+            );
+            updateCamera();
+          }
+
+          if (isRightDragging) {
+            panOffset.x -= deltaX * 0.08;
+            panOffset.z -= deltaY * 0.08;
+            updateCamera();
+          }
+
+          previousMouse = { x: e.clientX, y: e.clientY };
+        });
+
+        canvas.addEventListener("mouseup", () => {
+          isDragging = false;
+          isRightDragging = false;
+        });
+        canvas.addEventListener("mouseleave", () => {
+          isDragging = false;
+          isRightDragging = false;
+        });
+
+        canvas.addEventListener("wheel", (e) => {
+          e.preventDefault();
+          spherical.radius += e.deltaY * 0.05;
+          spherical.radius = Math.max(30, Math.min(120, spherical.radius));
+          updateCamera();
+        });
+
+        canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+        window.resetCameraState = () => {
+          spherical = { theta: Math.PI / 4, phi: Math.PI / 3.5, radius: 65 };
+          panOffset = { x: 0, y: BOARD_HEIGHT, z: 0 };
+          updateCamera();
+        };
+      }
+
+      function resetCamera() {
+        if (window.resetCameraState) window.resetCameraState();
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      }
+
+      // Initialize
+      init();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ludo Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+            display: none; /* Hidden by default */
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 12px;
+            border-left: 5px solid #fff;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+
+        #turn-indicator { font-size: 24px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        #game-info { font-size: 16px; opacity: 0.9; }
+        
+        /* Player Colors for UI */
+        .turn-red { border-color: #ff4d4d !important; color: #ff4d4d; }
+        .turn-green { border-color: #4dff4d !important; color: #4dff4d; }
+        .turn-yellow { border-color: #ffff4d !important; color: #ffff4d; }
+        .turn-blue { border-color: #4d4dff !important; color: #4d4dff; }
+
+        #zoom-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+            display: none; /* Hidden by default */
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #fff;
+            color: white;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .zoom-btn:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.1); }
+        .zoom-btn:active { transform: scale(0.95); }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            opacity: 0.5;
+            font-size: 14px;
+            pointer-events: none;
+            display: none; /* Hidden by default */
+        }
+
+        /* Modal Styles */
+        #start-modal {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            backdrop-filter: blur(10px);
+        }
+        
+        .modal-content {
+            background: rgba(20, 20, 20, 0.95);
+            width: 500px;
+            max-width: 90%;
+            border-radius: 16px;
+            border: 1px solid #333;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            padding: 30px;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+            text-align: center;
+        }
+
+        .modal-title { font-size: 32px; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; text-transform: uppercase; background: linear-gradient(45deg, #ff4d4d, #4d4dff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .rules-box {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 8px;
+            height: 150px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 14px;
+            margin-bottom: 25px;
+            border: 1px solid #333;
+            line-height: 1.6;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 10px;
+        }
+
+        .setting-label { font-weight: bold; color: #aaa; }
+        
+        .btn-group { display: flex; gap: 10px; }
+        
+        .toggle-btn {
+            background: #333;
+            border: 1px solid #555;
+            color: #ccc;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .toggle-btn.active {
+            background: #4d4dff;
+            color: white;
+            border-color: #6666ff;
+            box-shadow: 0 0 10px rgba(77, 77, 255, 0.5);
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #ff4d4d, #ff9900);
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .start-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); }
+
+    </style>
+    <!-- GSAP for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+    <!-- Start Modal -->
+    <div id="start-modal">
+        <div class="modal-content">
+            <div class="modal-title">3D Ludo Match</div>
+            
+            <div class="rules-box">
+                <strong>How to Play:</strong><br>
+                • <strong>6 to Start:</strong> You must roll a 6 to move a token out of the yard.<br>
+                • <strong>Capture:</strong> Landing on an opponent's token sends them back to start.<br>
+                • <strong>Safe Zones:</strong> Starred tiles are safe. No capturing allowed there.<br>
+                • <strong>Goal:</strong> Navigate the board to reach the center home triangle.
+            </div>
+
+            <div class="settings-row">
+                <span class="setting-label">Dice Mode</span>
+                <div class="btn-group" id="dice-select">
+                    <button class="toggle-btn active" onclick="selectDice(1)">1 Die</button>
+                    <button class="toggle-btn" onclick="selectDice(2)">2 Dice</button>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <span class="setting-label">Players</span>
+                <div class="btn-group" id="player-select">
+                    <button class="toggle-btn" onclick="selectPlayers(2)">2 Players</button>
+                    <button class="toggle-btn active" onclick="selectPlayers(4)">4 Players</button>
+                </div>
+            </div>
+
+            <button class="start-btn" onclick="startGame()">Start Match</button>
+        </div>
+        </div>
+    </div>
+
+    <!-- Match End Modal -->
+    <div id="end-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 300; backdrop-filter: blur(10px); align-items: center; justify-content: center; flex-direction: column;">
+        <div class="modal-content" style="text-align: center;">
+            <div class="modal-title" id="winner-title">Winner!</div>
+            <div style="font-size: 18px; color: #ccc; margin-bottom: 20px;">Match Statistics</div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 30px;">
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #fff;" id="stat-sixes">0</div>
+                    <div style="font-size: 12px; color: #aaa;">6s Rolled</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #fff;" id="stat-captures">0</div>
+                    <div style="font-size: 12px; color: #aaa;">Captures</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                    <div style="font-size: 24px; font-weight: bold; color: #fff;" id="stat-distance">0</div>
+                    <div style="font-size: 12px; color: #aaa;">Distance</div>
+                </div>
+            </div>
+
+            <button class="start-btn" onclick="location.reload()">Restart Match</button>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <div id="turn-indicator" class="panel turn-red">Red's Turn</div>
+        <div id="game-info" class="panel">Click Dice to Roll</div>
+    </div>
+    
+    <div id="zoom-controls">
+        <button class="zoom-btn" id="btn-zoom-in">+</button>
+        <button class="zoom-btn" id="btn-zoom-out">−</button>
+    </div>
+
+    <div id="controls-hint">Drag to Rotate • Scroll to Zoom</div>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Global Config & Handlers ---
+        window.gameConfig = {
+            diceCount: 1,
+            playerCount: 4
+        };
+
+        window.selectDice = (n) => {
+            window.gameConfig.diceCount = n;
+            document.querySelectorAll('#dice-select .toggle-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+        };
+
+        window.selectPlayers = (n) => {
+            window.gameConfig.playerCount = n;
+            document.querySelectorAll('#player-select .toggle-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+        };
+
+        window.startGame = () => {
+            const modal = document.getElementById('start-modal');
+            const gameUI = document.getElementById('ui-layer');
+            const zoomUI = document.getElementById('zoom-controls');
+            const hintUI = document.getElementById('controls-hint');
+            
+            // Fade out modal
+            gsap.to(modal, { opacity: 0, duration: 0.5, onComplete: () => modal.style.display = 'none' });
+            
+            // Fade in UI
+            gameUI.style.display = 'flex';
+            zoomUI.style.display = 'flex';
+            hintUI.style.display = 'block';
+            gsap.from([gameUI, zoomUI, hintUI], { opacity: 0, scale: 0.9, duration: 0.5, delay: 0.3 });
+
+            // Initialize Game
+            initGame();
+        };
+
+        // --- THREE.js & Game Logic ---
+        
+        // --- Configuration ---
+        const config = {
+            bgColor: 0x111111,
+            gridColor: 0x888888,
+            gridSize: 20,
+            gridDivisions: 20
+        };
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(config.bgColor);
+        scene.fog = new THREE.Fog(config.bgColor, 10, 50);
+
+        // --- Camera ---
+        const camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 1000 );
+        camera.position.set( 0, 10, 15 );
+
+        // --- Renderer ---
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+        document.body.appendChild( renderer.domElement );
+
+        // --- Controls ---
+        const controls = new OrbitControls( camera, renderer.domElement );
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 5;
+        controls.maxDistance = 50;
+        
+        // --- Zoom Logic ---
+        function smoothZoom(direction) {
+            const step = 5;
+            const currentDist = camera.position.distanceTo(controls.target);
+            let targetDist = currentDist - (step * direction);
+            targetDist = Math.max(controls.minDistance, Math.min(controls.maxDistance, targetDist));
+            const scale = targetDist / currentDist;
+            const v = new THREE.Vector3().copy(camera.position).sub(controls.target);
+            v.multiplyScalar(scale).add(controls.target);
+            gsap.to(camera.position, { x: v.x, y: v.y, z: v.z, duration: 0.5, ease: "power2.out" });
+        }
+        document.getElementById('btn-zoom-in').addEventListener('click', () => smoothZoom(1));
+        document.getElementById('btn-zoom-out').addEventListener('click', () => smoothZoom(-1));
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight( 0x404040, 0.4 ); 
+        scene.add( ambientLight );
+        const dirLight = new THREE.DirectionalLight( 0xffffff, 1.5 );
+        dirLight.position.set( 10, 20, 10 );
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048; 
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.radius = 4;
+        scene.add( dirLight );
+        const spotLight = new THREE.SpotLight( 0x9090ff, 100 );
+        spotLight.position.set( -10, 20, -5 );
+        spotLight.castShadow = true;
+        scene.add( spotLight );
+
+        // --- Materials ---
+        const materials = {
+            red: new THREE.MeshStandardMaterial({ color: 0xff0000 }),
+            green: new THREE.MeshStandardMaterial({ color: 0x00ff00 }),
+            blue: new THREE.MeshStandardMaterial({ color: 0x0000ff }),
+            yellow: new THREE.MeshStandardMaterial({ color: 0xffff00 }),
+            white: new THREE.MeshStandardMaterial({ color: 0xffffff }),
+            default: new THREE.MeshStandardMaterial({ color: 0xffffff }) 
+        };
+
+        // --- Board Logic ---
+        function createBoard() {
+            const boardGroup = new THREE.Group();
+            const tileSize = 2; const gap = 0.1; const height = 0.5;
+            for(let x = 0; x < 15; x++) {
+                for(let z = 0; z < 15; z++) {
+                    let mat = materials.white;
+                    if (x < 6 && z < 6) mat = materials.red;
+                    else if (x > 8 && z < 6) mat = materials.green;
+                    else if (x < 6 && z > 8) mat = materials.blue;
+                    else if (x > 8 && z > 8) mat = materials.yellow;
+                    else if (z === 7 && x > 0 && x < 6) mat = materials.red;
+                    else if (x === 7 && z > 0 && z < 6) mat = materials.green;
+                    else if (z === 7 && x > 8 && x < 14) mat = materials.yellow;
+                    else if (x === 7 && z > 8 && z < 14) mat = materials.blue;
+                    else if (x === 7 && z === 7) mat = materials.default; 
+                    if (x === 1 && z === 6) mat = materials.red;
+                    if (x === 8 && z === 1) mat = materials.green;
+                    if (x === 13 && z === 8) mat = materials.yellow;
+                    if (x === 6 && z === 13) mat = materials.blue;
+                    const cube = new THREE.Mesh(new THREE.BoxGeometry(tileSize, height, tileSize), mat);
+                    cube.position.set((x - 7) * (tileSize + gap), height / 2, (z - 7) * (tileSize + gap));
+                    cube.castShadow = true; cube.receiveShadow = true;
+                    boardGroup.add(cube);
+                }
+            }
+            return boardGroup;
+        }
+        scene.add(createBoard());
+
+        // --- Token Logic ---
+        function createPawn(colorMat) {
+            const pawnGroup = new THREE.Group();
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 1, 32), colorMat);
+            base.position.y = 0.5; base.castShadow = true; base.receiveShadow = true;
+            pawnGroup.add(base);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), colorMat);
+            head.position.y = 1.1; head.castShadow = true; head.receiveShadow = true;
+            pawnGroup.add(head);
+            pawnGroup.scale.set(1.2, 1.2, 1.2); 
+            return pawnGroup;
+        }
+
+        const pawns = [];
+        
+        function placePawns() {
+            const tileSize = 2; const gap = 0.1;
+            function getPosition(x, z) { return { x: (x - 7) * (tileSize + gap), z: (z - 7) * (tileSize + gap), y: 0.5 }; }
+            const configs = [
+                { color: 'red', mat: materials.red, positions: [[2,2], [2,3], [3,2], [3,3]] },
+                { color: 'green', mat: materials.green, positions: [[11,2], [11,3], [12,2], [12,3]] },
+                { color: 'blue', mat: materials.blue, positions: [[2,11], [2,12], [3,11], [3,12]] },
+                { color: 'yellow', mat: materials.yellow, positions: [[11,11], [11,12], [12,11], [12,12]] }
+            ];
+            configs.forEach(config => {
+                config.positions.forEach(pos => {
+                    const pawn = createPawn(config.mat);
+                    const worldPos = getPosition(pos[0], pos[1]);
+                    pawn.position.set(worldPos.x, worldPos.y, worldPos.z);
+                    pawn.userData = { color: config.color, gridX: pos[0], gridZ: pos[1], originalPos: { ...worldPos } };
+                    scene.add(pawn);
+                    pawns.push(pawn);
+                });
+            });
+        }
+        placePawns();
+
+        // --- Pathfinding Logic ---
+        const outerTrack = [
+            [1,6],[2,6],[3,6],[4,6],[5,6],[6,5],[6,4],[6,3],[6,2],[6,1],[6,0],
+            [7,0],[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],
+            [14,7],[14,8],[13,8],[12,8],[11,8],[10,8],[9,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],
+            [7,14],[6,14],[6,13],[6,12],[6,11],[6,10],[6,9],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6]
+        ];
+        const entryIndices = { red: 0, green: 13, yellow: 26, blue: 39 };
+
+        // Home Paths (Coordinates for the 5 steps into the center)
+        const homePaths = {
+            red: [[1,7],[2,7],[3,7],[4,7],[5,7]], // Red starts left, moves Right
+            green: [[7,1],[7,2],[7,3],[7,4],[7,5]], // Green starts top, moves Down
+            yellow: [[13,7],[12,7],[11,7],[10,7],[9,7]], // Yellow starts right, moves Left
+            blue: [[7,13],[7,12],[7,11],[7,10],[7,9]] // Blue starts bottom, moves Up
+        };
+        const finishTiles = { red: [6,7], green: [7,6], yellow: [8,7], blue: [7,8] }; // Center Triangles
+
+        function getTileWorldPos(gx, gz) {
+            const tileSize = 2; const gap = 0.1;
+            return { x: (gx - 7) * (tileSize + gap), z: (gz - 7) * (tileSize + gap), y: 0.5 };
+        }
+
+        // --- Collision & Capturing & Movement ---
+        const safeIndices = [0, 8, 13, 21, 26, 34, 39, 47]; 
+        const LAP_LENGTH = 51; // 52 steps in track (0-51)
+
+        function capturePawn(targetPawn) {
+            console.log(`Capturing ${targetPawn.userData.color} pawn!`);
+            
+            // Stats: Attacker (Current Player) gets a capture
+            const attackerColor = window.gameState.players[window.gameState.currentPlayerIndex];
+            if (window.gameState.stats[attackerColor]) window.gameState.stats[attackerColor].captures++;
+
+            const tl = gsap.timeline();
+            tl.to(targetPawn.scale, { x: 0, y: 0, z: 0, duration: 0.3, ease: "back.in(1.7)" });
+            tl.call(() => {
+                const orig = targetPawn.userData.originalPos;
+                targetPawn.position.set(orig.x, orig.y, orig.z);
+                targetPawn.userData.pathIndex = undefined; 
+                targetPawn.userData.state = 'YARD';
+                targetPawn.userData.stepsMoved = 0;
+            });
+            tl.to(targetPawn.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 0.5, ease: "elastic.out(1, 0.3)" });
+        }
+
+
+        function checkCollision(activePawn) {
+            const currentIndex = activePawn.userData.pathIndex;
+            if (safeIndices.includes(currentIndex)) return;
+            pawns.forEach(otherPawn => {
+                if (otherPawn === activePawn) return;
+                const ownerActive = getOwner(activePawn.userData.color);
+                const ownerOther = getOwner(otherPawn.userData.color);
+                // FRIENDLY FIRE CHECK: If same owner, do NOT capture.
+                if (ownerActive === ownerOther) return;
+                
+                if (otherPawn.userData.pathIndex === currentIndex) {
+                    capturePawn(otherPawn);
+                }
+            });
+        }
+
+        function movePawn(pawn, steps) {
+            // STATE INIT
+            if (!pawn.userData.state) pawn.userData.state = (pawn.userData.pathIndex === undefined) ? 'YARD' : 'TRACK';
+            if (pawn.userData.stepsMoved === undefined) pawn.userData.stepsMoved = 0;
+
+            const isStarting = (pawn.userData.state === 'YARD');
+            
+            // ENTRY LOGIC
+            if (isStarting) {
+                pawn.userData.pathIndex = entryIndices[pawn.userData.color] || 0;
+                pawn.userData.state = 'TRACK';
+                pawn.userData.stepsMoved = 0;
+                
+                const entryPos = getTileWorldPos(outerTrack[pawn.userData.pathIndex][0], outerTrack[pawn.userData.pathIndex][1]);
+                const tl = gsap.timeline({ onComplete: () => { 
+                    const extraSteps = steps - 6;
+                    if (extraSteps > 0) movePawnForward(pawn, extraSteps);
+                    else { checkCollision(pawn); nextTurn(); }
+                }});
+                tl.to(pawn.position, { x: entryPos.x, z: entryPos.z, y: entryPos.y, duration: 0.5, ease: "back.out(1.2)" });
+                return;
+            }
+            
+            movePawnForward(pawn, steps);
+        }
+
+        function movePawnForward(pawn, steps) {
+            // Stats: Add Distance
+            if (window.gameState.stats[pawn.userData.color]) window.gameState.stats[pawn.userData.color].distance += steps;
+
+            const startIdx = pawn.userData.pathIndex;
+            let currentIdx = startIdx;
+            const pathPoints = [];
+            const color = pawn.userData.color;
+
+            // TRACK & HOME LOGIC
+            for(let i=0; i<steps; i++) {
+                // If Finished, stop moving
+                if (pawn.userData.state === 'FINISHED') break;
+
+                // Handle Home Path Movement
+                if (pawn.userData.state === 'HOME_PATH') {
+                     let homeIdx = pawn.userData.homeIndex; 
+                     if (homeIdx < 4) {
+                         homeIdx++;
+                         pawn.userData.homeIndex = homeIdx;
+                         const coord = homePaths[color][homeIdx];
+                         pathPoints.push(getTileWorldPos(coord[0], coord[1]));
+                     } else {
+                         // Reached End -> Finish
+                         pawn.userData.state = 'FINISHED';
+                         // Visual Finish (Center)
+                         // For now, clamp at end of home path or specific center tile
+                         // Let's assume index 4 is the last step.
+                     }
+                } 
+                // Handle Track Movement & Transition
+                else if (pawn.userData.state === 'TRACK') {
+                    if (pawn.userData.stepsMoved >= LAP_LENGTH) {
+                        // Enter Home Path
+                        pawn.userData.state = 'HOME_PATH';
+                        pawn.userData.homeIndex = 0;
+                        const coord = homePaths[color][0];
+                        pathPoints.push(getTileWorldPos(coord[0], coord[1]));
+                    } else {
+                        // Standard Track Move
+                        currentIdx = (currentIdx + 1) % outerTrack.length;
+                        pawn.userData.pathIndex = currentIdx;
+                        pawn.userData.stepsMoved++;
+                        const gridPos = outerTrack[currentIdx];
+                        pathPoints.push(getTileWorldPos(gridPos[0], gridPos[1]));
+                    }
+                }
+            }
+            
+            const tl = gsap.timeline({ onComplete: () => { checkCollision(pawn); checkWinCondition(); nextTurn(); } });
+            pathPoints.forEach((point, i) => {
+                tl.to(pawn.position, { x: point.x, z: point.z, duration: 0.3, ease: "linear" }, i * 0.3);
+                tl.to(pawn.position, { y: point.y + 2, duration: 0.15, ease: "power1.out", yoyo: true, repeat: 1 }, i * 0.3);
+            });
+            if (pawn.userData.state === 'FINISHED') {
+                 tl.to(pawn.scale, { x: 0, y: 0, z: 0, duration: 0.5 }); // Hide finished pawn
+            }
+        }
+        
+        function checkWinCondition() {
+            const currentColor = window.gameState.players[window.gameState.currentPlayerIndex];
+            // Count FINISHED pawns for this color
+            const finishedCount = pawns.filter(p => p.userData.color === currentColor && p.userData.state === 'FINISHED').length;
+            
+            if (finishedCount === 4) {
+                // WIN!
+                showGameOver(currentColor);
+            }
+        }
+        
+        function showGameOver(winnerColor) {
+            const modal = document.getElementById('end-modal');
+            const winnerTitle = document.getElementById('winner-title');
+            const statSixes = document.getElementById('stat-sixes');
+            const statCaptures = document.getElementById('stat-captures');
+            const statDistance = document.getElementById('stat-distance');
+            
+            const owner = window.gameState.owners[winnerColor];
+            const stats = window.gameState.stats[winnerColor];
+            
+            winnerTitle.innerText = `${owner} (${winnerColor.toUpperCase()}) WINS!`;
+            winnerTitle.style.color = winnerColor === 'red' ? '#ff4d4d' : winnerColor === 'green' ? '#4dff4d' : winnerColor === 'yellow' ? '#ffff4d' : '#4d4dff';
+            
+            statSixes.innerText = stats.sixes;
+            statCaptures.innerText = stats.captures;
+            statDistance.innerText = stats.distance;
+            
+            modal.style.display = 'flex';
+            gsap.from(modal.children[0], { scale: 0.5, opacity: 0, ease: "back.out(1.7)", duration: 0.6 });
+            
+            // Hide Game UI
+            document.getElementById('ui-layer').style.display = 'none';
+        }
+
+        // --- Game State & Team Logic ---
+        window.gameState = {
+            players: [], // ['red', 'green', 'yellow', 'blue'] etc
+            owners: {}, // Map 'red' -> 'Player 1'
+            currentPlayerIndex: 0,
+            diceValue: null,
+            waitingForMove: false
+        };
+
+        function getOwner(color) {
+            return window.gameState.owners[color];
+        }
+
+        window.initGame = function() {
+            const config = window.gameConfig;
+            
+            if (config.playerCount === 2) {
+                // Team Mode: P1 (Red, Blue) vs P2 (Green, Yellow) 
+                // We will cycle turns by COLOR still, but the LABEL will show P1/P2.
+                // Order: Red (P1) -> Green (P2) -> Blue (P1) -> Yellow (P2) to alternate turns?
+                // Standard Ludo order is Red -> Green -> Yellow -> Blue.
+                // So P1 -> P2 -> P2 -> P1 ?? No, Yellow is P2's second color? 
+                // Request: "Player 1 gets Red & Blue, Player 2 gets Green & Yellow".
+                // If standard turn order R->G->Y->B holds: P1 -> P2 -> P2 -> P1.
+                // That's weird. P2 goes twice? 
+                // Usually opposite colors are teams. Red/Yellow vs Green/Blue?
+                // Request says "Adjacent colors": "Player 1 gets Red & Blue".
+                // Red and Blue are opposite on some boards, but adjacent on others.
+                // My board indices: Red(0), Green(13), Yellow(26), Blue(39).
+                // So Red -> Green -> Yellow -> Blue is the track.
+                // If P1 is Red & Blue: Red(P1) -> Green(P2) -> Yellow(P2) -> Blue(P1).
+                // Wait. Green & Yellow are teammates? "Player 2 gets Green & Yellow". 
+                // If so, turn order R->G->Y->B results in P1 -> P2 -> P2 -> P1.
+                // I will stick to the requested assignment.
+                window.gameState.players = ['red', 'green', 'yellow', 'blue'];
+                window.gameState.owners = {
+                    'red': 'Player 1', 'blue': 'Player 1',
+                    'green': 'Player 2', 'yellow': 'Player 2'
+                };
+            } else {
+                // 4 Players
+                window.gameState.players = ['red', 'green', 'yellow', 'blue'];
+                window.gameState.owners = {
+                    'red': 'Player 1', 'green': 'Player 2', 'yellow': 'Player 3', 'blue': 'Player 4'
+                };
+            }
+            
+            // Initialize Stats
+            window.gameState.stats = {
+                'red': { sixes: 0, captures: 0, distance: 0 },
+                'green': { sixes: 0, captures: 0, distance: 0 },
+                'yellow': { sixes: 0, captures: 0, distance: 0 },
+                'blue': { sixes: 0, captures: 0, distance: 0 }
+            };
+            
+            updateUI("Click Dice to Roll");
+        };
+
+        function updateUI(message) {
+            const turnPanel = document.getElementById('turn-indicator');
+            const infoPanel = document.getElementById('game-info');
+            
+            const color = window.gameState.players[window.gameState.currentPlayerIndex];
+            const owner = window.gameState.owners[color];
+             
+            turnPanel.className = `panel turn-${color}`;
+            turnPanel.innerText = `${owner} (${color.toUpperCase()})`;
+            
+            if(message) infoPanel.innerText = message;
+        }
+
+        function nextTurn() {
+            window.gameState.currentPlayerIndex = (window.gameState.currentPlayerIndex + 1) % 4;
+            window.gameState.waitingForMove = false;
+            window.gameState.diceValue = null;
+            updateUI("Click Dice to Roll");
+        }
+
+        // --- Dice & Interaction ---
+        
+        function createDiceTexture(value) {
+            const size = 128; const ctx = document.createElement('canvas').getContext('2d');
+            ctx.canvas.width = ctx.canvas.height = size;
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,size,size);
+            ctx.strokeRect(0,0,size,size); ctx.fillStyle = '#000';
+            const drawDot = (x,y) => { ctx.beginPath(); ctx.arc(64+x, 64+y, 12, 0, 7); ctx.fill(); };
+            const o = 32;
+            if(value%2) drawDot(0,0);
+            if(value>1) { drawDot(-o,-o); drawDot(o,o); }
+            if(value>3) { drawDot(-o,o); drawDot(o,-o); }
+            if(value==6) { drawDot(-o,0); drawDot(o,0); }
+            return new THREE.CanvasTexture(ctx.canvas);
+        }
+        
+        const diceMaterial = Array(6).fill().map((_,i) => new THREE.MeshStandardMaterial({ map: createDiceTexture(i+1) }));
+        const faceRotations = { 1: {z:1.57,x:0}, 2: {z:-1.57,x:0}, 3: {z:0,x:0}, 4: {z:3.14,x:0}, 5: {x:-1.57,z:0}, 6: {x:1.57,z:0} };
+        const dice = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), diceMaterial);
+        dice.position.set(0,3,0); dice.castShadow = true; scene.add(dice);
+
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        let isRolling = false;
+        let hoveredPawn = null;
+
+        function rollDice() {
+            if (isRolling || window.gameState.waitingForMove) return;
+            isRolling = true;
+            updateUI("Rolling...");
+
+            let result = 0;
+            let rolledSix = false;
+
+            // Logic for Dice Mode
+            if (window.gameConfig.diceCount === 2) {
+                const r1 = Math.floor(Math.random() * 6) + 1;
+                const r2 = Math.floor(Math.random() * 6) + 1;
+                result = r1 + r2; 
+                rolledSix = (r1 === 6 || r2 === 6); // Just one 6 acts as 'entry key'
+                console.log(`Rolled (2 dice): ${r1} + ${r2} = ${result}. RolledSix: ${rolledSix}`);
+            } else {
+                result = Math.floor(Math.random() * 6) + 1;
+                rolledSix = (result === 6);
+                console.log("Rolled:", result);
+            }
+            
+            window.gameState.rolledSix = rolledSix;
+            
+            // Stats: Track 6s
+            const currentColor = window.gameState.players[window.gameState.currentPlayerIndex];
+            if (rolledSix) {
+                 if (window.gameState.stats[currentColor]) window.gameState.stats[currentColor].sixes++;
+            }
+
+            // Visual Target (show modulo 6 result for texture sake)
+            const visualVal = (result - 1) % 6 + 1; 
+            const target = faceRotations[visualVal];
+
+            gsap.to(dice.rotation, {
+                x: target.x + (Math.random()*25),
+                z: target.z + (Math.random()*25),
+                y: Math.random()*25,
+                duration: 2,
+                ease: "power2.out",
+                onComplete: () => {
+                    dice.rotation.x = target.x; dice.rotation.z = target.z; dice.rotation.y = 0;
+                    isRolling = false;
+                    window.gameState.diceValue = result;
+                    
+                    if (checkAvailableMoves()) {
+                        window.gameState.waitingForMove = true;
+                        updateUI(`Rolled ${result}! Select token.`);
+                    } else {
+                        updateUI(`Rolled ${result}. No Moves!`);
+                        setTimeout(nextTurn, 1500);
+                    }
+                }
+            });
+            gsap.to(dice.position, { y: 8, duration: 1, yoyo: true, repeat: 1 });
+        }
+        
+        function checkAvailableMoves() {
+            const color = window.gameState.players[window.gameState.currentPlayerIndex];
+            const diceVal = window.gameState.diceValue;
+            const hasSix = window.gameState.rolledSix;
+            
+            let possible = false;
+            pawns.forEach(p => {
+                if (p.userData.color === color) {
+                    if (p.userData.state === 'FINISHED') return; 
+                    if (p.userData.pathIndex === undefined || p.userData.state === 'YARD') {
+                        // In Yard: Need 6
+                        if (hasSix) possible = true;
+                    } else {
+                        // On Track: Always possible (ignoring home run limit for now)
+                        possible = true;
+                    }
+                }
+            });
+            return possible;
+        }
+
+        function onPointerMove( event ) {
+            pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+            pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+            raycaster.setFromCamera( pointer, camera );
+            if (hoveredPawn) {
+                hoveredPawn.traverse((child) => { if (child.isMesh) child.material.emissive.setHex(0x000000); });
+                hoveredPawn = null;
+            }
+            if (!window.gameState.waitingForMove) return;
+            const intersects = raycaster.intersectObjects( scene.children, true );
+            const currentColor = window.gameState.players[window.gameState.currentPlayerIndex];
+            
+            for ( let i = 0; i < intersects.length; i ++ ) {
+                let obj = intersects[i].object;
+                while(obj.parent && obj.parent.type === 'Group' && obj.parent.userData.color) obj = obj.parent;
+                // VALIDATION FOR HOVER
+                if (obj.userData && obj.userData.color === currentColor) {
+                     const isYard = (obj.userData.state === 'YARD' || obj.userData.pathIndex === undefined);
+                     if (isYard && !window.gameState.rolledSix) continue; // Cannot pick yard pawn if no 6
+                     if (obj.userData.state === 'FINISHED') continue;
+                     
+                    hoveredPawn = obj;
+                    document.body.style.cursor = 'pointer';
+                    obj.traverse((child) => { if (child.isMesh) child.material.emissive.setHex(0x333333); });
+                    return;
+                }
+            }
+            document.body.style.cursor = 'default';
+        }
+
+        function onPointerDown( event ) {
+            pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+            pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+            raycaster.setFromCamera( pointer, camera );
+            if ( raycaster.intersectObjects( [dice] ).length > 0 ) {
+                if (!window.gameState.waitingForMove) rollDice();
+                return;
+            }
+            if (window.gameState.waitingForMove) {
+                const intersects = raycaster.intersectObjects( scene.children, true );
+                const currentColor = window.gameState.players[window.gameState.currentPlayerIndex];
+                for ( let i = 0; i < intersects.length; i ++ ) {
+                    let obj = intersects[i].object;
+                    while(obj.parent && obj.parent.type === 'Group' && obj.parent.userData.color) obj = obj.parent;
+                    if (obj.userData && obj.userData.color === currentColor) {
+                        // VALIDATION FOR CLICK
+                        const isYard = (obj.userData.state === 'YARD' || obj.userData.pathIndex === undefined);
+                        if (isYard && !window.gameState.rolledSix) {
+                             console.log("Need 6 to start!");
+                             return; 
+                        }
+                        if (obj.userData.state === 'FINISHED') return;
+                    
+                        movePawn(obj, window.gameState.diceValue);
+                        return;
+                    }
+                }
+            }
+        }
+        window.addEventListener( 'pointermove', onPointerMove );
+        window.addEventListener( 'pointerdown', onPointerDown );
+
+        // --- Environment ---
+        scene.add( new THREE.GridHelper( config.gridSize, config.gridDivisions, config.gridColor, 0x222222 ) );
+        const plane = new THREE.Mesh( new THREE.PlaneGeometry( 100, 100 ), new THREE.MeshStandardMaterial( { color: 0x1a1a1a } ) );
+        plane.rotation.x = - Math.PI / 2; plane.position.y = -0.01; plane.receiveShadow = true;
+        scene.add( plane );
+
+        function animate() { requestAnimationFrame( animate ); controls.update(); renderer.render( scene, camera ); }
+        animate();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    </script>
+</body>
+</html>

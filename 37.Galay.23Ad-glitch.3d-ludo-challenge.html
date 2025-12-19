@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo: Finish & Exit</title>
+    <style>
+        :root { --glass: rgba(255, 255, 255, 0.15); }
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; touch-action: none; }
+        #ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 100; pointer-events: none; }
+        .hud { pointer-events: auto; background: var(--glass); backdrop-filter: blur(15px); color: #fff; padding: 12px 25px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.2); font-weight: bold; }
+        #graveyard { position: absolute; left: 20px; top: 100px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .dead-token { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); }
+        .btn-group { display: flex; gap: 10px; pointer-events: auto; }
+        .nav-btn { background: #fff; color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        #controls { position: absolute; bottom: 50px; width: 100%; display: flex; justify-content: center; gap: 20px; pointer-events: auto; z-index: 100; }
+        .die { width: 85px; height: 85px; background: #fff; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 40px; cursor: pointer; box-shadow: 0 6px 0 #bbb; font-weight: bold; color: #000; }
+        .used { opacity: 0.1; pointer-events: none; }
+        #rules-modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; pointer-events: auto; }
+        .modal-content { background: #222; color: #fff; padding: 30px; border-radius: 20px; width: 80%; max-width: 300px; text-align: center; border: 1px solid #444; }
+    </style>
+</head>
+<body onclick="initAudio()">
+
+<div id="ui">
+    <div class="hud" id="status">Red's Turn</div>
+    <div class="btn-group">
+        <button class="nav-btn" onclick="document.getElementById('rules-modal').style.display='flex'">📜 RULES</button>
+        <button class="nav-btn" onclick="location.reload()">RESET</button>
+    </div>
+</div>
+
+<div id="rules-modal">
+    <div class="modal-content">
+        <h2>📜 GAME RULES</h2>
+        <p style="text-align: left; font-size: 14px; line-height: 1.6;">
+            1. <b>Two Dice Rule:</b> Both dice must be played before a capture triggers.<br>
+            2. <b>Sacrifice:</b> If you capture, both pieces leave the board.<br>
+            3. <b>The Goal:</b> Reach the center to finish and score.<br>
+            4. <b>Double 6:</b> Grants a bonus turn.
+        </p>
+        <button class="nav-btn" style="width:100%; justify-content:center;" onclick="document.getElementById('rules-modal').style.display='none'">CLOSE</button>
+    </div>
+</div>
+
+<div id="graveyard"></div>
+
+<div id="controls">
+    <div class="die" id="d1" onclick="rollAll()">🎲</div>
+    <div class="die" id="d2" onclick="rollAll()">🎲</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/20.0.0/tween.umd.js"></script>
+<script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } } </script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    let audioCtx;
+    const playPop = (f) => { if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.frequency.value=f; o.connect(g); g.connect(audioCtx.destination); g.gain.value=0.01; o.start(); o.stop(audioCtx.currentTime+0.08); };
+    window.initAudio = () => { if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 18, 10); 
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.3));
+    const light = new THREE.DirectionalLight(0xffffff, 0.8);
+    light.position.set(5, 10, 5); scene.add(light);
+
+    const COLORS = { red: "#d32f2f", green: "#388e3c", yellow: "#fbc02d", blue: "#1976d2" };
+    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
+    const ctx = canvas.getContext('2d'); const s = 1024/15;
+
+    function drawBoard() {
+        ctx.fillStyle = "#fff"; ctx.fillRect(0,0,1024,1024);
+        [{x:0,y:0,c:COLORS.red},{x:9,y:0,c:COLORS.green},{x:9,y:9,c:COLORS.yellow},{x:0,y:9,c:COLORS.blue}].forEach(b => {
+            ctx.fillStyle = b.c; ctx.fillRect(b.x*s, b.y*s, 6*s, 6*s);
+            ctx.save(); ctx.translate((b.x+3)*s, (b.y+3)*s); ctx.rotate(Math.PI/4);
+            ctx.fillStyle = "#fff"; ctx.fillRect(-2.3*s, -2.3*s, 4.6*s, 4.6*s); ctx.restore();
+            ctx.fillStyle = b.c; [[1.8,1.8],[4.2,1.8],[1.8,4.2],[4.2,4.2]].forEach(p => { ctx.beginPath(); ctx.arc((b.x+p[0])*s, (b.y+p[1])*s, 0.6*s, 0, Math.PI*2); ctx.fill(); });
+        });
+        ctx.fillStyle = COLORS.red; ctx.fillRect(1*s, 7*s, 5*s, s); ctx.fillRect(1*s, 6*s, s, s);
+        ctx.fillStyle = COLORS.green; ctx.fillRect(7*s, 1*s, s, 5*s); ctx.fillRect(8*s, 1*s, s, s);
+        ctx.fillStyle = COLORS.yellow; ctx.fillRect(9*s, 7*s, 5*s, s); ctx.fillRect(13*s, 8*s, s, s);
+        ctx.fillStyle = COLORS.blue; ctx.fillRect(7*s, 9*s, s, 5*s); ctx.fillRect(6*s, 13*s, s, s);
+        const mid = 7.5*s; [[6,6,6,9,COLORS.red],[6,6,9,6,COLORS.green],[9,6,9,9,COLORS.yellow],[6,9,9,9,COLORS.blue]].forEach(t => { ctx.fillStyle = t[4]; ctx.beginPath(); ctx.moveTo(mid,mid); ctx.lineTo(t[0]*s,t[1]*s); ctx.lineTo(t[2]*s,t[3]*s); ctx.fill(); });
+        ctx.strokeStyle = "rgba(0,0,0,0.08)"; for(let i=0; i<15; i++) for(let j=0; j<15; j++) ctx.strokeRect(i*s, j*s, s, s);
+    }
+    drawBoard();
+    const board = new THREE.Mesh(new THREE.BoxGeometry(15, 0.4, 15), new THREE.MeshStandardMaterial({map: new THREE.CanvasTexture(canvas)}));
+    scene.add(board);
+
+    let turn = 0, dice = [0,0], rolled = false, used = [false, false], moving = false, isBonus = false;
+    const pData = [[-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1], [-1,-1,-1,-1]];
+    const pawns = [];
+    
+    const mainTrack = [[1,6],[2,6],[3,6],[4,6],[5,6],[6,5],[6,4],[6,3],[6,2],[6,1],[6,0],[7,0],[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],[14,7],[14,8],[13,8],[12,8],[11,8],[10,8],[9,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],[7,14],[6,14],[6,13],[6,12],[6,11],[6,10],[6,9],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6]];
+    const homePaths = [[[1,7],[2,7],[3,7],[4,7],[5,7]], [[7,1],[7,2],[7,3],[7,4],[7,5]], [[13,7],[12,7],[11,7],[10,7],[9,7]], [[7,13],[7,12],[7,11],[7,10],[7,9]]];
+    const entryIndex = [50, 11, 24, 37];
+
+    Object.values(COLORS).forEach((c, pi) => { for(let i=0; i<4; i++) {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 0.6, 32), new THREE.MeshStandardMaterial({color: c}));
+        m.userData = { pIdx: pi, i, active: true }; scene.add(m); pawns.push(m);
+    }});
+
+    function getPos(pIdx, i) {
+        const val = pData[pIdx][i];
+        if(!pawns[pIdx*4+i].userData.active) return { x: 0, y: -20, z: 0 };
+        if(val === -1) {
+            const bp = [[-4.5,-4.5],[4.5,-4.5],[4.5,4.5],[-4.5,4.5]][pIdx];
+            const os = [[-0.8,-0.8],[0.8,-0.8],[-0.8,0.8],[0.8,0.8]][i];
+            return { x: bp[0]+os[0], z: bp[1]+os[1] };
+        }
+        if (val >= 105) return { x: 0.5, y: -2, z: 0.5 }; // Final center pos
+        const pt = (val >= 100) ? homePaths[pIdx][Math.min(val-100, 4)] : mainTrack[val];
+        return { x: pt[0]-7, z: pt[1]-7 };
+    }
+
+    window.rollAll = () => {
+        if(rolled || moving) return;
+        playPop(300);
+        dice = [Math.floor(Math.random()*6)+1, Math.floor(Math.random()*6)+1];
+        document.getElementById('d1').innerText = dice[0]; document.getElementById('d2').innerText = dice[1];
+        rolled = true; isBonus = (dice[0] === 6 && dice[1] === 6);
+        if(!pData[turn].some((p, idx) => pawns[turn*4+idx].userData.active && (p !== -1 || dice[0] === 6 || dice[1] === 6))) setTimeout(nextTurn, 1000);
+    };
+
+    function addToGraveyard(color) {
+        const div = document.createElement('div');
+        div.className = 'dead-token'; div.style.backgroundColor = color;
+        document.getElementById('graveyard').appendChild(div);
+    }
+
+    function nextTurn() {
+        if(!isBonus) turn = (turn + 1) % 4;
+        rolled = false; used = [false, false]; isBonus = false;
+        const s = document.getElementById('status'), names = ["Red", "Green", "Yellow", "Blue"];
+        s.innerText = names[turn] + "'s Turn"; s.style.color = Object.values(COLORS)[turn];
+        document.querySelectorAll('.die').forEach(d => { d.innerText='🎲'; d.classList.remove('used'); });
+    }
+
+    async function evaluateTurnEnd() {
+        if (!used.every(u => u)) return;
+        for (let p of pawns) {
+            if (p.userData.pIdx === turn && p.userData.active) {
+                const pos = pData[p.userData.pIdx][p.userData.i];
+                if (pos === -1 || pos >= 100) continue;
+                for (let other of pawns) {
+                    const vic = other.userData;
+                    if (vic.active && vic.pIdx !== turn && pData[vic.pIdx][vic.i] === pos) {
+                        pData[vic.pIdx][vic.i] = -1;
+                        new TWEEN.Tween(other.position).to(getPos(vic.pIdx, vic.i), 400).start();
+                        p.userData.active = false; addToGraveyard(Object.values(COLORS)[p.userData.pIdx]);
+                        await new Promise(r => new TWEEN.Tween(p.position).to({y: -5}, 400).onComplete(r).start());
+                        scene.remove(p);
+                    }
+                }
+            }
+        }
+        setTimeout(nextTurn, 600);
+    }
+
+    window.addEventListener('pointerdown', async (e) => {
+        if(!rolled || moving) return;
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1), camera);
+        const hit = ray.intersectObjects(pawns).find(h => h.object.userData.pIdx === turn && h.object.userData.active);
+        if(hit) {
+            const o = hit.object; const idx = o.userData.i;
+            let dIdx = -1;
+            const currentPos = pData[turn][idx];
+            if(currentPos === -1) {
+                if(!used[0] && dice[0] === 6) dIdx = 0; else if(!used[1] && dice[1] === 6) dIdx = 1;
+            } else {
+                if(!used[0]) dIdx = 0; else if(!used[1]) dIdx = 1;
+                if(currentPos >= 100 && dIdx !== -1 && (currentPos + dice[dIdx] > 105)) dIdx = -1;
+            }
+            if(dIdx !== -1) {
+                used[dIdx] = true; document.getElementById('d'+(dIdx+1)).classList.add('used');
+                await walk(o, dice[dIdx]);
+                evaluateTurnEnd();
+            }
+        }
+    });
+
+    async function walk(mesh, steps) {
+        moving = true; const p = mesh.userData;
+        if(pData[p.pIdx][p.i] === -1) {
+            pData[p.pIdx][p.i] = [0, 13, 26, 39][p.pIdx];
+            const pos = getPos(p.pIdx, p.i);
+            await new Promise(r => new TWEEN.Tween(mesh.position).to({x: pos.x, z: pos.z}, 180).onComplete(r).start());
+        } else {
+            for(let s=0; s<steps; s++) {
+                playPop(400);
+                let nextPos = pData[p.pIdx][p.i];
+                if(nextPos === entryIndex[p.pIdx]) nextPos = 100;
+                else if(nextPos >= 100) nextPos++;
+                else nextPos = (nextPos + 1) % 52;
+                
+                pData[p.pIdx][p.i] = nextPos;
+                const pos = getPos(p.pIdx, p.i);
+                
+                await new Promise(r => {
+                    new TWEEN.Tween(mesh.position).to({x: pos.x, z: pos.z}, 140).onComplete(r).start();
+                    new TWEEN.Tween(mesh.position).to({y: 1.2}, 70).chain(new TWEEN.Tween(mesh.position).to({y: 0.4}, 70)).start();
+                });
+
+                if(pData[p.pIdx][p.i] >= 105) { 
+                    p.active = false; 
+                    addToGraveyard(Object.values(COLORS)[p.pIdx]);
+                    await new Promise(r => {
+                        new TWEEN.Tween(mesh.position).to({y: -2}, 500).onComplete(r).start();
+                        new TWEEN.Tween(mesh.scale).to({x:0.1, y:0.1, z:0.1}, 500).start();
+                    });
+                    scene.remove(mesh);
+                    break; 
+                }
+            }
+        }
+        moving = false;
+    }
+
+    function animate() { requestAnimationFrame(animate); TWEEN.update(); renderer.render(scene, camera); }
+    pawns.forEach(p => { const pos = getPos(p.userData.pIdx, p.userData.i); p.position.set(pos.x, 0.4, pos.z); });
+    animate();
+</script>
+</body>
+</html>

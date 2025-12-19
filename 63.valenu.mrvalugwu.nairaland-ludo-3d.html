@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Ludo – Correct Dice Facing</title>
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #1b1b1b;
+}
+#info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    background: rgba(0,0,0,0.6);
+    padding: 10px;
+    border-radius: 6px;
+    z-index: 10;
+}
+#resetView {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    padding: 10px 14px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    cursor: pointer;
+    z-index: 10;
+}
+#resetView:hover {
+    background: rgba(0,0,0,0.8);
+}
+#hint {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 14px;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    z-index: 10;
+    pointer-events: none;
+    transition: opacity 2s ease;
+}
+
+#openRules {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  cursor: pointer;
+  z-index: 10;
+}
+
+#openRules:hover {
+  background: rgba(0,0,0,0.8);
+}
+
+
+@keyframes pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.15); }
+}
+
+
+</style>
+</head>
+<body>
+
+<div id="info">
+  <strong>Status:</strong>
+  <span id="gameStatus">Tap dice to roll</span><br>
+  <strong>Turn:</strong>
+  <span id="turnIndicator" style="font-weight:bold">RED (AI)</span>
+</div>
+
+<button id="resetView">Reset View</button>
+
+<button id="openRules">Rules & How to Play</button>
+
+
+<div id="hint">Drag to rotate · Pinch / Scroll to zoom</div>
+
+
+
+<div id="winOverlay" style="
+  position:fixed;
+  inset:0;
+  background:radial-gradient(circle,#000000cc,#000);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+  font-family:Arial;
+">
+  <div id="winText" style="
+    font-size:64px;
+    font-weight:bold;
+    color:gold;
+    text-shadow:0 0 25px gold;
+    animation:pulse 1.2s infinite alternate;
+  ">
+    WINNER
+  </div>
+</div>
+<button id="restartGame" style="
+  position:fixed;
+  bottom:25px;
+  left:25px;
+  padding:12px 18px;
+  font-size:14px;
+  border:none;
+  border-radius:8px;
+  background:#222;
+  color:#fff;
+  cursor:pointer;
+  z-index:10000;
+  display:none;
+">
+  Restart Game
+</button>
+
+<div id="rulesModal" style="
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.75);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:10001;
+">
+
+  <div style="
+    background:#111;
+    color:#fff;
+    width:90%;
+    max-width:700px;
+    max-height:85vh;
+    overflow-y:auto;
+    padding:24px;
+    border-radius:12px;
+    font-family:Arial;
+    box-shadow:0 0 30px rgba(0,0,0,0.8);
+  ">
+
+    <h2 style="margin-top:0;color:#ffd700;">🎲 Ludo — Rules & How to Play</h2>
+
+    <h3>🎯 Objective</h3>
+    <p>
+      Be the first player to move your pawn from the base,
+      complete a full round of the board, enter the home lane,
+      and reach the center (₦).
+    </p>
+
+    <h3>🎲 Dice Rules</h3>
+    <ul>
+      <li>Roll the dice to get a number from 1 to 6</li>
+      <li>You must roll a <strong>6</strong> to leave your base</li>
+      <li>Rolling a <strong>6</strong> gives you an extra turn</li>
+    </ul>
+
+    <h3>🚶 Pawn Movement</h3>
+    <ul>
+      <li>Click a highlighted pawn to move it</li>
+      <li>Pawns move clockwise along the board path</li>
+      <li>You must complete the full path before entering home</li>
+      <li>Exact dice value is required to finish</li>
+    </ul>
+
+    <h3>💥 Capture Rules</h3>
+    <ul>
+      <li>Landing on an opponent sends them back to base</li>
+      <li>Capture gives you an extra turn</li>
+      <li><span style="color:#ff8fb1;">Pink tiles</span> are safe — no capture allowed</li>
+    </ul>
+
+    <h3>🤖 Game Modes</h3>
+    <ul>
+      <li><strong>BLUE</strong> — You (Human)</li>
+      <li><strong>RED</strong> — Computer (AI)</li>
+      <li>AI plays automatically during its turn</li>
+    </ul>
+
+    <h3>🕹 Controls & Camera</h3>
+    <ul>
+      <li>Click the dice to roll</li>
+      <li>Drag to rotate the board</li>
+      <li>Scroll / pinch to zoom</li>
+      <li>Use “Reset View” to restore camera</li>
+    </ul>
+
+    <div style="text-align:right;margin-top:20px;">
+      <button id="closeRules" style="
+        padding:10px 16px;
+        border:none;
+        border-radius:6px;
+        background:#ffd700;
+        color:#000;
+        font-weight:bold;
+        cursor:pointer;
+      ">
+        Close
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
+<script>
+/* ======================================================
+   SCENE & RENDERER
+====================================================== */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xeaeaea);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+
+/* ======================================================
+   SOUND ENGINE (NO ASSETS)
+====================================================== */
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioCtx();
+
+function playTone(freq, duration = 0.15, type = "sine", volume = 0.2) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = type;
+  osc.frequency.value = freq;
+
+  gain.gain.value = volume;
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+
+/* ======================================================
+   GAME SOUNDS
+====================================================== */
+
+// 🎲 Dice roll sound
+function playDiceSound() {
+   if (GAME.winner) return;
+  let f = 200;
+  const interval = setInterval(() => {
+    playTone(f, 0.03, "square", 0.15);
+    f += 40;
+  }, 40);
+
+  setTimeout(() => clearInterval(interval), 500);
+}
+
+// 👣 Pawn step sound (per tile)
+function playStepSound() {
+   if (GAME.winner) return;
+  playTone(520, 0.06, "triangle", 0.12);
+}
+
+// 🏆 Victory fanfare
+function playVictorySound() {
+  const melody = [523, 659, 784, 1046]; // C E G C
+  melody.forEach((note, i) => {
+    setTimeout(() => {
+      playTone(note, 0.35, "sawtooth", 0.3);
+    }, i * 220);
+  });
+}
+
+
+
+/* ======================================================
+   CAMERA
+====================================================== */
+const camera = new THREE.PerspectiveCamera(
+    45,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    3000
+);
+
+// camera state
+let camAngleY = 0;
+let camAngleX = 0.35;
+let camRadius = (window.innerWidth / window.innerHeight) < 1 ? 160 : 120;
+
+// inertia state (NEW)
+let velX = 0;
+let velY = 0;
+
+const MIN_RADIUS = 90;
+const MAX_RADIUS = 260;
+const MIN_X = -0.1;
+const MAX_X = 0.85;
+
+function updateCamera() {
+    camAngleX = Math.max(MIN_X, Math.min(MAX_X, camAngleX));
+    camRadius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, camRadius));
+
+    const x = Math.sin(camAngleY) * camRadius;
+    const z = Math.cos(camAngleY) * camRadius;
+    const y = 90 + camAngleX * 30;
+
+    camera.position.set(x, y, z);
+    camera.lookAt(0, 30, 0);
+}
+updateCamera();
+
+/* ======================================================
+   LIGHTING
+====================================================== */
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(100, 150, 80);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+scene.add(sun);
+
+/* ======================================================
+   BOARD GROUP
+====================================================== */
+const board = new THREE.Group();
+board.position.y = 25;
+board.rotation.x = 0.35;
+scene.add(board);
+
+/* ======================================================
+   BOARD BASE
+====================================================== */
+const base = new THREE.Mesh(
+    new THREE.BoxGeometry(90, 5, 90),
+    new THREE.MeshStandardMaterial({ color: 0x8d6e63 })
+);
+base.castShadow = true;
+base.receiveShadow = true;
+board.add(base);
+
+/* ======================================================
+   GRID CONSTANTS
+====================================================== */
+const GRID = 15;
+const TILE = 3.5;
+const HALF = (GRID * TILE) / 2;
+
+const COLORS = {
+    base: 0xffffff,
+    red: 0xe53935,
+    green: 0x43a047,
+    yellow: 0xfdd835,
+    blue: 0x1e88e5,
+    path: 0xe0e0e0
+};
+
+const HIGHLIGHT_MATERIAL = new THREE.MeshStandardMaterial({
+  color: 0xffffff,
+  emissive: 0x00ff00,
+  emissiveIntensity: 0.6
+});
+
+const SAFE_TILE_MATERIAL = new THREE.MeshStandardMaterial({
+  color: 0xffc0cb,          // pink surface
+  emissive: 0xff4fa3,       // glowing pink
+  emissiveIntensity: 0.75,  // strong visibility
+  roughness: 0.35,
+  metalness: 0.05
+});
+
+/* ======================================================
+   TILE FACTORY
+====================================================== */
+function tile(x, z, color, hasBorder) {
+    const geo = new THREE.BoxGeometry(TILE, 1, TILE);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color }));
+    mesh.position.set(x, 3, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    board.add(mesh);
+
+    if (hasBorder) {
+        const edges = new THREE.EdgesGeometry(geo);
+        const line = new THREE.LineSegments(
+            edges,
+            new THREE.LineBasicMaterial({ color: 0x000000 })
+        );
+        line.position.copy(mesh.position);
+        line.position.y += 0.51;
+        board.add(line);
+    }
+}
+
+
+function isHomeLaneTile(r, c) {
+  return (
+    HOME_PATHS.red.some(p => p[0] === r && p[1] === c) ||
+    HOME_PATHS.blue.some(p => p[0] === r && p[1] === c)
+  );
+}
+
+function getHomeLaneColor(r, c) {
+  if (HOME_PATHS.red.some(p => p[0] === r && p[1] === c)) return COLORS.red;
+  if (HOME_PATHS.blue.some(p => p[0] === r && p[1] === c)) return COLORS.blue;
+  return null;
+}
+
+// ---- HOME STRETCH PATHS (5 STEPS TO CENTER) ----
+const HOME_PATHS = {
+  red: [
+    [7,1], [7,2], [7,3], [7,4], [7,5]
+  ],
+  blue: [
+    [7,13], [7,12], [7,11], [7,10], [7,9]
+  ]
+};
+
+
+
+/* ======================================================
+   BUILD BOARD
+====================================================== */
+for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+
+        const x = c * TILE - HALF + TILE / 2;
+        const z = r * TILE - HALF + TILE / 2;
+
+        let color = COLORS.base;
+        let hasBorder = true;
+
+        if (r < 6 && c < 6) { color = COLORS.red; hasBorder = false; }
+        else if (r < 6 && c > 8) { color = COLORS.green; hasBorder = false; }
+        else if (r > 8 && c < 6) { color = COLORS.yellow; hasBorder = false; }
+       else if (r > 8 && c > 8) {
+  color = COLORS.blue;   // blue base for 2-player
+  hasBorder = false;
+}
+
+
+        if (r >= 6 && r <= 8 && c >= 6 && c <= 8) {
+            hasBorder = false;
+        }
+
+        if (
+            (c === 7 && r > 0 && r < 14) ||
+            (r === 7 && c > 0 && c < 14)
+        ) {
+            color = COLORS.path;
+            hasBorder = true;
+        }
+
+// 🎯 HOME LANES OVERRIDE (must come AFTER path rule)
+if (isHomeLaneTile(r, c)) {
+  color = getHomeLaneColor(r, c);
+  hasBorder = false;
+}
+
+
+        tile(x, z, color, hasBorder);
+    }
+}
+
+
+
+
+
+
+/* ======================================================
+   CENTER ₦ MARK
+====================================================== */
+const canvas = document.createElement("canvas");
+canvas.width = canvas.height = 512;
+const ctx = canvas.getContext("2d");
+
+ctx.fillStyle = "#ffffff";
+ctx.fillRect(0, 0, 512, 512);
+ctx.fillStyle = "#000000";
+ctx.font = "bold 260px Arial";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillText("₦", 256, 280);
+
+const centerPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(9.5, 9.5),
+    new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(canvas) })
+);
+centerPlane.rotation.x = -Math.PI / 2;
+centerPlane.position.set(0, 4.15, 0);
+board.add(centerPlane);
+
+// ✨ FINISH GLOW
+const finishGlow = new THREE.Mesh(
+  new THREE.PlaneGeometry(9.5, 9.5),
+  new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    emissive: 0xffd700,
+    emissiveIntensity: 0.35,
+    transparent: true,
+    opacity: 0.9
+  })
+);
+
+finishGlow.rotation.x = -Math.PI / 2;
+finishGlow.position.set(0, 4.14, 0);
+board.add(finishGlow);
+
+// subtle pulse
+let glowDir = 1;
+setInterval(() => {
+  finishGlow.material.emissiveIntensity += 0.02 * glowDir;
+  if (finishGlow.material.emissiveIntensity > 0.55) glowDir = -1;
+  if (finishGlow.material.emissiveIntensity < 0.25) glowDir = 1;
+}, 60);
+
+
+
+// ---- VISUAL PAWN REGISTRY ----
+const VISUAL_PAWNS = {
+  red: [],
+  blue: []
+};
+
+
+
+
+
+
+
+
+/* ======================================================
+   LUDO GAME ENGINE – SAFE SKELETON (PHASE 1A)
+   (Append-only. No visual impact.)
+====================================================== */
+//LUDO PATH DEFINITION
+// ---- REAL LUDO MAIN PATH (52 steps, clockwise) ----
+const LUDO_PATH = [
+  [6,0],[6,1],[6,2],[6,3],[6,4],[6,5],
+  [5,6],[4,6],[3,6],[2,6],[1,6],[0,6],
+  [0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],
+  [6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
+  [7,14],[8,14],
+  [8,13],[8,12],[8,11],[8,10],[8,9],
+  [9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
+  [14,7],[14,6],
+  [13,6],[12,6],[11,6],[10,6],[9,6],
+  [8,5],[8,4],[8,3],[8,2],[8,1],[8,0],
+  [7,0]
+];
+
+// ---- START TILE INDEX PER PLAYER ----
+const START_INDEX = {
+  red: 0,
+  blue: 26
+};
+
+const HOME_ENTRY_INDEX = {
+  red: (START_INDEX.red + 50) % LUDO_PATH.length,
+  blue: (START_INDEX.blue + 50) % LUDO_PATH.length
+};
+
+
+
+// ---- GRID → WORLD POSITION ----
+function gridToWorld(r, c) {
+  return {
+    x: c * TILE - HALF + TILE / 2,
+    y: 6,
+    z: r * TILE - HALF + TILE / 2
+  };
+}
+
+function offsetForStack(index, total) {
+  if (total === 1) return { x: 0, z: 0 };
+
+  const angle = (index / total) * Math.PI * 2;
+  const radius = 0.8;
+
+  return {
+    x: Math.cos(angle) * radius,
+    z: Math.sin(angle) * radius
+  };
+}
+
+
+// ---- SAFE SQUARE INDICES (STANDARD LUDO) ----
+const RAW_SAFE_INDICES = [0, 8, 13, 21, 26, 34, 39, 47];
+
+const SAFE_INDICES = RAW_SAFE_INDICES.map(i => (i + 1) % LUDO_PATH.length);
+
+
+// ---- PLAYER DEFINITIONS (2-PLAYER MODE) ----
+const PLAYERS = {
+  red: {
+    color: "red",
+    startIndex: 0,
+    pawns: []
+  },
+  blue: {
+    color: "blue",
+    startIndex: 26,
+    pawns: []
+  }
+};
+
+
+
+
+// ---- PAWN STATE FACTORY ----
+function createPawnState(playerColor, pawnId) {
+  return {
+    id: pawnId,
+    player: playerColor,
+    inBase: true,
+    position: -1,        // main path index
+    homeIndex: -1,       // -1 = not in home stretch
+    finished: false
+  };
+}
+
+
+// ---- INITIALIZE 2 PAWNS PER PLAYER ----
+for (let i = 0; i < 2; i++) {
+  PLAYERS.red.pawns.push(createPawnState("red", i));
+  PLAYERS.blue.pawns.push(createPawnState("blue", i));
+}
+
+
+const AI_PLAYER = "red";
+
+
+// ---- GAME STATE ----
+const GAME = {
+  currentTurn: "red",
+  diceValue: null,
+  awaitingPawnSelection: false,
+  winner: null
+};
+
+let AI_BUSY = false;
+
+
+
+function checkForWinner(player) {
+  const pawns = PLAYERS[player].pawns;
+  if (pawns.every(p => p.finished)) {
+    GAME.winner = player;
+    announceWinner(player);
+  }
+}
+
+
+function anyLegalMoveAvailable() {
+  const pawns = PLAYERS[GAME.currentTurn].pawns;
+
+  // If dice is 6 and at least one pawn is in base → OK
+  if (GAME.diceValue === 6 && pawns.some(p => p.inBase)) return true;
+
+  // If any pawn is already on path → OK
+  if (pawns.some(p => !p.inBase && !p.finished)) return true;
+
+  return false;
+}
+
+
+// ---- DEBUG / VERIFICATION LOGS ----
+console.log("%cLUDO ENGINE READY", "color: green; font-weight: bold;");
+console.log("Current turn:", GAME.currentTurn);
+console.log(
+  "Red pawns:", PLAYERS.red.pawns.length,
+  "| Blue pawns:", PLAYERS.blue.pawns.length
+);
+console.log("Ludo path length:", LUDO_PATH.length);
+console.log("Safe squares:", SAFE_INDICES);
+
+// 🛡️ VISUAL SAFE SQUARE MARKERS
+SAFE_INDICES.forEach(index => {
+  const [r, c] = LUDO_PATH[index];
+  const pos = gridToWorld(r, c);
+
+  const safeTile = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.4, 1.4, 0.4, 32),
+    SAFE_TILE_MATERIAL
+  );
+
+safeTile.position.set(pos.x, 4.1, pos.z);
+
+  safeTile.rotation.x = Math.PI / 2;
+  board.add(safeTile);
+});
+
+
+
+
+
+//---PAWN ELIGIBILITY CHECK----
+function canReleasePawn(pawn) {
+  return (
+    pawn.inBase &&
+    GAME.diceValue === 6 &&
+    pawn.player === GAME.currentTurn
+  );
+}
+
+//---Can pawn move?
+function canMovePawn(pawn, steps) {
+  if (pawn.finished) return false;
+
+  // In base → must roll 6
+  if (pawn.inBase) return steps === 6;
+
+  // In home stretch → exact roll required
+  if (pawn.homeIndex >= 0) {
+    return pawn.homeIndex + steps <= HOME_PATHS[pawn.player].length;
+  }
+
+  // On main path
+  if (
+    pawn.position <= HOME_ENTRY_INDEX[pawn.player] &&
+    pawn.position + steps > HOME_ENTRY_INDEX[pawn.player]
+  ) {
+    const overflow = pawn.position + steps - HOME_ENTRY_INDEX[pawn.player] - 1;
+    return overflow <= HOME_PATHS[pawn.player].length;
+  }
+
+  return true;
+}
+
+/* ======================================================
+   SIMPLE AI LOGIC (BLUE)
+====================================================== */
+function aiTakeTurn() {
+  if (GAME.winner) return;
+  if (GAME.currentTurn !== AI_PLAYER) return;
+  if (AI_BUSY) return;
+
+  AI_BUSY = true;
+
+  console.log("%cAI THINKING...", "color:#42a5f5;font-weight:bold");
+
+  setTimeout(() => {
+    rollDiceForAI();
+  }, 700);
+}
+
+
+function rollDiceForAI() {
+  if (GAME.winner) return;
+
+  rolling = true;
+
+  // 🎲 choose value first
+  const value = Math.floor(Math.random() * 6) + 1;
+  GAME.diceValue = value;
+  GAME.awaitingPawnSelection = true;
+
+  document.getElementById("gameStatus").innerText =
+    "AI rolled " + value;
+
+  console.log(
+    `%cAI DICE: ${value}`,
+    "color:#42a5f5;font-weight:bold"
+  );
+
+  // 🎲 animate dice (SAME AS HUMAN)
+  let spins = 25;
+  const spin = setInterval(() => {
+    dice.rotation.x += 0.5;
+    dice.rotation.y += 0.7;
+    spins--;
+
+    if (spins <= 0) {
+      clearInterval(spin);
+      dice.rotation.set(0, 0, 0);
+      orientDiceFaceToCamera(dice, diceFaceNormals[value]);
+      rolling = false;
+
+      // 🧠 now AI chooses pawn
+      setTimeout(() => {
+        aiChoosePawn();
+      }, 400);
+    }
+  }, 40);
+}
+
+
+function aiChoosePawn() {
+  if (GAME.winner) return;
+
+  const pawns = PLAYERS[AI_PLAYER].pawns;
+  const visuals = VISUAL_PAWNS[AI_PLAYER];
+document.getElementById("gameStatus").innerText =
+  "AI has no move — turn skipped";
+
+  // 🎯 PRIORITY 1: RELEASE FROM BASE IF 6
+  if (GAME.diceValue === 6) {
+    for (let i = 0; i < pawns.length; i++) {
+      const pawn = pawns[i];
+      if (pawn.inBase) {
+        console.log("AI releasing pawn", pawn.id);
+        releasePawn(pawn, visuals[i]);
+        GAME.awaitingPawnSelection = false;
+       
+        return;
+      }
+    }
+  }
+
+  // 🎯 PRIORITY 2: MOVE ANY PAWN ON BOARD
+  for (let i = 0; i < pawns.length; i++) {
+    const pawn = pawns[i];
+    if (!pawn.inBase && canMovePawn(pawn, GAME.diceValue)) {
+      console.log("AI moving pawn", pawn.id);
+      movePawnSteps(pawn, visuals[i], GAME.diceValue);
+      GAME.awaitingPawnSelection = false;
+
+      return;
+    }
+  }
+
+  // ❌ NO MOVE POSSIBLE
+  console.log("AI: No legal move, skipping turn");
+  GAME.awaitingPawnSelection = false;
+  rotateTurn();
+}
+
+
+
+//---Release Pawn Logic---
+function releasePawn(pawn, mesh) {
+  pawn.inBase = false;
+  pawn.position = START_INDEX[pawn.player] + 1;
+
+  const [r, c] = LUDO_PATH[pawn.position];
+  const pos = gridToWorld(r, c);
+
+  // Move the visual pawn
+  mesh.position.x = pos.x;
+  mesh.position.z = pos.z;
+
+  GAME.awaitingPawnSelection = false;
+
+  console.log(
+    `%c${pawn.player.toUpperCase()} pawn ${pawn.id} released`,
+    "color: green; font-weight: bold;"
+  );
+
+ if (GAME.diceValue !== 6) {
+  rotateTurn();
+} else {
+  console.log("Extra turn granted 🎲");
+
+  // 🤖 AI must auto-roll again
+ if (pawn.player === AI_PLAYER) {
+  GAME.diceValue = null;
+
+  // 🔓 IMPORTANT: unlock AI for extra turn
+  AI_BUSY = false;
+
+  setTimeout(() => {
+    aiTakeTurn();
+  }, 700);
+}
+
+}
+
+
+  updatePawnSafetyVisuals();
+
+}
+
+
+//---Turn Rotation---
+function rotateTurn() {
+  GAME.diceValue = null;
+  GAME.awaitingPawnSelection = false;
+
+  GAME.currentTurn =
+    GAME.currentTurn === "red" ? "blue" : "red";
+
+  console.log(
+    `%cNEXT TURN → ${GAME.currentTurn.toUpperCase()}`,
+    "color: orange; font-weight: bold;"
+  );
+
+  updateTurnIndicator();
+
+  // 🔓 unlock AI when turn changes
+  AI_BUSY = false;
+
+  // 🤖 start AI ONLY if it's AI's turn
+  if (GAME.currentTurn === AI_PLAYER) {
+    setTimeout(() => {
+      aiTakeTurn();
+    }, 600);
+  }
+}
+
+
+//---Finalize Move & Turn Control
+
+function finalizeMove(pawn) {
+  if (pawn.finished) {
+    console.log(`🎉 ${pawn.player.toUpperCase()} FINISHED A PAWN`);
+  }
+
+  const didCapture = pawn.homeIndex < 0 && checkCapture(pawn);
+
+  if (GAME.diceValue === 6 || didCapture) {
+    console.log("Extra turn 🎲");
+  } else {
+    rotateTurn();
+  }
+
+  GAME.diceValue = null;
+  updatePawnSafetyVisuals();
+
+  // 🤖 IMPORTANT: Restart AI if turn goes back to AI
+  if (GAME.currentTurn === AI_PLAYER) {
+    setTimeout(() => {
+      aiTakeTurn();
+    }, 600);
+  }
+}
+
+
+function movePawnSteps(pawn, mesh, steps) {
+  let step = 0;
+
+  function moveNext() {
+    playStepSound();
+
+    if (step >= steps) {
+      finalizeMove(pawn);
+      return;
+    }
+
+    // 🚪 ENTER HOME STRETCH
+   // 🚪 ENTER HOME STRETCH (STRICT RULE)
+if (
+  pawn.homeIndex === -1 &&
+  pawn.position === HOME_ENTRY_INDEX[pawn.player]
+) {
+  pawn.homeIndex = 0;
+  pawn.position = -1;
+
+  const [r, c] = HOME_PATHS[pawn.player][0];
+  const pos = gridToWorld(r, c);
+  mesh.position.set(pos.x, pos.y, pos.z);
+
+  step++;
+  setTimeout(moveNext, 250);
+  return;
+}
+
+ 
+
+    // 🏠 MOVE INSIDE HOME
+    if (pawn.homeIndex >= 0) {
+      pawn.homeIndex++;
+      playStepSound();
+     if (pawn.homeIndex === HOME_PATHS[pawn.player].length) {
+  pawn.finished = true;
+
+  // 🎯 snap to center
+  mesh.position.set(0, 6, 0);
+
+  // ✨ finish animation
+  let scale = 1;
+  const anim = setInterval(() => {
+    scale += 0.04;
+    mesh.scale.set(scale, scale, scale);
+    mesh.position.y += 0.6;
+
+    if (scale >= 1.8) {
+      clearInterval(anim);
+      mesh.visible = false; // remove pawn
+      checkForWinner(pawn.player);
+      playVictorySound();
+
+    }
+  }, 30);
+
+  return;
+}
+
+
+      const [r, c] = HOME_PATHS[pawn.player][pawn.homeIndex];
+      const pos = gridToWorld(r, c);
+      mesh.position.set(pos.x, pos.y, pos.z);
+      step++;
+      setTimeout(moveNext, 250);
+      return;
+    }
+
+   // ➡ NORMAL PATH MOVE
+pawn.position = (pawn.position + 1) % LUDO_PATH.length;
+
+const tile = LUDO_PATH[pawn.position];
+if (!tile) {
+  console.error("INVALID PATH INDEX", pawn.position);
+  rotateTurn();
+  return;
+}
+
+const [r, c] = tile;
+
+    const pos = gridToWorld(r, c);
+    mesh.position.set(pos.x, pos.y, pos.z);
+
+    step++;
+    setTimeout(moveNext, 250);
+  }
+
+  moveNext();
+}
+
+
+
+
+/* ======================================================
+   TOKENS
+====================================================== */
+function token(playerKey, materialColor, r, c) {
+  const t = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.3, 1.3, 3.5, 32),
+    new THREE.MeshStandardMaterial({ color: materialColor })
+  );
+
+  t.position.set(
+    c * TILE - HALF + TILE / 2,
+    6,
+    r * TILE - HALF + TILE / 2
+  );
+
+  t.castShadow = true;
+
+  // ✅ ONLY register pawns that exist in the engine
+  if (VISUAL_PAWNS[playerKey]) {
+    VISUAL_PAWNS[playerKey].push(t);
+  }
+
+  board.add(t);
+}
+
+
+
+const HOME = {
+  red:  [[1,1], [4,4]],       // top-left
+  blue: [[10,10], [13,13]]   // bottom-right
+};
+
+
+
+
+
+Object.entries(HOME).forEach(([k, arr]) =>
+    arr.forEach(p => token(k, COLORS[k], p[0], p[1])
+)
+);
+
+
+// ✅ BIND VISUAL PAWNS TO LOGICAL PAWNS (CORRECT & FINAL)
+["red", "blue"].forEach(color => {
+  VISUAL_PAWNS[color].forEach((mesh, index) => {
+    mesh.userData.pawn = PLAYERS[color].pawns[index];
+    console.log(`BOUND: ${color} pawn ${index}`);
+  });
+});
+
+
+
+/* ======================================================
+   DICE (UNCHANGED)
+====================================================== */
+function diceTexture(n) {
+    const s = 256;
+    const c = document.createElement("canvas");
+    c.width = c.height = s;
+    const ctx = c.getContext("2d");
+
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0,0,s,s);
+    ctx.fillStyle = "#000";
+
+    const dots = {
+        1:[[.5,.5]],
+        2:[[.25,.25],[.75,.75]],
+        3:[[.25,.25],[.5,.5],[.75,.75]],
+        4:[[.25,.25],[.25,.75],[.75,.25],[.75,.75]],
+        5:[[.25,.25],[.25,.75],[.5,.5],[.75,.25],[.75,.75]],
+        6:[[.25,.25],[.25,.5],[.25,.75],[.75,.25],[.75,.5],[.75,.75]]
+    };
+
+    dots[n].forEach(p=>{
+        ctx.beginPath();
+        ctx.arc(p[0]*s, p[1]*s, 18, 0, Math.PI*2);
+        ctx.fill();
+    });
+
+    return new THREE.CanvasTexture(c);
+}
+
+const diceMaterials = [1,2,3,4,5,6].map(i =>
+    new THREE.MeshStandardMaterial({ map: diceTexture(i) })
+);
+
+const dice = new THREE.Mesh(
+    new THREE.BoxGeometry(6,6,6),
+    diceMaterials
+);
+
+
+
+dice.position.set(0, 65, 0);
+dice.castShadow = true;
+scene.add(dice);
+
+/* ======================================================
+   DICE LOGIC
+====================================================== */
+const diceFaceNormals = {
+    1: new THREE.Vector3( 1, 0, 0),
+    2: new THREE.Vector3(-1, 0, 0),
+    3: new THREE.Vector3( 0, 1, 0),
+    4: new THREE.Vector3( 0,-1, 0),
+    5: new THREE.Vector3( 0, 0, 1),
+    6: new THREE.Vector3( 0, 0,-1)
+};
+
+function orientDiceFaceToCamera(dice, faceNormal) {
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir).negate();
+    const currentNormal = faceNormal.clone().applyQuaternion(dice.quaternion);
+    const q = new THREE.Quaternion();
+    q.setFromUnitVectors(currentNormal.normalize(), camDir.normalize());
+    dice.quaternion.premultiply(q);
+}
+
+let rolling = false;
+
+
+/* ======================================================
+   CAMERA CONTROLS + DICE LOCK + INERTIA (NEW)
+====================================================== */
+let dragging = false;
+let prevX = 0;
+let prevY = 0;
+let pinchDist = 0;
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+function isClickOnDice(x, y) {
+    mouse.x = (x / window.innerWidth) * 2 - 1;
+    mouse.y = -(y / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    return raycaster.intersectObject(dice).length > 0;
+}
+
+function getTouchDist(t) {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+}
+
+window.addEventListener("mousedown", e => {
+    if (isClickOnDice(e.clientX, e.clientY)) return;
+    dragging = true;
+    prevX = e.clientX;
+    prevY = e.clientY;
+});
+
+window.addEventListener("mouseup", () => dragging = false);
+
+window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    velX = (e.clientX - prevX) * 0.002;
+    velY = (e.clientY - prevY) * 0.002;
+    camAngleY -= velX;
+    camAngleX -= velY;
+    prevX = e.clientX;
+    prevY = e.clientY;
+});
+
+window.addEventListener("wheel", e => {
+    camRadius += e.deltaY * 0.1;
+});
+
+window.addEventListener("touchstart", e => {
+    if (e.touches.length === 1) {
+        if (isClickOnDice(e.touches[0].clientX, e.touches[0].clientY)) return;
+        dragging = true;
+        prevX = e.touches[0].clientX;
+        prevY = e.touches[0].clientY;
+    }
+    if (e.touches.length === 2) {
+        pinchDist = getTouchDist(e.touches);
+    }
+});
+
+window.addEventListener("touchmove", e => {
+    if (e.touches.length === 1 && dragging) {
+        velX = (e.touches[0].clientX - prevX) * 0.002;
+        velY = (e.touches[0].clientY - prevY) * 0.002;
+        camAngleY -= velX;
+        camAngleX -= velY;
+        prevX = e.touches[0].clientX;
+        prevY = e.touches[0].clientY;
+    }
+    if (e.touches.length === 2) {
+        const d = getTouchDist(e.touches);
+        camRadius += (pinchDist - d) * 0.2;
+        pinchDist = d;
+    }
+});
+
+window.addEventListener("touchend", () => dragging = false);
+
+/* ======================================================
+   INERTIA LOOP (NEW)
+====================================================== */
+function inertiaLoop() {
+    camAngleY -= velX;
+    camAngleX -= velY;
+    velX *= 0.9;
+    velY *= 0.9;
+    updateCamera();
+    requestAnimationFrame(inertiaLoop);
+}
+inertiaLoop();
+
+/* ======================================================
+   RESET VIEW
+====================================================== */
+document.getElementById("resetView").onclick = () => {
+    camAngleY = 0;
+    camAngleX = 0.35;
+    camRadius = (window.innerWidth / window.innerHeight) < 1 ? 160 : 120;
+    velX = velY = 0;
+    updateCamera();
+};
+
+/* ======================================================
+   HINT FADE
+====================================================== */
+setTimeout(() => {
+    document.getElementById("hint").style.opacity = 0;
+}, 5000);
+
+/* ======================================================
+   RENDER LOOP & RESIZE
+====================================================== */
+function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    updateCamera();
+});
+
+
+//Click Detection on Pawns
+window.addEventListener("click", e => {
+  if (GAME.currentTurn === AI_PLAYER) return;
+
+  if (!GAME.awaitingPawnSelection) return;
+
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  // ⛔ ignore dice clicks
+  if (raycaster.intersectObject(dice).length > 0) return;
+
+ const hits = raycaster.intersectObjects(board.children, true);
+
+  let acted = false;
+
+  for (const hit of hits) {
+    const mesh = hit.object;
+    const pawn = mesh.userData?.pawn;
+    if (!pawn) continue;
+
+    if (pawn.player !== GAME.currentTurn) continue;
+
+    // ✅ RELEASE FROM BASE
+    if (pawn.inBase && GAME.diceValue === 6) {
+      clearPawnHighlights();
+
+      releasePawn(pawn, mesh);
+      GAME.awaitingPawnSelection = false;
+      acted = true;
+      break;
+    }
+
+    // ✅ NORMAL MOVE
+    if (!pawn.inBase && canMovePawn(pawn, GAME.diceValue)) {
+      clearPawnHighlights();
+
+      movePawnSteps(pawn, mesh, GAME.diceValue);
+      GAME.awaitingPawnSelection = false;
+      acted = true;
+      break;
+    }
+  }
+
+
+});
+
+
+function clearPawnHighlights() {
+  Object.values(VISUAL_PAWNS).flat().forEach(mesh => {
+    mesh.material.emissive?.set(0x000000);
+  });
+}
+
+function highlightLegalPawns() {
+  clearPawnHighlights();
+
+  const pawns = PLAYERS[GAME.currentTurn].pawns;
+
+  pawns.forEach((pawn, index) => {
+    if (
+      (pawn.inBase && GAME.diceValue === 6) ||
+      (!pawn.inBase && canMovePawn(pawn, GAME.diceValue))
+    ) {
+      const mesh = VISUAL_PAWNS[pawn.player][index];
+      if (mesh?.material?.emissive) {
+        mesh.material.emissive.set(0x00ff00);
+      }
+    }
+  });
+}
+
+
+window.addEventListener("click", e => {
+
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  /* =========================
+     DICE MODE
+  ========================= */
+  if (!GAME.awaitingPawnSelection && !rolling) {
+    
+    if (GAME.winner) return; // 🔒 stop dice after win
+
+    const diceHit = raycaster.intersectObject(dice);
+    if (diceHit.length === 0) return;
+
+    rolling = true;
+
+    audioCtx.resume(); // unlock audio
+    playDiceSound();
+
+
+    const value = Math.floor(Math.random() * 6) + 1;
+    window.__LAST_DICE__ = value;
+
+    GAME.diceValue = value;
+    GAME.awaitingPawnSelection = true;
+
+// ❌ NO LEGAL MOVE FOR HUMAN → AUTO SKIP
+if (!anyLegalMoveAvailable()) {
+  console.log("Human: No legal move, skipping turn");
+
+  GAME.awaitingPawnSelection = false;
+
+  setTimeout(() => {
+    rotateTurn(); // this will trigger AI
+  }, 600);
+
+  return;
+}
+
+
+    console.log(
+      `%cTURN: ${GAME.currentTurn.toUpperCase()} | DICE: ${value}`,
+      "color: dodgerblue; font-weight: bold;"
+    );
+
+    document.getElementById("gameStatus").innerText = "Rolled " + value;
+
+    let spins = 30;
+    const spin = setInterval(() => {
+      dice.rotation.x += 0.5;
+      dice.rotation.y += 0.7;
+      spins--;
+
+      if (spins <= 0) {
+        clearInterval(spin);
+        dice.rotation.set(0, 0, 0);
+        orientDiceFaceToCamera(dice, diceFaceNormals[value]);
+        rolling = false;
+        highlightLegalPawns();
+      }
+    }, 40);
+
+    return;
+  }
+
+  /* =========================
+     PAWN MODE
+  ========================= */
+  if (GAME.awaitingPawnSelection) {
+
+    const hits = raycaster.intersectObjects(board.children, true);
+
+    for (const hit of hits) {
+      const mesh = hit.object;
+      const pawn = mesh.userData?.pawn;
+      if (!pawn) continue;
+      if (pawn.player !== GAME.currentTurn) continue;
+
+      clearPawnHighlights();
+
+      if (pawn.inBase && GAME.diceValue === 6) {
+        releasePawn(pawn, mesh);
+        GAME.awaitingPawnSelection = false;
+        return;
+      }
+
+      if (!pawn.inBase && canMovePawn(pawn, GAME.diceValue)) {
+        movePawnSteps(pawn, mesh, GAME.diceValue);
+        GAME.awaitingPawnSelection = false;
+        return;
+      }
+    }
+
+    // ❗ No pawn clicked → skip turn safely
+    console.log("No legal move available. Turn skipped.");
+    GAME.awaitingPawnSelection = false;
+    rotateTurn();
+  }
+});
+
+//helper
+function isSafeSquare(index) {
+  return SAFE_INDICES.includes(index);
+}
+
+function checkCapture(movedPawn) {
+  const pos = movedPawn.position;
+
+  // 🛡️ No capture on safe squares
+  if (isSafeSquare(pos)) return false;
+
+  const opponents =
+    movedPawn.player === "red"
+      ? PLAYERS.blue.pawns
+      : PLAYERS.red.pawns;
+
+  const opponentMeshes =
+    movedPawn.player === "red"
+      ? VISUAL_PAWNS.blue
+      : VISUAL_PAWNS.red;
+
+  for (let i = 0; i < opponents.length; i++) {
+    const opPawn = opponents[i];
+
+    if (
+      !opPawn.finished &&
+      !opPawn.inBase &&
+      opPawn.position === pos
+    ) {
+      // 💥 CAPTURE!
+      console.log(
+        `%cCAPTURE! ${movedPawn.player.toUpperCase()} captured opponent pawn`,
+        "color: red; font-weight: bold;"
+      );
+
+      // Reset opponent pawn
+      opPawn.inBase = true;
+      opPawn.position = -1;
+
+      // Move opponent mesh back to base visually
+      const mesh = opponentMeshes[i];
+
+      const basePos =
+        opPawn.player === "red"
+          ? HOME.red[i]
+          : HOME.blue[i];
+
+      mesh.position.set(
+        basePos[1] * TILE - HALF + TILE / 2,
+        6,
+        basePos[0] * TILE - HALF + TILE / 2
+      );
+
+      return true; // capture occurred
+    }
+  }
+
+  return false;
+}
+
+
+function updatePawnSafetyVisuals() {
+  const positionMap = {};
+
+  // group pawns by position
+  Object.values(VISUAL_PAWNS).flat().forEach(mesh => {
+    const pawn = mesh.userData?.pawn;
+    if (!pawn || pawn.inBase || pawn.position < 0) return;
+
+    if (!positionMap[pawn.position]) {
+      positionMap[pawn.position] = [];
+    }
+
+    positionMap[pawn.position].push(mesh);
+  });
+
+  // apply visuals
+  Object.entries(positionMap).forEach(([pos, meshes]) => {
+    meshes.forEach((mesh, i) => {
+      const pawn = mesh.userData.pawn;
+
+      // 🛡 safe square glow
+      if (SAFE_INDICES.includes(pawn.position)) {
+        mesh.material.emissive?.set(0xff4fa3);
+        mesh.material.emissiveIntensity = 0.8;
+      } else {
+        mesh.material.emissive?.set(0x000000);
+        mesh.material.emissiveIntensity = 0.0;
+      }
+
+      // 📍 offset stacked pawns
+      const offset = offsetForStack(i, meshes.length);
+      mesh.position.x += offset.x;
+      mesh.position.z += offset.z;
+    });
+  });
+}
+
+
+//---show winner and lock game---
+function announceWinner(player) {
+  const overlay = document.getElementById("winOverlay");
+  const text = document.getElementById("winText");
+
+  text.innerText = player.toUpperCase() + " WINS 🏆";
+  text.style.color = player === "red" ? "#ff5252" : "#42a5f5";
+
+  overlay.style.display = "flex";
+
+  document.getElementById("gameStatus").innerText =
+    player.toUpperCase() + " WON THE GAME";
+
+  // 🔒 lock dice & moves
+  GAME.awaitingPawnSelection = false;
+  rolling = true;
+
+    document.getElementById("restartGame").style.display = "block";
+
+}
+
+document.getElementById("restartGame").onclick = () => {
+
+  // 🔁 reset game state
+  GAME.currentTurn = "red";
+  GAME.diceValue = null;
+  GAME.awaitingPawnSelection = false;
+  GAME.winner = null;
+  rolling = false;
+
+  // 🧼 reset pawns
+  ["red", "blue"].forEach(player => {
+    PLAYERS[player].pawns.forEach((pawn, i) => {
+      pawn.inBase = true;
+      pawn.position = -1;
+      pawn.homeIndex = -1;
+      pawn.finished = false;
+
+      const basePos = HOME[player][i];
+      const mesh = VISUAL_PAWNS[player][i];
+
+      mesh.visible = true;
+      mesh.scale.set(1, 1, 1);
+      mesh.position.set(
+        basePos[1] * TILE - HALF + TILE / 2,
+        6,
+        basePos[0] * TILE - HALF + TILE / 2
+      );
+    });
+  });
+
+  // 🎲 reset dice
+  dice.rotation.set(0, 0, 0);
+
+  // 🧽 visuals
+  clearPawnHighlights();
+  updatePawnSafetyVisuals();
+
+  // 🪟 hide overlays
+  document.getElementById("winOverlay").style.display = "none";
+  document.getElementById("restartGame").style.display = "none";
+
+  document.getElementById("gameStatus").innerText = "Tap dice to roll";
+
+  console.log("%cGAME RESET", "color: cyan; font-weight: bold;");
+  updateTurnIndicator();
+  // 🚀 IF AI STARTS FIRST, LET IT PLAY
+if (GAME.currentTurn === AI_PLAYER) {
+  aiTakeTurn();
+}
+};
+
+
+
+
+function updateTurnIndicator() {
+  const el = document.getElementById("turnIndicator");
+
+  if (GAME.currentTurn === "red") {
+    el.innerText = "RED (AI)";
+    el.style.color = "#ff5252";
+  } else {
+    el.innerText = "BLUE (YOU)";
+    el.style.color = "#42a5f5";
+  }
+}
+
+// ✅ INITIAL BOOT SEQUENCE (RUNS ON PAGE LOAD)
+updateTurnIndicator();
+
+// 🚀 START AI IF AI GOES FIRST
+if (GAME.currentTurn === AI_PLAYER) {
+  setTimeout(() => {
+    aiTakeTurn();
+  }, 800);
+}
+
+
+// ==============================
+// RULES MODAL LOGIC
+// ==============================
+const rulesModal = document.getElementById("rulesModal");
+const openRules = document.getElementById("openRules");
+const closeRules = document.getElementById("closeRules");
+
+openRules.onclick = () => {
+  rulesModal.style.display = "flex";
+};
+
+closeRules.onclick = () => {
+  rulesModal.style.display = "none";
+};
+
+// close when clicking outside modal box
+rulesModal.addEventListener("click", e => {
+  if (e.target === rulesModal) {
+    rulesModal.style.display = "none";
+  }
+});
+
+
+</script>
+
+</body>
+</html>

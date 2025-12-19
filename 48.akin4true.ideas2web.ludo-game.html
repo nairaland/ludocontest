@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ludo Game - Standard Rules</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #222;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            pointer-events: auto;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #panels {
+            display: flex;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #turn-indicator {
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+            margin-bottom: 5px;
+        }
+
+        #dice-result {
+            font-size: 24px;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 1px 1px 2px black;
+            min-height: 36px;
+        }
+
+        #message {
+            font-size: 16px;
+            color: #ddd;
+            max-width: 300px;
+            line-height: 1.4;
+        }
+
+        /* Highlight active player */
+        .turn-red {
+            border-left: 5px solid #FF4444;
+        }
+
+        .turn-green {
+            border-left: 5px solid #44FF44;
+        }
+
+        .turn-yellow {
+            border-left: 5px solid #FFFF44;
+        }
+
+        .turn-blue {
+            border-left: 5px solid #4444FF;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ui-container">
+        <div id="panels">
+            <div id="status-panel" class="panel">
+                <div id="turn-indicator">Turn: Red</div>
+                <div id="dice-result"></div>
+                <div id="message">Roll the dice to start.</div>
+            </div>
+            <div class="panel" style="pointer-events: auto;">
+                <button id="roll-btn" class="btn">Roll Dice</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Constants & Config ---
+        const COLORS = {
+            RED: 0xFF4444, GREEN: 0x44FF44, YELLOW: 0xFFFF44, BLUE: 0x4444FF,
+            BOARD: 0xFFFFFF, PATH_DEFAULT: 0xEEEEEE, SAFE: 0xDDDDDD,
+            HIGHLIGHT: 0xFFD700
+        };
+        const TEAMS = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
+
+        // Path Map: Maps 0-51 to (x,z) coordinates. Center is 0,0.
+        // We define the path starting from Red's start position (tile 1 relative to board, but 0 index for logic)
+        // Red Start is at (-1.5, -6.5) roughly? Let's use integer grid. 
+        // 15x15 grid. Center is 7,7. But let's keep 0,0 center.
+        // Units: 1 unit per tile.
+        // Path follows the cross. 
+        // Let's manually define the 52 steps for the outer loop starting from Red's "exit" from base.
+        // Directions: Red (Bottom-Left quad) goes Right then Up... wait, standard Ludo is Clockwise.
+        // Red Home Base is Bottom-Left. Start square is just above it on the vertical track? Or horizontal?
+        // Usually: Red starts on the square colored Red.
+        // Let's trace the generic path logic.
+
+        // Simplified Coordinate Mapping
+        // We will build a list of 52 coordinates.
+        // Start Bottom-Left horizontal strip, checking standard board.
+        // Red start: (-5, -1) -> Move Right to (-1, -1) -> Up to (-1, -5) -> Right to (1, -5) -> Down ...
+
+        // Actually, let's use a generated path.
+        // Quadrant 0 (Red): Starts at (-4.5, -0.5) if we assume (0,0) is center.
+        // Let's use integer coords for the logic map, then scale to 3D. 
+        // 0,0 is center. Tiles are 1x1.
+        // Red Start (Step 0): (-6, -1) [This is the colored start square]
+        // Then (-5, -1) ... (-1, -1)
+        // Then (-1, -2) ... (-1, -6) [Up the arm]
+        // Then (0, -7) [turn] -> (1, -6) [Down the arm] -> ... (1, -1)
+        // Then (2, -1) ... (6, -1) [Right arm]
+        // Then (7, 0) ... no that's too big. 
+        // Standard Ludo: 6x3 arms.
+
+        const PATH_COORDS = [];
+
+        function generatePath() {
+            // Helper to add range
+            const addLine = (startX, startZ, dX, dZ, count) => {
+                for (let i = 0; i < count; i++) PATH_COORDS.push({ x: startX + i * dX, z: startZ + i * dZ });
+            };
+
+            // This is a manual trace of the 52 steps, starting from Red's "Start" square (-5, -1)
+            // 1. Red Home Stretch Horizontal (Left Arm, Bottom row) - moving Right
+            addLine(-5, -1, 1, 0, 5); // 0,1,2,3,4: (-5,-1) to (-1,-1)
+
+            // 2. Up towards Green (Left Arm, Vertical part? No, go up the side of Top arm)
+            // Wait, coordinate system: +X is Right, -Z is Up (3D standard).
+            // Let's map 2D Top-Down: x=Horizontal, z=Vertical.
+            // Red Base: Bottom-Left.
+            // Red Start: Left Arm, top row? No, usually start is colored.
+            // Let's assume Standard Ludo:
+            // Red starts at index 0.
+            // The 52 tiles count starts at Red's start square.
+
+            // Red Sequence (Bottom-Left):
+            // 1. Move Right 5 steps: (-5, 1) -> (-1, 1)  [Using Z+ is Down]
+            // Correction: Red is usually Bottom Left. Green Top Left. Yellow Top Right. Blue Bottom Right.
+            // Let's stick to our previous quad:
+            // TL: Red, TR: Green, BR: Yellow, BL: Blue? No, let's just enforce specific start points.
+
+            // Let's Define Path Segments relative to center 0,0
+            // Segment 0 (Red Start area, moving Right): (-5, 1) to (-1, 1) -> 5 steps
+            // Segment 1 (Approaching Center from Left): (-1, 0) is HOME path... no.
+            // The main path goes AROUND the home paths.
+
+            // RE-DO MAPPING:
+            // 0 -> 51.
+            // Red Start: (-5, 1) -> Move Right to (-1, 1). (5 steps)
+            // Then Move Up to (-1, -5). (6 steps? 5 steps + corner?)
+            // Let's define the "Arm" logic. Each arm has 3 rows of 6 cells.
+            // Left Arm (Red): Top row is incomin, Mid is Home, Bot is Outgoing (Start).
+            // So Red Start is Bottom Row of Left Arm, cell 1. (-5, 1)
+            // Moves Right -> (-1, 1). (5 steps)
+            // Then turns Up -> (-1, -5). (6 steps: (-1,0) is skipped? No, (-1,0) is path? No center is 3x3 ignored usually? No center is the goal)
+            // Center is usually one big triangle area.
+
+            // Coordinates based on unit size 1.
+            // Left Arm: x: -6 to -1, z: -1 to 1.
+            // Bottom Arm: x: -1 to 1, z: 1 to 6.
+            // Right Arm: x: 1 to 6, z: -1 to 1.
+            // Top Arm: x: -1 to 1, z: -6 to -1.
+
+            // Let's trace all 52 steps explicitly to avoid bugs.
+            // Red Start (idx 0) -> ...
+
+            // 1. Left Arm, Bottom Row (x: -5 to -1, z: 1) -- 5 steps
+            addLine(-5, 1, 1, 0, 5);
+            // 2. Bottom Arm, Left Column (x: -1, z: 2 to 6) -- 5 steps?
+            // From (-1, 1) next is (-1, 2) ? Yes.
+            addLine(-1, 2, 0, 1, 5);
+            // 3. Bottom Arm, Tip (Middle) (x: 0, z: 7) - The turn
+            // Let's say Arm is length 6 to be safe? 
+            // Standard board: 6 squares per arm length.
+            // So x range -6 to -1.
+            // Let's restart path with correct length 6 assumption.
+
+            // Path has 52 tiles. 4 arms * 13 tiles? No.
+            // 4 arms * 3 columns = 72 minus center?
+            // Usually track is outer ring of the cross.
+            // Arm length 6 usually.
+            // 6 (out) + 1 (corner) + 6 (in) = 13 per quadrant? 
+            // 13 * 4 = 52. YES. Perfect.
+
+            // Quadrant 1 (Red Home Area):
+            // Out: Left Arm, Bot Row. (-6, 1) to (-1, 1). 6 steps.
+            // Corner? No, goes to next arm.
+            // Sequence:
+            // 1. Left Arm, Bot Row: (-6, 1) -> (-1, 1). (6 steps)
+            // 2. Bot Arm, Left Col: (-1, 2) -> (-1, 7). (6 steps)
+            // 3. Bot Arm, Mid Col (Tip): (0, 7). (1 step) -- wait, usually 2 squares at tip? No classic is 1.
+            // Let's assume 1. So (0,7) is the midpoint.
+            // 4. Bot Arm, Right Col: (1, 7) -> (1, 2). (6 steps)
+            // 5. Right Arm, Bot Row: (2, 1) -> (7, 1). (6 steps)
+            // 6. Right Arm, Mid Row (Tip): (7, 0). (1 step)
+            // 7. Right Arm, Top Row: (7, -1) -> (2, -1). (6 steps)
+            // 8. Top Arm, Right Col: (1, -2) -> (1, -7). (6 steps)
+            // 9. Top Arm, Mid Col (Tip): (0, -7). (1 step)
+            // 10. Top Arm, Left Col: (-1, -7) -> (-1, -2). (6 steps)
+            // 11. Left Arm, Top Row: (-2, -1) -> (-7, -1). (6 steps)
+            // 12. Left Arm, Mid Row (Tip): (-7, 0). (1 step)
+
+            // Total: 6+6+1 + 6+6+1 + 6+6+1 + 6+6+1 = 52. MATCH.
+            // Note: Start indices for teams: Red(0), Blue(13), Yellow(26), Green(39). (Depends on order)
+
+            // Clear and fill
+            while (PATH_COORDS.length > 0) PATH_COORDS.pop();
+
+            // 1. Red Section (Left->Bot)
+            addLine(-6, 1, 1, 0, 6);   // L-Bot: (-6,1)...(-1,1)
+            addLine(-1, 2, 0, 1, 6);   // B-Left: (-1,2)...(-1,7)
+            addLine(0, 7, 0, 0, 1);    // B-Tip: (0,7)
+
+            // 2. Blue Section (Bot->Right)
+            addLine(1, 7, 0, -1, 6);   // B-Right: (1,7)...(1,2)
+            addLine(2, 1, 1, 0, 6);    // R-Bot: (2,1)...(7,1)
+            addLine(7, 0, 0, 0, 1);    // R-Tip: (7,0)
+
+            // 3. Yellow Section (Right->Top)
+            addLine(7, -1, -1, 0, 6);  // R-Top: (7,-1)...(2,-1)
+            addLine(1, -2, 0, -1, 6);  // T-Right: (1,-2)...(1,-7)
+            addLine(0, -7, 0, 0, 1);   // T-Tip: (0,-7)
+
+            // 4. Green Section (Top->Left)
+            addLine(-1, -7, 0, 1, 6);  // T-Left: (-1,-7)...(-1,-2)
+            addLine(-2, -1, -1, 0, 6); // L-Top: (-2,-1)...(-7,-1)
+            addLine(-7, 0, 0, 0, 1);   // L-Tip: (-7,0)
+        }
+
+        generatePath();
+
+        // Home Paths (5 steps into center)
+        // Red (Left): (-6, 0) -> (-2, 0). Idx 0 is entrace? No home path is separate logic.
+        // Entrance is when you complete a lap.
+        const HOME_PATHS = {
+            RED: [], GREEN: [], YELLOW: [], BLUE: []
+        };
+        // Red (Left Arm Middle): (-5, 0) to (-1, 0) ?
+        for (let i = 1; i <= 5; i++) HOME_PATHS.RED.push({ x: -6 + i, z: 0 }); // (-5,0)..(-1,0)
+        // Blue (Bottom Arm Middle): (0, 6) to (0, 2) ? (Upwards)
+        for (let i = 1; i <= 5; i++) HOME_PATHS.BLUE.push({ x: 0, z: 7 - i }); // (0,6)..(0,2)
+        // Yellow (Right Arm Middle): (5, 0) to (1, 0) ? (Leftwards)
+        for (let i = 1; i <= 5; i++) HOME_PATHS.YELLOW.push({ x: 6 - i, z: 0 }); // (5,0)..(1,0)
+        // Green (Top Arm Middle): (0, -5) to (0, -1) ? (Downwards)
+        for (let i = 1; i <= 5; i++) HOME_PATHS.GREEN.push({ x: 0, z: -6 + i }); // (0,-5)..(0,-1)
+
+        // Start Offsets (Index in PATH_COORDS)
+        // Red starts at 0? Wait, (-6,1) is start.
+        // Blue starts at 13.
+        // Yellow starts at 26.
+        // Green starts at 39.
+        const START_INDICES = { RED: 0, BLUE: 13, YELLOW: 26, GREEN: 39 };
+
+        // Base Positions (Where pieces sit before starting)
+        // Base Positions (Centered in the 5x5 zones, +/- 0.8 offset)
+        // RED Base Center: (-4.5, 4.5)
+        // BLUE Base Center: (4.5, 4.5)
+        // YELLOW Base Center: (4.5, -4.5)
+        // GREEN Base Center: (-4.5, -4.5)
+        const BASE_POSITIONS = {
+            RED: [
+                { x: -5.3, z: 3.7 }, { x: -3.7, z: 3.7 },
+                { x: -5.3, z: 5.3 }, { x: -3.7, z: 5.3 }
+            ],
+            BLUE: [
+                { x: 3.7, z: 3.7 }, { x: 5.3, z: 3.7 },
+                { x: 3.7, z: 5.3 }, { x: 5.3, z: 5.3 }
+            ],
+            YELLOW: [
+                { x: 3.7, z: -5.3 }, { x: 5.3, z: -5.3 },
+                { x: 3.7, z: -3.7 }, { x: 5.3, z: -3.7 }
+            ],
+            GREEN: [
+                { x: -5.3, z: -5.3 }, { x: -3.7, z: -5.3 },
+                { x: -5.3, z: -3.7 }, { x: -3.7, z: -3.7 }
+            ]
+        };
+
+        // --- Game State ---
+        let state = {
+            turnIndex: 0, // 0=Red, 1=Blue, 2=Yellow, 3=Green (Order matches path flow)
+            diceValue: null,
+            waitingForRoll: true,
+            waitingForMove: false,
+            winner: null
+        };
+
+        let pieces = []; // Array of Piece objects
+        let highlightedUnit = null;
+
+        // --- Three.js Globals ---
+        let scene, camera, renderer, raycaster, mouse;
+        let uiStatus, uiDice, uiMessage, btnRoll;
+
+        // --- Class: Piece ---
+        class Piece {
+            constructor(team, id, mesh) {
+                this.team = team;
+                this.id = id;
+                this.mesh = mesh;
+                this.status = 'BASE'; // BASE, BOARD, HOME_PATH, FINISHED
+                this.pathIndex = -1; // 0-51 if BOARD, 0-4 if HOME_PATH
+                this.stepsTaken = 0; // Total steps to track home entry (target 50 + 5)
+                // Path length 51. Enter home at 51. 5 steps in home. total 56 to center?
+                // Let's say: need to travel 50 squares on main track, then enter home.
+                // Start at 0. Lap is 52. Target is to reach start_index + 50?
+            }
+
+            updatePosition() {
+                let targetPos = { x: 0, y: 0.4, z: 0 };
+                if (this.status === 'BASE') {
+                    const base = BASE_POSITIONS[this.team][this.id];
+                    targetPos.x = base.x; targetPos.z = base.z;
+                } else if (this.status === 'BOARD') {
+                    const pos = PATH_COORDS[this.pathIndex];
+                    targetPos.x = pos.x; targetPos.z = pos.z;
+                } else if (this.status === 'HOME_PATH') {
+                    const pos = HOME_PATHS[this.team][this.pathIndex];
+                    targetPos.x = pos.x; targetPos.z = pos.z;
+                } else if (this.status === 'FINISHED') {
+                    // Center
+                    targetPos.x = 0; targetPos.z = 0;
+                    // To prevent overlap, offset slightly
+                    targetPos.x += (Math.random() - 0.5);
+                    targetPos.z += (Math.random() - 0.5);
+                }
+
+                // Animate
+                new TWEEN(this.mesh.position).to(targetPos, 300).start();
+            }
+        }
+
+        // Simple Tween helper (since we don't have tween.js)
+        class TWEEN {
+            constructor(target) { this.target = target; }
+            to(dest, duration) {
+                this.dest = dest;
+                this.duration = duration;
+                return this;
+            }
+            start() {
+                const startX = this.target.x;
+                const startZ = this.target.z;
+                const startTime = Date.now();
+                const animate = () => {
+                    const now = Date.now();
+                    const p = Math.min((now - startTime) / this.duration, 1);
+                    // Easing
+                    const e = 1 - Math.pow(1 - p, 3);
+
+                    if (this.dest.x !== undefined) this.target.x = startX + (this.dest.x - startX) * e;
+                    if (this.dest.z !== undefined) this.target.z = startZ + (this.dest.z - startZ) * e;
+                    if (this.dest.y !== undefined) this.target.y = this.target.y + (this.dest.y - this.target.y) * e; // rough
+
+                    if (p < 1) requestAnimationFrame(animate);
+                };
+                animate();
+            }
+        }
+
+        // --- Init ---
+        function init() {
+            // DOM Elements
+            uiStatus = document.getElementById('status-panel');
+            uiDice = document.getElementById('dice-result');
+            uiMessage = document.getElementById('message');
+            btnRoll = document.getElementById('roll-btn');
+
+            btnRoll.addEventListener('click', rollDice);
+            window.addEventListener('click', onMouseClick);
+
+            // 3D Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x202025);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 18, 12);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+            dl.position.set(5, 10, 5);
+            dl.castShadow = true;
+            dl.shadow.mapSize.width = 2048;
+            dl.shadow.mapSize.height = 2048;
+            scene.add(dl);
+
+            createBoard();
+            createPieces();
+
+            updateUI();
+            animate();
+        }
+
+        function createBoard() {
+            const group = new THREE.Group();
+
+            // Main Base
+            const base = new THREE.Mesh(
+                new THREE.BoxGeometry(15, 0.5, 15),
+                new THREE.MeshStandardMaterial({ color: COLORS.BOARD })
+            );
+            base.position.y = -0.25;
+            base.receiveShadow = true;
+            group.add(base);
+
+            // Render Path Tiles (Visuals)
+            PATH_COORDS.forEach((pos, i) => {
+                const isSafe = (i % 13 === 0) || (i % 13 === 8); // Start and Star tiles roughly
+                const mat = new THREE.MeshStandardMaterial({
+                    color: isSafe ? COLORS.SAFE : COLORS.PATH_DEFAULT
+                });
+                const tile = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.9), mat);
+                tile.position.set(pos.x, 0.06, pos.z);
+                tile.receiveShadow = true;
+                group.add(tile);
+            });
+
+            // Home Paths Visuals
+            Object.keys(HOME_PATHS).forEach(team => {
+                HOME_PATHS[team].forEach(pos => {
+                    const mat = new THREE.MeshStandardMaterial({ color: COLORS[team] });
+                    const tile = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.9), mat);
+                    tile.position.set(pos.x, 0.06, pos.z);
+                    tile.receiveShadow = true;
+                    group.add(tile);
+                });
+            });
+
+            // Home Bases (colored zones)
+            // Visual approximations - Aligning to 4 corners
+            const addBaseZone = (x, z, color) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(5, 0.1, 5), new THREE.MeshStandardMaterial({ color }));
+                m.position.set(x, 0.06, z);
+                group.add(m);
+                // White inner
+                const m2 = new THREE.Mesh(new THREE.BoxGeometry(3, 0.11, 3), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+                m2.position.set(x, 0.06, z);
+                group.add(m2);
+            };
+
+            // Symmetrical placements (4.5 unit offset from center)
+            // RED (Bottom-Left in logic? Logic had Base Red near -4.5, 4.5)
+            // Let's ensure these match the `BASE_POSITIONS` generally
+
+            // RED: (-4.5, 4.5) 
+            addBaseZone(-4.5, 4.5, COLORS.RED);
+
+            // BLUE: (4.5, 4.5)
+            addBaseZone(4.5, 4.5, COLORS.BLUE);
+
+            // YELLOW: (4.5, -4.5)
+            addBaseZone(4.5, -4.5, COLORS.YELLOW);
+
+            // GREEN: (-4.5, -4.5)
+            addBaseZone(-4.5, -4.5, COLORS.GREEN);
+
+            // Center
+            const center = new THREE.Mesh(
+                new THREE.ConeGeometry(2, 0.5, 4, 1, false, Math.PI / 4),
+                new THREE.MeshStandardMaterial({ color: 0x333333 })
+            );
+            center.position.y = 0.02;
+            group.add(center);
+
+            scene.add(group);
+        }
+
+        function createPieces() {
+            const geo = new THREE.CylinderGeometry(0.3, 0.3, 0.8, 16);
+            TEAMS.forEach((team) => {
+                for (let i = 0; i < 4; i++) {
+                    const mat = new THREE.MeshStandardMaterial({ color: COLORS[team] });
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.castShadow = true;
+                    scene.add(mesh);
+                    const p = new Piece(team, i, mesh);
+                    p.updatePosition(); // To Base
+
+                    // Link mesh to piece for raycasting
+                    mesh.userData.piece = p;
+                    pieces.push(p);
+                }
+            });
+        }
+
+        // --- Logic ---
+
+        function rollDice() {
+            if (!state.waitingForRoll) return;
+
+            const val = Math.floor(Math.random() * 6) + 1;
+            state.diceValue = val;
+            state.waitingForRoll = false;
+
+            uiDice.innerText = `Rolled: ${val} ${val === 6 ? '(Bonus!)' : ''}`;
+
+            // Check for valid moves
+            const currentTeam = TEAMS[state.turnIndex];
+            const teamPieces = pieces.filter(p => p.team === currentTeam);
+            const validPieces = teamPieces.filter(p => canMove(p, val));
+
+            if (validPieces.length === 0) {
+                uiMessage.innerText = `No moves possible.`;
+                setTimeout(nextTurn, 1000);
+            } else if (validPieces.length === 1 && validPieces[0].status !== 'BASE') {
+                // Auto move if only 1 option and valid (optional for UX, let's keep it manual for feel)
+                uiMessage.innerText = "Select piece to move.";
+                state.waitingForMove = true;
+                highlightPieces(validPieces);
+            } else {
+                uiMessage.innerText = "Select a piece to move.";
+                state.waitingForMove = true;
+                highlightPieces(validPieces);
+            }
+        }
+
+        function canMove(piece, steps) {
+            if (piece.status === 'FINISHED') return false;
+
+            // Rule of 6: Need 6 to leave base
+            if (piece.status === 'BASE') return steps === 6;
+
+            // Check if move exceeds home
+            // Max steps = 50 (path) + 6 (home) = 56 steps from start?
+            // Let's assume start index is 0 relative to team.
+            // stepLimit: 51 main path + 5 home = 56?
+            // Actually, usually: 50 steps around + 5 steps home = 55 landing on center.
+            const maxSteps = 56; // 51 (full lap) + 5 (home)
+            if (piece.stepsTaken + steps > maxSteps) return false;
+
+            // Check for blockades (optional rule: 2 of same team block path) - skipping for simplicity
+            return true;
+        }
+
+        function onMouseClick(event) {
+            if (!state.waitingForMove) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children);
+
+            for (let i = 0; i < intersects.length; i++) {
+                const obj = intersects[i].object;
+                if (obj.userData.piece) {
+                    const p = obj.userData.piece;
+                    if (p.team === TEAMS[state.turnIndex] && canMove(p, state.diceValue)) {
+                        executeMove(p, state.diceValue);
+                        return; // Handled
+                    }
+                }
+            }
+        }
+
+        function executeMove(piece, steps) {
+            clearHighlights();
+            state.waitingForMove = false;
+
+            // Logic Update
+            if (piece.status === 'BASE') {
+                piece.status = 'BOARD';
+                piece.pathIndex = START_INDICES[piece.team];
+                piece.stepsTaken = 0;
+            } else {
+                piece.stepsTaken += steps;
+
+                // Calculate new position index
+                // Steps logic:
+                // Move along Main Path (52 length circular)
+                // If stepsTaken > 50 (roughly), switch to HOME logic
+
+                // Let's refine "Entering Home" logic:
+                // Full Lap is 51 steps (0 to 50?). No it's 52 tiles.
+                // You enter home after traversing 51 squares.
+                const pathLen = 52;
+                const homeEntry = 50; // Needs tuning based on map
+
+                // Are we entering/in home?
+                if (piece.stepsTaken > homeEntry) {
+                    // Start of home path
+                    piece.status = 'HOME_PATH';
+                    const homeIdx = piece.stepsTaken - homeEntry - 1; // 0 to 4
+                    piece.pathIndex = homeIdx;
+
+                    if (piece.stepsTaken >= 56) {
+                        piece.status = 'FINISHED';
+                        piece.pathIndex = -1;
+                    }
+                } else {
+                    // Still on board
+                    piece.status = 'BOARD';
+                    piece.pathIndex = (piece.pathIndex + steps) % pathLen;
+
+                    // Check Capture
+                    checkForCapture(piece);
+                }
+            }
+
+            piece.updatePosition();
+
+            if (piece.status === 'FINISHED') checkWin();
+
+            // Rule of 6: Roll again?
+            if (state.diceValue === 6 && !state.winner) {
+                uiMessage.innerText = "Rolled a 6! Roll again.";
+                state.waitingForRoll = true;
+                btnRoll.disabled = false;
+            } else {
+                setTimeout(nextTurn, 500);
+            }
+        }
+
+        function checkForCapture(activePiece) {
+            if (activePiece.status !== 'BOARD') return;
+            const idx = activePiece.pathIndex;
+
+            // Safe Zones: Start points (0, 13, 26, 39) and Stars (8, 21, 34, 47)
+            // (Assumes standard 13-tile quadrants with safe spots at 0 and 8 relative to quadrant)
+            const isSafe = (idx % 13 === 0) || (idx % 13 === 8);
+            if (isSafe) return;
+
+            pieces.forEach(p => {
+                if (p !== activePiece && p.team !== activePiece.team && p.status === 'BOARD' && p.pathIndex === idx) {
+                    // Captured!
+                    console.log(`Captured ${p.team}!`);
+                    p.status = 'BASE';
+                    p.stepsTaken = 0;
+                    p.updatePosition();
+                    uiMessage.innerText = `Captured ${p.team}!`;
+                }
+            });
+        }
+
+        function checkWin() {
+            const currentTeam = TEAMS[state.turnIndex];
+            const finishedCount = pieces.filter(p => p.team === currentTeam && p.status === 'FINISHED').length;
+            if (finishedCount === 4) {
+                state.winner = currentTeam;
+                uiMessage.innerText = `${currentTeam} WINS!`;
+                uiStatus.style.border = "5px solid gold";
+            }
+        }
+
+        function nextTurn() {
+            if (state.winner) return;
+
+            state.turnIndex = (state.turnIndex + 1) % 4;
+            state.waitingForRoll = true;
+            state.diceValue = null;
+            updateUI();
+        }
+
+        function updateUI() {
+            const team = TEAMS[state.turnIndex];
+            uiStatus.className = `panel turn-${team.toLowerCase()}`;
+            document.getElementById('turn-indicator').innerText = `Turn: ${team}`;
+            uiDice.innerText = "";
+            uiMessage.innerText = "Roll the dice.";
+            btnRoll.disabled = false;
+        }
+
+        function highlightPieces(list) {
+            // Visual cue (e.g. bounce or emissive color)
+            // For now, we rely on text.
+            // Could add emissive to material
+            list.forEach(p => {
+                p.mesh.material.emissive.setHex(0x555555);
+            });
+        }
+
+        function clearHighlights() {
+            pieces.forEach(p => p.mesh.material.emissive.setHex(0x000000));
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        init();
+
+    </script>
+</body>
+
+</html>

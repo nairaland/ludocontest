@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- CRITICAL FOR MOBILE: Prevents zooming and sets width -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Naija Ludo 3D - Mobile Ready</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap");
+
+      :root {
+        --primary: #00e676;
+        --accent: #2979ff;
+        --danger: #ff1744;
+        --dark-bg: rgba(20, 20, 35, 0.9);
+        --glass: rgba(255, 255, 255, 0.1);
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: radial-gradient(
+          circle at center,
+          #2b1055,
+          #24243e,
+          #000000
+        );
+        font-family: "Varela Round", sans-serif;
+        user-select: none;
+        color: white;
+        -webkit-tap-highlight-color: transparent; /* Removes blue tap box on Android */
+      }
+
+      #ui-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(10, 10, 10, 0.7);
+        backdrop-filter: blur(15px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+        z-index: 20;
+        transition: opacity 0.4s ease;
+      }
+      .hidden {
+        display: none !important;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* RESPONSIVE TYPOGRAPHY */
+      h1 {
+        font-family: "Fredoka One", cursive;
+        font-size: 4.5rem;
+        margin: 0;
+        color: #ffd700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        -webkit-text-stroke: 2px #c0392b;
+        text-shadow: 4px 4px 0px #000;
+        filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
+        text-align: center;
+        line-height: 1;
+      }
+
+      /* Mobile Adjustment for Title */
+      @media (max-width: 600px) {
+        h1 {
+          font-size: 3rem;
+          -webkit-text-stroke: 1px #c0392b;
+        }
+      }
+
+      p.subtitle {
+        font-size: 1.2rem;
+        color: #ccc;
+        letter-spacing: 4px;
+        margin-top: 10px;
+        text-transform: uppercase;
+        font-weight: bold;
+        opacity: 0.8;
+      }
+      h2 {
+        font-family: "Fredoka One", cursive;
+        font-size: 2.5rem;
+        margin-bottom: 25px;
+        text-shadow: 2px 2px 0 #000;
+        color: white;
+      }
+
+      /* BUTTONS */
+      .btn {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        border: 0;
+        font-family: "Fredoka One", cursive;
+        font-size: 1.5rem;
+        text-transform: uppercase;
+        padding: 15px 40px;
+        margin: 10px;
+        width: 280px;
+        border-radius: 20px;
+        color: #fff;
+        transform-style: preserve-3d;
+        transition: transform 0.15s ease-out;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+      }
+      /* Mobile Adjustment for Buttons */
+      @media (max-width: 600px) {
+        .btn {
+          width: 80%;
+          font-size: 1.2rem;
+          padding: 12px 20px;
+          margin: 8px;
+        }
+      }
+
+      .btn::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 20px;
+        background: rgba(0, 0, 0, 0.25);
+        top: 6px;
+        z-index: -1;
+        transition: top 0.15s ease-out;
+      }
+      .btn:active {
+        transform: translateY(6px);
+      }
+      .btn:active::before {
+        top: 0;
+      }
+
+      .btn-green {
+        background: linear-gradient(to bottom, #2ecc71, #27ae60);
+        box-shadow: 0 6px 0 #1e8449;
+      }
+      .btn-blue {
+        background: linear-gradient(to bottom, #3498db, #2980b9);
+        box-shadow: 0 6px 0 #1f618d;
+      }
+      .btn-purple {
+        background: linear-gradient(to bottom, #9b59b6, #8e44ad);
+        box-shadow: 0 6px 0 #6c3483;
+      }
+      .btn-red {
+        background: linear-gradient(to bottom, #e74c3c, #c0392b);
+        box-shadow: 0 6px 0 #922b21;
+      }
+
+      /* SETTINGS PANEL */
+      .settings-panel {
+        background: var(--dark-bg);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-top: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 25px;
+        padding: 30px;
+        width: 90%;
+        max-width: 450px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        max-height: 80vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+      }
+      .setting-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 18px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 12px 15px;
+        border-radius: 12px;
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #444;
+        transition: 0.4s;
+        border-radius: 34px;
+      }
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+      input:checked + .slider {
+        background-color: var(--primary);
+      }
+      input:checked + .slider:before {
+        transform: translateX(24px);
+      }
+
+      input[type="text"] {
+        background: rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        padding: 15px;
+        color: white;
+        border-radius: 12px;
+        width: 100%;
+        font-size: 1.2rem;
+        text-align: center;
+        margin-bottom: 20px;
+        outline: none;
+        font-family: "Varela Round", sans-serif;
+        transition: 0.3s;
+      }
+      input[type="text"]:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
+      }
+
+      .opt-grid {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+      }
+      .color-ball {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 4px solid rgba(0, 0, 0, 0.3);
+        transition: 0.2s;
+        box-shadow: inset 0 -5px 10px rgba(0, 0, 0, 0.3);
+      }
+      .color-ball.selected {
+        border-color: white;
+        transform: scale(1.1);
+        box-shadow: 0 0 15px white;
+      }
+
+      .lang-btn {
+        background: #2c3e50;
+        border: none;
+        color: #ecf0f1;
+        padding: 10px 16px;
+        cursor: pointer;
+        border-radius: 8px;
+        font-weight: bold;
+        box-shadow: 0 4px 0 #1a252f;
+        transition: 0.1s;
+        font-size: 0.9rem;
+      }
+      .lang-btn:active {
+        transform: translateY(4px);
+        box-shadow: none;
+      }
+      .lang-btn.selected {
+        background: var(--primary);
+        color: #004d40;
+        box-shadow: 0 4px 0 #00bfa5;
+      }
+
+      /* HUD */
+      #hud {
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 15px;
+        height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      #hud-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        width: 100%;
+      }
+      #hud-right-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: auto;
+        align-items: flex-end;
+      }
+
+      #timer-display {
+        font-family: "Fredoka One", cursive;
+        font-size: 2rem;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 5px 20px;
+        border-radius: 15px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        opacity: 0;
+        transition: opacity 0.3s;
+        text-shadow: 0 2px 4px #000;
+      }
+
+      .hud-btn {
+        pointer-events: auto;
+        background: rgba(40, 40, 50, 0.9);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 8px;
+        width: 50px;
+        height: 50px;
+        border-radius: 15px;
+        cursor: pointer;
+        font-size: 1.5rem;
+        transition: 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      }
+      .hud-btn:hover {
+        transform: scale(1.1);
+        background: var(--accent);
+        border-color: white;
+      }
+      .hud-btn-exit {
+        background: #e74c3c;
+        width: auto;
+        padding: 0 15px;
+        font-family: "Fredoka One";
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+      }
+      .hud-btn-exit:hover {
+        background: #c0392b;
+      }
+
+      #turn-badge {
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(8px);
+        padding: 8px 30px;
+        border-radius: 40px;
+        border: 3px solid white;
+        font-family: "Fredoka One";
+        font-size: 1.2rem;
+        color: white;
+        text-transform: uppercase;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        text-shadow: 2px 2px 0 #000;
+        margin-bottom: 15px;
+        display: inline-block;
+        transition: 0.3s;
+      }
+
+      #controls-area {
+        align-self: center;
+        pointer-events: auto;
+        text-align: center;
+        width: 100%;
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #msg-box {
+        display: inline-block;
+        background: linear-gradient(
+          90deg,
+          rgba(0, 0, 0, 0) 0%,
+          rgba(0, 0, 0, 0.8) 20%,
+          rgba(0, 0, 0, 0.8) 80%,
+          rgba(0, 0, 0, 0) 100%
+        );
+        padding: 8px 40px;
+        font-size: 1.1rem;
+        color: #eee;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+
+      #roll-btn {
+        background: #f1f2f6;
+        color: #2c3e50;
+        border: none;
+        width: 80px;
+        height: 80px;
+        border-radius: 25px;
+        font-family: "Fredoka One";
+        font-size: 1.4rem;
+        cursor: pointer;
+        box-shadow: 0 8px 0 #bdc3c7, 0 15px 20px rgba(0, 0, 0, 0.4);
+        transition: 0.1s;
+        border: 4px solid #fff;
+      }
+      #roll-btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 0 0 #bdc3c7, inset 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+      #roll-btn:disabled {
+        filter: grayscale(1);
+        opacity: 0.7;
+        transform: translateY(4px);
+        box-shadow: none;
+      }
+
+      #countdown-number {
+        font-family: "Fredoka One";
+        font-size: 10rem;
+        color: #fff;
+        text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        animation: pulse 1s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.1);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container"></div>
+
+    <div id="ui-layer">
+      <!-- WELCOME -->
+      <div id="screen-welcome" class="screen">
+        <h1>NAIJA LUDO 3D</h1>
+        <p class="subtitle">GOLD EDITION</p>
+        <br /><br />
+        <button id="btn-play" class="btn btn-green">PLAY GAME</button>
+        <button id="btn-settings" class="btn btn-blue">SETTINGS</button>
+        <button id="btn-rules" class="btn btn-purple">HOW TO PLAY</button>
+      </div>
+
+      <!-- MODES -->
+      <div id="screen-modes" class="screen hidden">
+        <h2>SELECT MODE</h2>
+        <button onclick="openSetup(1)" class="btn btn-green">
+          1 Player vs CPU
+        </button>
+        <button onclick="openSetup(2)" class="btn btn-blue">2 Players</button>
+        <button onclick="openSetup(4)" class="btn btn-purple">4 Players</button>
+        <button
+          onclick="goBack('screen-modes', 'screen-welcome')"
+          class="btn btn-red"
+          style="margin-top: 30px; min-width: 150px"
+        >
+          Back
+        </button>
+      </div>
+
+      <!-- SETUP -->
+      <div id="screen-setup" class="screen hidden">
+        <div class="settings-panel">
+          <h2 style="text-align: center; margin-top: 0">SETUP</h2>
+          <div style="text-align: center">
+            <p>ENTER NAME</p>
+            <input
+              type="text"
+              id="username-input"
+              placeholder="Player 1"
+              maxlength="12"
+            />
+            <p>CHOOSE COLOR</p>
+            <div class="opt-grid">
+              <div
+                class="color-ball bg-red selected"
+                style="background: #d32f2f"
+                onclick="selectColor(0, this)"
+              ></div>
+              <div
+                class="color-ball bg-green"
+                style="background: #388e3c"
+                onclick="selectColor(1, this)"
+              ></div>
+              <div
+                class="color-ball bg-yellow"
+                style="background: #fbc02d"
+                onclick="selectColor(2, this)"
+              ></div>
+              <div
+                class="color-ball bg-blue"
+                style="background: #1976d2"
+                onclick="selectColor(3, this)"
+              ></div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 20px">
+            <button
+              onclick="startCountdown()"
+              class="btn btn-green"
+              style="width: 100%; margin: 0"
+            >
+              START MATCH</button
+            ><br /><br />
+            <button
+              onclick="goBack('screen-setup', 'screen-modes')"
+              class="btn btn-red"
+              style="
+                padding: 10px 30px;
+                min-width: 120px;
+                font-size: 1rem;
+                margin: 0;
+              "
+            >
+              Back
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="screen-settings" class="screen hidden">
+        <div class="settings-panel">
+          <h2 style="text-align: center; margin-top: 0">SETTINGS</h2>
+          <div class="setting-row">
+            <span>Sound Effects</span
+            ><label class="switch"
+              ><input type="checkbox" id="opt-sound" checked /><span
+                class="slider"
+              ></span
+            ></label>
+          </div>
+          <div class="setting-row">
+            <span>Timer (15s)</span
+            ><label class="switch"
+              ><input type="checkbox" id="opt-timer" /><span
+                class="slider"
+              ></span
+            ></label>
+          </div>
+          <div class="setting-row">
+            <span>AI Difficulty (Hard)</span
+            ><label class="switch"
+              ><input type="checkbox" id="opt-hard" checked /><span
+                class="slider"
+              ></span
+            ></label>
+          </div>
+          <div class="setting-row">
+            <span>Theme Color</span
+            ><button
+              onclick="changeTheme()"
+              style="
+                background: #444;
+                border: none;
+                color: white;
+                padding: 8px 15px;
+                cursor: pointer;
+                border-radius: 8px;
+                font-weight: bold;
+              "
+            >
+              SWITCH
+            </button>
+          </div>
+          <div
+            class="setting-row"
+            style="display: block; background: none; padding: 0"
+          >
+            <span style="display: block; margin-bottom: 10px">Language</span>
+            <div class="opt-grid" style="justify-content: space-between">
+              <div class="lang-btn selected" onclick="setLang('en', this)">
+                ENG
+              </div>
+              <div class="lang-btn" onclick="setLang('pidgin', this)">PID</div>
+              <div class="lang-btn" onclick="setLang('hausa', this)">HAU</div>
+              <div class="lang-btn" onclick="setLang('yoruba', this)">YOR</div>
+              <div class="lang-btn" onclick="setLang('igbo', this)">IGB</div>
+            </div>
+          </div>
+          <button
+            id="btn-restart-game"
+            class="btn btn-red"
+            style="width: 100%; margin: 10px 0; display: none; font-size: 1rem"
+            onclick="restartGame()"
+          >
+            RESTART MATCH
+          </button>
+          <div style="text-align: center; margin-top: 15px">
+            <button
+              onclick="closeSettings()"
+              class="btn btn-blue"
+              style="
+                padding: 10px 40px;
+                min-width: 100px;
+                font-size: 1rem;
+                margin: 0;
+              "
+            >
+              CLOSE
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RULES -->
+      <div id="screen-rules" class="screen hidden">
+        <div class="settings-panel">
+          <h2 style="text-align: center; margin-top: 0">HOW TO PLAY</h2>
+          <ul style="line-height: 1.8; padding-left: 20px; font-size: 1.1rem">
+            <li>🎲 <b>Start:</b> Roll 6 to move out.</li>
+            <li>🏃 <b>Move:</b> Follow the arrows.</li>
+            <li>⚔️ <b>Capture:</b> Land on enemy to send them home.</li>
+            <li>⭐ <b>Safe Zones:</b> Star tiles are safe.</li>
+            <li>🏆 <b>Win:</b> Get 4 tokens to the center.</li>
+          </ul>
+          <div style="text-align: center; margin-top: 20px">
+            <button
+              onclick="goBack('screen-rules', 'screen-welcome')"
+              class="btn btn-blue"
+            >
+              GOT IT
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-countdown" class="screen hidden">
+        <h2 id="txt-starting">GET READY</h2>
+        <div id="countdown-number">3</div>
+      </div>
+      <div id="screen-win" class="screen hidden">
+        <h1 id="winner-text">RED WINS!</h1>
+        <br /><button onclick="location.reload()" class="btn btn-green">
+          PLAY AGAIN
+        </button>
+      </div>
+
+      <div id="hud" class="hidden">
+        <div id="hud-top">
+          <button class="hud-btn" onclick="openSettingsInGame()">⚙️</button>
+          <div id="timer-display">15</div>
+          <div id="hud-right-controls">
+            <button class="hud-btn" onclick="toggleMute()">🔊</button
+            ><button class="hud-btn hud-btn-exit" onclick="confirmExit()">
+              EXIT
+            </button>
+          </div>
+        </div>
+        <div id="controls-area">
+          <div id="turn-badge">RED'S TURN</div>
+          <div id="msg-box">Roll 6 to start</div>
+          <button id="roll-btn">ROLL</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+      // --- SOUND ENGINE ---
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const Sound = {
+        playTone: (freq, type, duration) => {
+          if (!document.getElementById("opt-sound").checked) return;
+          const osc = audioCtx.createOscillator(),
+            gain = audioCtx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          gain.gain.exponentialRampToValueAtTime(
+            0.00001,
+            audioCtx.currentTime + duration
+          );
+          osc.stop(audioCtx.currentTime + duration);
+        },
+        click: () => Sound.playTone(600, "sine", 0.1),
+        roll: () => Sound.playTone(300, "triangle", 0.2),
+        move: () => Sound.playTone(400, "sine", 0.1),
+        capture: () => {
+          Sound.playTone(150, "sawtooth", 0.1);
+          setTimeout(() => Sound.playTone(100, "sawtooth", 0.3), 100);
+        },
+        win: () => {
+          [400, 500, 600, 800].forEach((f, i) =>
+            setTimeout(() => Sound.playTone(f, "square", 0.2), i * 200)
+          );
+        },
+      };
+
+      const COLORS = {
+        red: 0xd32f2f,
+        green: 0x388e3c,
+        yellow: 0xfbc02d,
+        blue: 0x1976d2,
+      };
+      const PLAYERS = [
+        {
+          id: 0,
+          name: "Red",
+          color: COLORS.red,
+          startIdx: 0,
+          pieces: [],
+          isBot: true,
+          finished: 0,
+          emoji: "🤖",
+        },
+        {
+          id: 1,
+          name: "Green",
+          color: COLORS.green,
+          startIdx: 13,
+          pieces: [],
+          isBot: true,
+          finished: 0,
+          emoji: "🤖",
+        },
+        {
+          id: 2,
+          name: "Yellow",
+          color: COLORS.yellow,
+          startIdx: 26,
+          pieces: [],
+          isBot: true,
+          finished: 0,
+          emoji: "🤖",
+        },
+        {
+          id: 3,
+          name: "Blue",
+          color: COLORS.blue,
+          startIdx: 39,
+          pieces: [],
+          isBot: true,
+          finished: 0,
+          emoji: "🤖",
+        },
+      ];
+
+      let scene,
+        camera,
+        renderer,
+        controls,
+        diceMesh,
+        confetti = [];
+      let logicPath = [],
+        currentPlayerIndex = 0,
+        waitingForRoll = false,
+        gameActive = false,
+        turnTimer = null,
+        timeLeft = 15;
+      let selectedMode = 1,
+        userColorIdx = 0,
+        curLang = "en",
+        themeIdx = 0;
+      let cheatRoll = null;
+
+      const TEXTS = {
+        en: {
+          turn: "'S TURN",
+          roll: "Roll 6 to Start",
+          win: "WINS!",
+          cpu: "Thinking...",
+          you: "Your Turn",
+        },
+        pidgin: {
+          turn: " TURN",
+          roll: "Roll 6 na",
+          win: "DON WIN!",
+          cpu: "Dey think...",
+          you: "Oya Play",
+        },
+        hausa: {
+          turn: " LOKACI",
+          roll: "Jefa 6",
+          win: "YA CI!",
+          cpu: "Tunani...",
+          you: "Lokacinka",
+        },
+        yoruba: {
+          turn: " LO KAN",
+          roll: "Ju 6",
+          win: "TI BORÍ!",
+          cpu: "Ronu...",
+          you: "Iwo Ni",
+        },
+        igbo: {
+          turn: " OGE",
+          roll: "Tuo 6",
+          win: "EMERIAGO!",
+          cpu: "Na eche...",
+          you: "Nke Gi",
+        },
+      };
+
+      function initWorld() {
+        const p = [];
+        for (let x = 1; x <= 5; x++) p.push({ x: x, y: 6 });
+        for (let y = 5; y >= 0; y--) p.push({ x: 6, y: y });
+        p.push({ x: 7, y: 0 });
+        for (let y = 0; y <= 5; y++) p.push({ x: 8, y: y });
+        for (let x = 9; x <= 14; x++) p.push({ x: x, y: 6 });
+        p.push({ x: 14, y: 7 });
+        for (let x = 14; x >= 9; x--) p.push({ x: x, y: 8 });
+        for (let y = 9; y <= 14; y++) p.push({ x: 8, y: y });
+        p.push({ x: 7, y: 14 });
+        for (let y = 14; y >= 9; y--) p.push({ x: 6, y: y });
+        for (let x = 5; x >= 0; x--) p.push({ x: x, y: 8 });
+        p.push({ x: 0, y: 7 });
+        logicPath = p;
+
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(
+          45,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          100
+        );
+        camera.position.set(0, 20, 15);
+        camera.lookAt(0, 0, 0);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document
+          .getElementById("game-container")
+          .appendChild(renderer.domElement);
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enablePan = false;
+        controls.maxPolarAngle = Math.PI / 2.1;
+        controls.minDistance = 10;
+        controls.maxDistance = 35;
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+        dir.position.set(10, 20, 10);
+        dir.castShadow = true;
+        dir.shadow.mapSize.width = 2048;
+        dir.shadow.mapSize.height = 2048;
+        scene.add(dir);
+
+        const board = new THREE.Mesh(
+          new THREE.BoxGeometry(15, 0.5, 15),
+          new THREE.MeshStandardMaterial({ map: createBoardTex() })
+        );
+        board.position.y = -0.25;
+        board.receiveShadow = true;
+        scene.add(board);
+        const floor = new THREE.Mesh(
+          new THREE.PlaneGeometry(50, 50),
+          new THREE.ShadowMaterial({ opacity: 0.3 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.5;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        initDice();
+        adjustCamera();
+        animate();
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+          adjustCamera();
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (!gameActive) return;
+          if (e.code === "Space") {
+            if (!PLAYERS[currentPlayerIndex].isBot) rollDice();
+          }
+          if (e.key >= "1" && e.key <= "6") {
+            cheatRoll = parseInt(e.key);
+            console.log("Cheat set:", cheatRoll);
+          }
+        });
+      }
+
+      // SMART CAMERA ADJUSTMENT FOR MOBILE
+      function adjustCamera() {
+        if (window.innerWidth < 600) {
+          camera.position.set(0, 28, 10); // Higher and closer for portrait
+          camera.lookAt(0, 0, 0);
+        } else {
+          camera.position.set(0, 20, 15);
+          camera.lookAt(0, 0, 0);
+        }
+      }
+
+      function createBoardTex() {
+        const c = document.createElement("canvas");
+        c.width = 1024;
+        c.height = 1024;
+        const ctx = c.getContext("2d");
+        const s = 1024 / 15;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, 1024, 1024);
+        const base = (x, y, col) => {
+          ctx.fillStyle = col;
+          ctx.fillRect(x * s, y * s, 6 * s, 6 * s);
+          ctx.fillStyle = "#fff";
+          ctx.fillRect((x + 1) * s, (y + 1) * s, 4 * s, 4 * s);
+        };
+        base(0, 0, "#d32f2f");
+        base(9, 0, "#388e3c");
+        base(9, 9, "#fbc02d");
+        base(0, 9, "#1976d2");
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 2;
+        const tile = (x, y, col) => {
+          ctx.fillStyle = col;
+          ctx.fillRect(x * s, y * s, s, s);
+          ctx.strokeRect(x * s, y * s, s, s);
+        };
+        for (let i = 0; i < 15; i++)
+          for (let j = 0; j < 15; j++) {
+            if (
+              !(
+                (i < 6 && j < 6) ||
+                (i > 8 && j < 6) ||
+                (i > 8 && j > 8) ||
+                (i < 6 && j > 8)
+              )
+            )
+              ctx.strokeRect(i * s, j * s, s, s);
+          }
+        for (let i = 1; i < 6; i++) tile(i, 7, "#d32f2f");
+        tile(1, 6, "#d32f2f");
+        for (let j = 1; j < 6; j++) tile(7, j, "#388e3c");
+        tile(8, 1, "#388e3c");
+        for (let i = 9; i < 14; i++) tile(i, 7, "#fbc02d");
+        tile(13, 8, "#fbc02d");
+        for (let j = 9; j < 14; j++) tile(7, j, "#1976d2");
+        tile(6, 13, "#1976d2");
+        ctx.beginPath();
+        ctx.moveTo(6 * s, 6 * s);
+        ctx.lineTo(9 * s, 6 * s);
+        ctx.lineTo(7.5 * s, 7.5 * s);
+        ctx.fillStyle = "#388e3c";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(9 * s, 6 * s);
+        ctx.lineTo(9 * s, 9 * s);
+        ctx.lineTo(7.5 * s, 7.5 * s);
+        ctx.fillStyle = "#fbc02d";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(9 * s, 9 * s);
+        ctx.lineTo(6 * s, 9 * s);
+        ctx.lineTo(7.5 * s, 7.5 * s);
+        ctx.fillStyle = "#1976d2";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(6 * s, 9 * s);
+        ctx.lineTo(6 * s, 6 * s);
+        ctx.lineTo(7.5 * s, 7.5 * s);
+        ctx.fillStyle = "#d32f2f";
+        ctx.fill();
+        ctx.fillStyle = "#333";
+        const arr = (tx, ty, rot) => {
+          const cx = tx * s + s / 2,
+            cy = ty * s + s / 2;
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(rot);
+          ctx.beginPath();
+          ctx.moveTo(-15, -15);
+          ctx.lineTo(15, 0);
+          ctx.lineTo(-15, 15);
+          ctx.fill();
+          ctx.restore();
+        };
+        for (let x = 2; x <= 4; x += 2) arr(x, 6, 0);
+        for (let y = 2; y <= 4; y += 2) arr(8, y, Math.PI / 2);
+        for (let x = 10; x <= 12; x += 2) arr(x, 8, Math.PI);
+        for (let y = 10; y <= 12; y += 2) arr(6, y, -Math.PI / 2);
+        return new THREE.CanvasTexture(c);
+      }
+
+      function initDice() {
+        const size = 1.2;
+        const geo = new THREE.BoxGeometry(size, size, size);
+        const tex = (n) => {
+          const c = document.createElement("canvas");
+          c.width = 64;
+          c.height = 64;
+          const x = c.getContext("2d");
+          x.fillStyle = "#fff";
+          x.fillRect(0, 0, 64, 64);
+          x.fillStyle = "#000";
+          const d = (px, py) => {
+            x.beginPath();
+            x.arc(px, py, 6, 0, 6.28);
+            x.fill();
+          };
+          if (n % 2 !== 0) d(32, 32);
+          if (n > 1) {
+            d(16, 16);
+            d(48, 48);
+          }
+          if (n > 3) {
+            d(48, 16);
+            d(16, 48);
+          }
+          if (n === 6) {
+            d(16, 32);
+            d(48, 32);
+          }
+          x.lineWidth = 4;
+          x.strokeStyle = "#ccc";
+          x.strokeRect(0, 0, 64, 64);
+          return new THREE.CanvasTexture(c);
+        };
+        const mats = [1, 2, 3, 4, 5, 6].map(
+          (n) => new THREE.MeshStandardMaterial({ map: tex(n) })
+        );
+        diceMesh = new THREE.Mesh(geo, mats);
+        diceMesh.position.set(0, 3, 0);
+        diceMesh.castShadow = true;
+        scene.add(diceMesh);
+      }
+
+      function spawnConfetti() {
+        for (let i = 0; i < 50; i++) {
+          const geo = new THREE.PlaneGeometry(0.3, 0.3);
+          const mat = new THREE.MeshBasicMaterial({
+            color: Math.random() * 0xffffff,
+            side: THREE.DoubleSide,
+          });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.set(0, 5, 0);
+          mesh.userData = {
+            vel: new THREE.Vector3(
+              (Math.random() - 0.5) * 0.5,
+              Math.random() * 0.5,
+              (Math.random() - 0.5) * 0.5
+            ),
+            rot: Math.random() * 0.2,
+          };
+          scene.add(mesh);
+          confetti.push(mesh);
+        }
+      }
+
+      function updateConfetti() {
+        confetti.forEach((c, i) => {
+          c.position.add(c.userData.vel);
+          c.rotation.x += c.userData.rot;
+          c.rotation.y += c.userData.rot;
+          c.userData.vel.y -= 0.02;
+          if (c.position.y < -1) {
+            scene.remove(c);
+            confetti.splice(i, 1);
+          }
+        });
+      }
+
+      function openSetup(mode) {
+        Sound.click();
+        selectedMode = mode;
+        document.getElementById("screen-modes").classList.add("hidden");
+        document.getElementById("screen-setup").classList.remove("hidden");
+      }
+      function goBack(curr, dest) {
+        Sound.click();
+        document.getElementById(curr).classList.add("hidden");
+        document.getElementById(dest).classList.remove("hidden");
+      }
+      function selectColor(idx, el) {
+        Sound.click();
+        userColorIdx = idx;
+        document
+          .querySelectorAll(".color-ball")
+          .forEach((b) => b.classList.remove("selected"));
+        el.classList.add("selected");
+      }
+
+      function startCountdown() {
+        Sound.click();
+        document.getElementById("screen-setup").classList.add("hidden");
+        document.getElementById("screen-countdown").classList.remove("hidden");
+        let count = 3;
+        const el = document.getElementById("countdown-number");
+        const int = setInterval(() => {
+          count--;
+          if (count > 0) {
+            el.innerText = count;
+            Sound.playTone(400, "sine", 0.1);
+          } else {
+            clearInterval(int);
+            Sound.playTone(800, "square", 0.3);
+            document.getElementById("screen-countdown").classList.add("hidden");
+            clearBoard();
+            startGame();
+          }
+        }, 1000);
+      }
+
+      function clearBoard() {
+        PLAYERS.forEach((p) => {
+          if (p.pieces)
+            p.pieces.forEach((pc) => {
+              if (pc.mesh) scene.remove(pc.mesh);
+            });
+          if (p.badge) scene.remove(p.badge);
+          p.pieces = [];
+          p.badge = null;
+        });
+      }
+
+      function startGame() {
+        gameActive = true;
+        document.getElementById("btn-restart-game").style.display = "block";
+        let name =
+          document.getElementById("username-input").value || "Player 1";
+        PLAYERS.forEach((p, i) => {
+          p.isBot = true;
+          p.name = "CPU " + (i + 1);
+          p.finished = 0;
+          p.emoji = "🤖";
+        });
+        PLAYERS[userColorIdx].isBot = false;
+        PLAYERS[userColorIdx].name = name;
+        PLAYERS[userColorIdx].emoji = "👤";
+        if (selectedMode === 2) {
+          const opp = (userColorIdx + 2) % 4;
+          PLAYERS[opp].isBot = false;
+          PLAYERS[opp].name = "Player 2";
+          PLAYERS[opp].emoji = "👤";
+          PLAYERS[(userColorIdx + 1) % 4].finished = 99;
+          PLAYERS[(userColorIdx + 3) % 4].finished = 99;
+        }
+        PLAYERS.forEach((p) => {
+          if (p.finished === 99) return;
+          const corn = [
+            { x: 1, y: 1 },
+            { x: 10, y: 1 },
+            { x: 10, y: 10 },
+            { x: 1, y: 10 },
+          ][p.id];
+          for (let i = 0; i < 4; i++) {
+            const mesh = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.35, 0.35, 0.1, 32),
+              new THREE.MeshStandardMaterial({
+                color: p.color,
+                roughness: 0.2,
+                metalness: 0.3,
+              })
+            );
+            const ox = (i % 2) * 2,
+              oy = Math.floor(i / 2) * 2;
+            const hx = corn.x + ox + 0.5 - 7,
+              hz = corn.y + oy + 0.5 - 7;
+            mesh.position.set(hx, 0.1, hz);
+            mesh.castShadow = true;
+            scene.add(mesh);
+            p.pieces.push({
+              mesh: mesh,
+              homePos: new THREE.Vector3(hx, 0.1, hz),
+              step: -1,
+              state: "HOME",
+            });
+          }
+          createBadge(p);
+        });
+        currentPlayerIndex = userColorIdx;
+        document.getElementById("hud").classList.remove("hidden");
+        startTurn();
+      }
+
+      function createBadge(p) {
+        const c = document.createElement("canvas");
+        c.width = 256;
+        c.height = 128;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.strokeStyle = "#" + p.color.toString(16);
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.roundRect(10, 10, 236, 108, 20);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = "50px 'Fredoka One'";
+        ctx.fillStyle = "#fff";
+        ctx.fillText(p.emoji, 30, 80);
+        ctx.font = "bold 35px 'Varela Round'";
+        ctx.fillText(p.name, 90, 80);
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(3, 1.5),
+          new THREE.MeshBasicMaterial({
+            map: new THREE.CanvasTexture(c),
+            transparent: true,
+            side: THREE.DoubleSide,
+          })
+        );
+        let cx = 0,
+          cz = 0;
+        if (p.id === 0) {
+          cx = -5;
+          cz = -5;
+        }
+        if (p.id === 1) {
+          cx = 5;
+          cz = -5;
+        }
+        if (p.id === 2) {
+          cx = 5;
+          cz = 5;
+        }
+        if (p.id === 3) {
+          cx = -5;
+          cz = 5;
+        }
+        mesh.position.set(cx, 4, cz);
+        mesh.lookAt(camera.position);
+        scene.add(mesh);
+        p.badge = mesh;
+      }
+
+      function startTurn() {
+        if (!gameActive) return;
+        const p = PLAYERS[currentPlayerIndex];
+        if (p.finished >= 4 || p.finished === 99) {
+          nextTurn();
+          return;
+        }
+        const txt = TEXTS[curLang];
+        document.getElementById("turn-badge").innerText = p.name + txt.turn;
+        document.getElementById("turn-badge").style.borderColor =
+          "#" + p.color.toString(16);
+        document.getElementById("msg-box").innerText = p.isBot
+          ? `${p.name} ${txt.cpu}`
+          : txt.you;
+        const btn = document.getElementById("roll-btn");
+        btn.disabled = false;
+        btn.style.borderColor = "#" + p.color.toString(16);
+        waitingForRoll = true;
+        clearInterval(turnTimer);
+        if (document.getElementById("opt-timer").checked) {
+          timeLeft = 15;
+          const tDisp = document.getElementById("timer-display");
+          tDisp.style.opacity = 1;
+          tDisp.innerText = timeLeft;
+          turnTimer = setInterval(() => {
+            timeLeft--;
+            tDisp.innerText = timeLeft;
+            if (timeLeft <= 0) {
+              clearInterval(turnTimer);
+              if (waitingForRoll) {
+                waitingForRoll = false;
+                nextTurn();
+              }
+            }
+          }, 1000);
+        } else document.getElementById("timer-display").style.opacity = 0;
+        if (p.isBot) {
+          btn.disabled = true;
+          setTimeout(rollDice, 1000);
+        }
+      }
+
+      function rollDice() {
+        if (!waitingForRoll) return;
+        waitingForRoll = false;
+        clearInterval(turnTimer);
+        Sound.roll();
+        document.getElementById("roll-btn").disabled = true;
+        let roll = Math.floor(Math.random() * 6) + 1;
+        if (cheatRoll !== null) {
+          roll = cheatRoll;
+          cheatRoll = null;
+        }
+        let f = 0;
+        const anim = setInterval(() => {
+          diceMesh.rotation.x += 0.4;
+          diceMesh.rotation.y += 0.6;
+          diceMesh.position.y = 3 + Math.sin(f) * 1;
+          f += 0.2;
+          if (f > 5) {
+            clearInterval(anim);
+            diceMesh.position.y = 1;
+            diceMesh.rotation.set(0, 0, 0);
+            if (roll === 1) diceMesh.rotation.z = 1.57;
+            if (roll === 2) diceMesh.rotation.z = -1.57;
+            if (roll === 4) diceMesh.rotation.x = 3.14;
+            if (roll === 5) diceMesh.rotation.x = -1.57;
+            if (roll === 6) diceMesh.rotation.x = 1.57;
+            Sound.click();
+            document.getElementById(
+              "msg-box"
+            ).innerHTML = `Rolled <b>${roll}</b>`;
+            setTimeout(() => processMove(roll), 500);
+          }
+        }, 30);
+      }
+
+      function processMove(roll) {
+        const p = PLAYERS[currentPlayerIndex];
+        const moves = [];
+        p.pieces.forEach((pc, i) => {
+          if (pc.state === "WIN") return;
+          if (pc.state === "HOME") {
+            if (roll === 6) moves.push(i);
+          } else {
+            if (pc.step + roll <= 56) moves.push(i);
+          }
+        });
+        if (moves.length === 0) setTimeout(nextTurn, 1000);
+        else {
+          let best = moves[0];
+          const hardMode = document.getElementById("opt-hard").checked;
+          if (p.isBot && hardMode) {
+            for (let m of moves) {
+              if (p.pieces[m].state === "HOME") {
+                best = m;
+                break;
+              }
+              if (p.pieces[m].step > p.pieces[best].step) best = m;
+            }
+          } else if (p.isBot)
+            best = moves[Math.floor(Math.random() * moves.length)];
+          setTimeout(() => movePiece(p, best, roll), 500);
+        }
+      }
+
+      function movePiece(p, idx, roll) {
+        const pc = p.pieces[idx];
+        if (pc.state === "HOME") {
+          pc.state = "BOARD";
+          pc.step = 0;
+        } else {
+          pc.step += roll;
+        }
+        if (pc.step === 56) {
+          pc.state = "WIN";
+          p.finished++;
+          spawnConfetti();
+          Sound.win();
+        }
+        const target = getPos(p.startIdx, pc.step);
+        const start = pc.mesh.position.clone();
+        let a = 0;
+        Sound.move();
+        function loop() {
+          a += 0.05;
+          if (a > 1) {
+            pc.mesh.position.copy(target);
+            checkCollisions(p, pc);
+            if (p.finished === 4) {
+              gameActive = false;
+              document.getElementById("hud").classList.add("hidden");
+              document.getElementById("screen-win").classList.remove("hidden");
+              document.getElementById("winner-text").innerText =
+                p.name + " WINS!";
+              Sound.win();
+            } else if (roll === 6) setTimeout(startTurn, 500);
+            else nextTurn();
+            return;
+          }
+          pc.mesh.position.lerpVectors(start, target, a);
+          pc.mesh.position.y = 0.5 + Math.sin(a * 3.14) * 2;
+          requestAnimationFrame(loop);
+        }
+        loop();
+      }
+
+      function checkCollisions(atkP, atkPc) {
+        if (atkPc.state !== "BOARD") return;
+        PLAYERS.forEach((defP) => {
+          if (defP.id === atkP.id) return;
+          defP.pieces.forEach((defPc) => {
+            if (
+              defPc.state === "BOARD" &&
+              atkPc.mesh.position.distanceTo(defPc.mesh.position) < 0.5
+            ) {
+              const gStep = (atkP.startIdx + atkPc.step) % 52;
+              const safe = [0, 8, 13, 21, 26, 34, 39, 47].includes(gStep);
+              if (!safe) {
+                defPc.state = "HOME";
+                defPc.step = -1;
+                defPc.mesh.position.copy(defPc.homePos);
+                spawnConfetti();
+                Sound.capture();
+                document.getElementById("msg-box").innerText = "Captured!";
+              }
+            }
+          });
+        });
+      }
+
+      function nextTurn() {
+        currentPlayerIndex = (currentPlayerIndex + 1) % 4;
+        startTurn();
+      }
+
+      function getPos(startIdx, step) {
+        const g2w = (v) => v - 7;
+        let idx = (startIdx + step) % 52;
+        if (step > 50) {
+          let d = step - 50,
+            x,
+            y,
+            id = startIdx / 13;
+          if (id === 0) {
+            x = 1 + d;
+            y = 7;
+          }
+          if (id === 1) {
+            x = 7;
+            y = 1 + d;
+          }
+          if (id === 2) {
+            x = 13 - d;
+            y = 7;
+          }
+          if (id === 3) {
+            x = 7;
+            y = 13 - d;
+          }
+          if (d >= 6) {
+            x = 7;
+            y = 7;
+          }
+          return new THREE.Vector3(g2w(x), 0.1, g2w(y));
+        }
+        return new THREE.Vector3(
+          g2w(logicPath[idx].x),
+          0.1,
+          g2w(logicPath[idx].y)
+        );
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        updateConfetti();
+        PLAYERS.forEach((p) => {
+          if (p.badge) p.badge.lookAt(camera.position);
+        });
+        renderer.render(scene, camera);
+      }
+      function openSettingsInGame() {
+        Sound.click();
+        document.getElementById("screen-settings").classList.remove("hidden");
+      }
+      function closeSettings() {
+        Sound.click();
+        document.getElementById("screen-settings").classList.add("hidden");
+      }
+      function toggleMute() {
+        const el = document.getElementById("opt-sound");
+        el.checked = !el.checked;
+      }
+      function restartGame() {
+        if (confirm("Restart current match?")) {
+          closeSettings();
+          clearBoard();
+          startGame();
+        }
+      }
+      function confirmExit() {
+        Sound.click();
+        if (confirm("Exit to Main Menu?")) location.reload();
+      }
+      function changeTheme() {
+        Sound.click();
+        const themes = [
+          "radial-gradient(circle at center, #1a2a6c, #b21f1f, #fdbb2d)",
+          "radial-gradient(circle at center, #0f2027, #203a43, #2c5364)",
+          "radial-gradient(circle at center, #373b44, #4286f4)",
+          "radial-gradient(circle at center, #11998e, #38ef7d)",
+        ];
+        themeIdx = (themeIdx + 1) % themes.length;
+        document.body.style.background = themes[themeIdx];
+      }
+      function setLang(code, el) {
+        Sound.click();
+        curLang = code;
+        document
+          .querySelectorAll(".lang-btn")
+          .forEach((b) => b.classList.remove("selected"));
+        el.classList.add("selected");
+      }
+
+      initWorld();
+      document.getElementById("btn-play").onclick = () => {
+        Sound.click();
+        document.getElementById("screen-welcome").classList.add("hidden");
+        document.getElementById("screen-modes").classList.remove("hidden");
+      };
+      document.getElementById("btn-rules").onclick = () => {
+        Sound.click();
+        document.getElementById("screen-welcome").classList.add("hidden");
+        document.getElementById("screen-rules").classList.remove("hidden");
+      };
+      document.getElementById("btn-settings").onclick = () => {
+        Sound.click();
+        document.getElementById("screen-settings").classList.remove("hidden");
+      };
+      document.getElementById("roll-btn").onclick = () => {
+        if (!PLAYERS[currentPlayerIndex].isBot) rollDice();
+      };
+    </script>
+  </body>
+</html>
