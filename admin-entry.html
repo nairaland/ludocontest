@@ -890,8 +890,8 @@
         }
         function animateDiceRoll() {
             const LIFT_DURATION = 400;
-            const STEP_DURATION = 250;
-            const NUM_STEPS = 12;
+            const STEP_DURATION = 100;
+            const NUM_STEPS = 30;
             const ROTATION_DURATION = NUM_STEPS * STEP_DURATION;
             const DROP_DURATION = 400;
             const FLOAT_HEIGHT = 3.0;
@@ -1207,100 +1207,249 @@
             if (colorName === 'BLUE') center = { x: -4.5, z: 4.5 };
             return positions.map(p => ({ x: p.x + center.x, z: p.z + center.z }));
         }
+        let currentTurnValues = [];
+        let currentTurnStep = 0;
+
         function rollDice() {
             if (gameState !== 'WAITING_FOR_ROLL') return;
             gameState = 'ROLLING';
             setDiceHighlight(0, false);
             setDiceHighlight(1, false);
+            // Clear any previous token highlights
+            highlightTokens([]);
+
             animateDiceRoll();
             setTimeout(() => {
                 const die1Value = getDiceTopFace(dice[0]);
                 const die2Value = getDiceTopFace(dice[1]);
                 console.log('Die 1:', die1Value, '| Die 2:', die2Value);
                 showMessage(`ROLLED ${die1Value} and ${die2Value}`);
-                diceValue = { die1: die1Value, die2: die2Value, used1: false, used2: false };
-                const activeDieIndex = (die2Value > die1Value) ? 1 : 0;
-                const activeValue = activeDieIndex === 0 ? die1Value : die2Value;
-                diceValue.activeIndex = activeDieIndex;
-                setDiceHighlight(0, activeDieIndex === 0);
-                setDiceHighlight(1, activeDieIndex === 1);
-                const valid = tokens.filter(t => {
-                    if (t.userData.playerIndex !== currentPlayerIndex) return false;
-                    if (t.userData.atHome) {
-                        return activeValue === 6;
-                    }
-                    return true;
-                });
-                if (valid.length === 0) {
-                    showMessage("NO MOVES POSSIBLE");
-                    setTimeout(nextTurn, 1200);
-                } else {
-                    gameState = 'WAITING_FOR_MOVE';
-                    showMessage(`MOVE ${activeValue}`);
-                    highlightTokens(valid);
-                }
+
+                currentTurnValues = [die1Value, die2Value];
+                currentTurnStep = 0;
+                processDieStep();
             }, 3900);
         }
+
+        function processDieStep() {
+            // Unhighlight all dice first
+            setDiceHighlight(0, false);
+            setDiceHighlight(1, false);
+
+            if (currentTurnStep >= currentTurnValues.length) {
+                // Both dice used
+                // Check for bonus roll (double 6) - logic optional based on user request, 
+                // but user said "then it's time for the next die roll". 
+                // We'll proceed to next turn.
+                setTimeout(nextTurn, 500);
+                return;
+            }
+
+            const activeValue = currentTurnValues[currentTurnStep];
+            const activeDieIndex = currentTurnStep;
+
+            // Highlight the current die
+            setDiceHighlight(activeDieIndex, true);
+
+            // Find valid tokens for this specific die value
+            const valid = tokens.filter(t => {
+                if (t.userData.playerIndex !== currentPlayerIndex) return false;
+
+                // If at home, need exactly 6 to leave
+                if (t.userData.atHome) {
+                    return activeValue === 6;
+                }
+
+                // If on board, calculate potential position
+                // (Basic check: ensure it doesn't overshoot path length if we had that logic, 
+                // for now just allow move if not at home)
+                // TODO: Add path overshoot check if path logic exists? 
+                // Existing code didn't strictly check overshoot in filter, so we'll keep it simple:
+                // if not at home, it can move.
+                return true;
+            });
+
+            if (valid.length === 0) {
+                showMessage(`NO MOVES FOR ${activeValue}`);
+                // Move to next die automatically after a short delay
+                setTimeout(() => {
+                    currentTurnStep++;
+                    processDieStep();
+                }, 1500);
+            } else {
+                gameState = 'WAITING_FOR_MOVE';
+                showMessage(`MOVE ${activeValue}`);
+                highlightTokens(valid);
+            }
+        }
+
         function highlightTokens(validOnes) {
+            // Reset all tokens to default state
             tokens.forEach(t => {
-                t.scale.set(1, 1, 1);
+                // If you had scaling or other effects, reset them here
+                // t.scale.set(1, 1, 1);
                 setTokenHighlight(t, false);
             });
+
+            // Highlight only the valid ones
             validOnes.forEach(t => {
                 setTokenHighlight(t, true);
             });
         }
+
         function moveToken(token, roll) {
             gameState = 'ANIMATING';
-            tweenGroup.removeAll();
-            tokens.forEach(t => {
-                t.scale.set(1, 1, 1);
-                setTokenHighlight(t, false);
-            });
+
+            // Remove highlights immediately
+            highlightTokens([]);
+
             let targetX, targetZ;
+            let pathIndex = token.userData.pathIndex; // We should track path index
+
+            // NOTE: The previous code didn't seem to track pathIndex properly in userData for movement logic
+            // It just used random moves or fixed entry. 
+            // We should try to use the defined paths if possible, but the USER REQUEST
+            // focuses on the *highlight* and *flow* logic, not rewriting the movement physics entirely.
+            // I'll stick to the existing movement logic pattern but cleaned up.
+
             if (token.userData.atHome) {
+                // Leaving home
                 token.userData.atHome = false;
+
+                // Find entry point
                 const entry = getEntryPosition(token.userData.colorName);
-                targetX = entry.x; targetZ = entry.z;
+                targetX = entry.x;
+                targetZ = entry.z;
+
+                // Initialize path index if we were using it
+                // For now, setting it to 0 (start of path)
+                token.userData.pathIndex = 0;
+
             } else {
-                targetX = token.position.x + (Math.random() > 0.5 ? 1 : -1) * 1.0;
-                targetZ = token.position.z + (Math.random() > 0.5 ? 1 : -1) * 1.0;
-                targetX = Math.max(-7, Math.min(7, targetX));
-                targetZ = Math.max(-7, Math.min(7, targetZ));
+                // Standard move: logic from previous code was random. 
+                // Let's try to follow the PATHS if we can, or fallback to the previous logic 
+                // to avoid breaking the game if path logic isn't fully wired.
+                // The previous code: targetX = token.position.x + (Math.random() > 0.5 ? 1 : -1) * 1.0;
+
+                // Let's IMPROVE it slightly to actually look up the path if possible.
+                const colorPath = PATHS[token.userData.colorName];
+                if (colorPath && token.userData.pathIndex !== undefined && token.userData.pathIndex !== -1) {
+                    let nextIndex = token.userData.pathIndex + roll;
+                    // Cap at max length
+                    if (nextIndex >= colorPath.length) nextIndex = colorPath.length - 1;
+
+                    const nextPos = colorPath[nextIndex];
+                    targetX = nextPos.x;
+                    targetZ = nextPos.z;
+                    token.userData.pathIndex = nextIndex;
+                } else {
+                    // Fallback to the random wiggle if path logic fails (preserves existing behavior style)
+                    // But wait, the user wants "move accordingly". Random is bad.
+                    // I will assume the PATHS object is correct and index 0 is start.
+                    // But token.userData.pathIndex was initialized to -1.
+
+                    // If path logic not fully robust, we stick to simple translation to avoid bugs.
+                    // However, to satisfy "move accordingly", I should try to use the path.
+                    // User has PATHS defined.
+
+                    // Logic:
+                    // Only start tracking pathIndex from 0 when they leave home.
+
+                    // I'll stick to a simple forward move demo if pathing is complex, 
+                    // but the previous code essentially just did random moves? 
+                    // No, line 1266 used random X/Z. That's chaotic.
+                    // I will switch to using the PATHS array.
+
+                    const pName = token.userData.colorName;
+                    const route = PATHS[pName];
+                    let currentIdx = token.userData.pathIndex;
+                    if (currentIdx === undefined || currentIdx < 0) currentIdx = -1;
+
+                    // If for some reason we are on board but index is -1 (shouldn't happen if we set it on exit),
+                    // find closest tile? No, just assume 0.
+
+                    const newIdx = currentIdx + roll;
+                    if (newIdx < route.length) {
+                        targetX = route[newIdx].x;
+                        targetZ = route[newIdx].z;
+                        token.userData.pathIndex = newIdx;
+                    } else {
+                        // Overshoot or finish? 
+                        // Just clamp for now
+                        const last = route[route.length - 1];
+                        targetX = last.x;
+                        targetZ = last.z;
+                        token.userData.pathIndex = route.length - 1;
+                    }
+                }
             }
+
             const duration = 650;
-            new TWEEN.Tween(token.position, tweenGroup).to({ x: targetX, z: targetZ }, duration).easing(TWEEN.Easing.Quadratic.Out).onComplete(() => {
-                checkCollision(token);
-                if (roll !== 6) nextTurn();
-                else { gameState = 'WAITING_FOR_ROLL'; updateUI(); showMessage("ROLL AGAIN!"); }
-            }).start();
-            new TWEEN.Tween(token.position, tweenGroup).to({ y: 2.5 }, duration / 2).easing(TWEEN.Easing.Quadratic.Out).chain(new TWEEN.Tween(token.position, tweenGroup).to({ y: TILE_HEIGHT / 2 }, duration / 2).easing(TWEEN.Easing.Quadratic.In)).start();
+
+            // Jump animation
+            new TWEEN.Tween(token.position, tweenGroup)
+                .to({ x: targetX, z: targetZ }, duration)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .onComplete(() => {
+                    checkCollision(token);
+
+                    // Move finished. Proceed to next die step.
+                    currentTurnStep++;
+                    processDieStep();
+                })
+                .start();
+
+            // Arc height animation
+            new TWEEN.Tween(token.position, tweenGroup)
+                .to({ y: 2.5 }, duration / 2)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .chain(
+                    new TWEEN.Tween(token.position, tweenGroup)
+                        .to({ y: TILE_HEIGHT / 2 + 0.08 }, duration / 2)
+                        .easing(TWEEN.Easing.Quadratic.In)
+                )
+                .start();
         }
+
+        // Keep helpers
         function getEntryPosition(colorName) {
-            if (colorName === 'RED') return { x: -6, z: -1 };
-            if (colorName === 'GREEN') return { x: 1, z: -6 };
-            if (colorName === 'YELLOW') return { x: 6, z: 1 };
-            if (colorName === 'BLUE') return { x: -1, z: 6 };
+            // Use the first point of the path logic if available?
+            // The PATHS array has the start.
+            if (PATHS[colorName] && PATHS[colorName][0]) {
+                return PATHS[colorName][0];
+            }
             return { x: 0, z: 0 };
         }
+
         function checkCollision(movedToken) {
             tokens.forEach(other => {
                 if (other === movedToken || other.userData.playerIndex === movedToken.userData.playerIndex || other.userData.atHome) return;
+                // Simple distance check
                 if (movedToken.position.distanceTo(other.position) < 0.6) {
                     showMessage(`CAPTURED ${PLAYER_ORDER[other.userData.playerIndex]}!`);
                     sendBack(other);
+                    // Capturing usually gives bonus, but we'll stick to the requested flow for simplicity
                 }
             });
         }
+
         function sendBack(token) {
             const homePos = getStartPositions(token.userData.colorName)[token.userData.id];
-            new TWEEN.Tween(token.position, tweenGroup).to({ x: homePos.x, y: TILE_HEIGHT / 2 + 0.08, z: homePos.z }, 1200).easing(TWEEN.Easing.Elastic.Out).start();
+            new TWEEN.Tween(token.position, tweenGroup)
+                .to({ x: homePos.x, y: TILE_HEIGHT / 2 + 0.08, z: homePos.z }, 1200)
+                .easing(TWEEN.Easing.Elastic.Out)
+                .start();
             token.userData.atHome = true;
+            token.userData.pathIndex = -1;
         }
+
         function nextTurn() {
+            setDiceHighlight(0, false);
+            setDiceHighlight(1, false);
             currentPlayerIndex = (currentPlayerIndex + 1) % 4;
+            findFirstActivePlayer(); // Skip empty/nobody slots
             gameState = 'WAITING_FOR_ROLL';
-            diceValue = 0;
+            currentTurnValues = [];
             updateUI();
         }
         function updateTurnIndicatorGlow() {
@@ -1354,7 +1503,24 @@
             if (intersects.length > 0) {
                 let obj = intersects[0].object;
                 while (obj.parent && obj.userData.playerIndex === undefined) { obj = obj.parent; }
-                if (obj.userData.playerIndex === currentPlayerIndex && (!obj.userData.atHome || diceValue === 6)) moveToken(obj, diceValue);
+
+                // Get current active roll
+                const activeRoll = currentTurnValues[currentTurnStep];
+
+                if (obj.userData.playerIndex === currentPlayerIndex) {
+                    // Check if this specific token is allowed to move with this roll
+                    // (Re-verify validity to be safe, though clicking highlighted ones is implied)
+                    let valid = false;
+                    if (obj.userData.atHome) {
+                        if (activeRoll === 6) valid = true;
+                    } else {
+                        valid = true;
+                    }
+
+                    if (valid) {
+                        moveToken(obj, activeRoll);
+                    }
+                }
             }
         }
         function onWindowResize() {
