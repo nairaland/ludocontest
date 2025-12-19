@@ -777,18 +777,25 @@
         }
         function setDiceHighlight(index, active) {
             if (!dice[index]) return;
-            const intensity = active ? 0.4 : 0;
-            const color = 0xffffff;
+            // 0.0 = no glow, 0.5 = visible glow.
+            // Using a Gold/Yellow tint (0xffaa00) works better on white dice than pure white.
+            const intensity = active ? 0.6 : 0;
+            const glowColor = 0xffaa00;
+
             if (dice[index].material) {
-                if (Array.isArray(dice[index].material)) {
-                    dice[index].material.forEach(mat => {
-                        mat.emissive.setHex(active ? color : 0x000000);
-                        mat.emissiveIntensity = intensity;
-                    });
-                } else {
-                    dice[index].material.emissive.setHex(active ? color : 0x000000);
-                    dice[index].material.emissiveIntensity = intensity;
-                }
+                const materials = Array.isArray(dice[index].material) ? dice[index].material : [dice[index].material];
+
+                materials.forEach(mat => {
+                    // Critical Fix: Use the texture as the emissive map.
+                    // This prevents black dots from turning white/glowing.
+                    // The dots will stay dark while the white face glows.
+                    if (mat.map && !mat.emissiveMap) {
+                        mat.emissiveMap = mat.map;
+                    }
+
+                    mat.emissive.setHex(active ? glowColor : 0x000000);
+                    mat.emissiveIntensity = intensity;
+                });
             }
         }
         function setTokenHighlight(token, active) {
