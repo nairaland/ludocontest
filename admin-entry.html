@@ -672,6 +672,13 @@
         let dice = [];
         let homeInnerMeshes = {};
         const tweenGroup = new TWEEN.Group();
+
+        const DEBUG_TURN_FLOW = true;
+        function dbg(label, data = {}) {
+            if (!DEBUG_TURN_FLOW) return;
+            console.log(`[TURN_FLOW] ${label}`, data);
+        }
+
         function createParticles() {
             const container = document.getElementById('particles');
             const particleCount = 30;
@@ -758,8 +765,15 @@
             window.addEventListener('mousedown', onMouseDown);
             animateCameraEntrance();
             animate();
-            // Debug: Walk Blue path on entry
-            setTimeout(() => debugWalkPath('BLUE'), 1000);
+            // Debug helper (disabled by default): walk 1 pawn of each color along its path.
+            // NOTE: Running 4 walkers at once can tank FPS and make movement look janky on slower devices.
+            // Flip this to true only when you're actively debugging paths.
+            const ENABLE_DEBUG_WALK = false;
+            if (ENABLE_DEBUG_WALK) {
+                setTimeout(() => {
+                    PLAYER_ORDER.forEach(color => debugWalkPath(color));
+                }, 1000);
+            }
         }
         function setDiceHighlight(index, active) {
             if (!dice[index]) return;
@@ -1210,7 +1224,8 @@
             return positions.map(p => ({ x: p.x + center.x, z: p.z + center.z }));
         }
         let currentTurnValues = [];
-        let currentTurnStep = 0;
+        let availableDiceIndices = [];
+        let activeDieIndex = -1;
 
         function rollDice() {
             if (gameState !== 'WAITING_FOR_ROLL') return;
@@ -1228,68 +1243,116 @@
                 showMessage(`ROLLED ${die1Value} and ${die2Value}`);
 
                 currentTurnValues = [die1Value, die2Value];
-                currentTurnStep = 0;
-                processDieStep();
+                availableDiceIndices = [0, 1];
+
+                // Default active die: Higher value, or random/first if equal. 
+                activeDieIndex = (die1Value >= die2Value) ? 0 : 1;
+
+                dbg('rollDice -> set turn values', {
+                    currentPlayerIndex,
+                    currentPlayerColor: PLAYER_ORDER[currentPlayerIndex],
+                    currentTurnValues,
+                    availableDiceIndices,
+                    activeDieIndex,
+                    gameState
+                });
+                updateTurnState();
             }, 3900);
         }
 
-        function processDieStep() {
+        function updateTurnState() {
             // Unhighlight all dice first
             setDiceHighlight(0, false);
             setDiceHighlight(1, false);
 
-            if (currentTurnStep >= currentTurnValues.length) {
-                // Both dice used
-                // Check for bonus roll (double 6) - logic optional based on user request, 
-                // but user said "then it's time for the next die roll". 
-                // We'll proceed to next turn.
+            dbg('updateTurnState (start)', {
+                currentPlayerIndex,
+                currentPlayerColor: PLAYER_ORDER[currentPlayerIndex],
+                currentTurnValues,
+                availableDiceIndices,
+                gameState
+            });
+
+            if (availableDiceIndices.length === 0) {
+                dbg('updateTurnState -> no dice left, nextTurn scheduled');
                 setTimeout(nextTurn, 500);
                 return;
             }
 
-            const activeValue = currentTurnValues[currentTurnStep];
-            const activeDieIndex = currentTurnStep;
-
-            // Highlight the current die
-            setDiceHighlight(activeDieIndex, true);
-
-            // Find valid tokens for this specific die value
-            const valid = tokens.filter(t => {
-                if (t.userData.playerIndex !== currentPlayerIndex) return false;
-
-                // If at home, need exactly 6 to leave
-                if (t.userData.atHome) {
-                    return activeValue === 6;
+            // Find valid tokens for each available die
+            const validMovesPerDie = {};
+            availableDiceIndices.forEach(dieIdx => {
+                const val = currentTurnValues[dieIdx];
+                const validForDie = tokens.filter(t => {
+                    if (t.userData.playerIndex !== currentPlayerIndex) return false;
+                    // If at home (pathIndex < 0), need exactly 6 to leave
+                    if (t.userData.pathIndex === undefined || t.userData.pathIndex < 0) {
+                        return val === 6;
+                    }
+                    // TODO: Add path overshoot check
+                    return true;
+                });
+                if (validForDie.length > 0) {
+                    validMovesPerDie[dieIdx] = validForDie;
                 }
-
-                // If on board, calculate potential position
-                // (Basic check: ensure it doesn't overshoot path length if we had that logic, 
-                // for now just allow move if not at home)
-                // TODO: Add path overshoot check if path logic exists? 
-                // Existing code didn't strictly check overshoot in filter, so we'll keep it simple:
-                // if not at home, it can move.
-                return true;
             });
 
-            if (valid.length === 0) {
-                showMessage(`NO MOVES FOR ${activeValue}`);
-                // Move to next die automatically after a short delay
+            const validDiceIndices = Object.keys(validMovesPerDie).map(Number);
+
+            dbg('updateTurnState -> valid moves analysis', {
+                validDiceIndices,
+                validMovesPerDie
+            });
+
+            if (validDiceIndices.length === 0) {
+                // No valid moves for ANY remaining die
+                const remainingValues = availableDiceIndices.map(i => currentTurnValues[i]);
+                showMessage(`NO MOVES FOR ${remainingValues.join(', ')}`);
+
+                // Discard all remaining dice and end turn
                 setTimeout(() => {
-                    currentTurnStep++;
-                    processDieStep();
-                }, 1500);
+                    dbg('NO MOVES -> discarding remaining dice');
+                    availableDiceIndices = [];
+                    updateTurnState();
+                }, 1000);
             } else {
+                // 2. Ensure activeDieIndex is valid (must be in availableDiceIndices)
+                if (!availableDiceIndices.includes(activeDieIndex)) {
+                    activeDieIndex = availableDiceIndices[0];
+                }
+
+                // 3. Highlight logic: only show moves for the ACTIVE die
+                let activeHasMoves = validMovesPerDie[activeDieIndex] && validMovesPerDie[activeDieIndex].length > 0;
+
+                if (!activeHasMoves) {
+                    // Active die has no moves. Do we have another die with moves?
+                    const otherValidIndex = validDiceIndices.find(idx => idx !== activeDieIndex);
+                    if (otherValidIndex !== undefined) {
+                        // Switch to the useful die
+                        activeDieIndex = otherValidIndex;
+                        activeHasMoves = true;
+                    }
+                }
+
                 gameState = 'WAITING_FOR_MOVE';
-                showMessage(`MOVE ${activeValue}`);
-                highlightTokens(valid);
+
+                // Show message
+                showMessage(`USE ${currentTurnValues[activeDieIndex]}`);
+
+                // Highlight ONLY the active die
+                availableDiceIndices.forEach(idx => {
+                    setDiceHighlight(idx, idx === activeDieIndex);
+                });
+
+                // Highlight valid tokens for the ACTIVE die only
+                const validTokensForActive = validMovesPerDie[activeDieIndex] || [];
+                highlightTokens(validTokensForActive);
             }
         }
 
         function highlightTokens(validOnes) {
             // Reset all tokens to default state
             tokens.forEach(t => {
-                // If you had scaling or other effects, reset them here
-                // t.scale.set(1, 1, 1);
                 setTokenHighlight(t, false);
             });
 
@@ -1299,118 +1362,96 @@
             });
         }
 
-        function moveToken(token, roll) {
+        function moveToken(token, roll, dieIndex) {
             gameState = 'ANIMATING';
 
             // Remove highlights immediately
             highlightTokens([]);
 
-            let targetX, targetZ;
-            let pathIndex = token.userData.pathIndex; // We should track path index
+            const route = PATHS[token.userData.colorName];
+            if (!route || route.length === 0) {
+                // Safety fallback: if path is missing, don't move.
+                gameState = 'WAITING_FOR_MOVE';
+                return;
+            }
 
-            // NOTE: The previous code didn't seem to track pathIndex properly in userData for movement logic
-            // It just used random moves or fixed entry. 
-            // We should try to use the defined paths if possible, but the USER REQUEST
-            // focuses on the *highlight* and *flow* logic, not rewriting the movement physics entirely.
-            // I'll stick to the existing movement logic pattern but cleaned up.
+            // Build a per-square list of indices to visit.
+            const stepIndices = [];
+            const lastIndex = route.length - 1;
 
             if (token.userData.atHome) {
-                // Leaving home
+                // Leaving home: step onto the entry square.
                 token.userData.atHome = false;
-
-                // Find entry point
-                const entry = getEntryPosition(token.userData.colorName);
-                targetX = entry.x;
-                targetZ = entry.z;
-
-                // Initialize path index if we were using it
-                // For now, setting it to 0 (start of path)
                 token.userData.pathIndex = 0;
-
+                stepIndices.push(0);
             } else {
-                // Standard move: logic from previous code was random. 
-                // Let's try to follow the PATHS if we can, or fallback to the previous logic 
-                // to avoid breaking the game if path logic isn't fully wired.
-                // The previous code: targetX = token.position.x + (Math.random() > 0.5 ? 1 : -1) * 1.0;
+                let startIdx = token.userData.pathIndex;
+                if (startIdx === undefined || startIdx < 0) startIdx = 0;
 
-                // Let's IMPROVE it slightly to actually look up the path if possible.
-                const colorPath = PATHS[token.userData.colorName];
-                if (colorPath && token.userData.pathIndex !== undefined && token.userData.pathIndex !== -1) {
-                    let nextIndex = token.userData.pathIndex + roll;
-                    // Cap at max length
-                    if (nextIndex >= colorPath.length) nextIndex = colorPath.length - 1;
-
-                    const nextPos = colorPath[nextIndex];
-                    targetX = nextPos.x;
-                    targetZ = nextPos.z;
-                    token.userData.pathIndex = nextIndex;
-                } else {
-                    // Fallback to the random wiggle if path logic fails (preserves existing behavior style)
-                    // But wait, the user wants "move accordingly". Random is bad.
-                    // I will assume the PATHS object is correct and index 0 is start.
-                    // But token.userData.pathIndex was initialized to -1.
-
-                    // If path logic not fully robust, we stick to simple translation to avoid bugs.
-                    // However, to satisfy "move accordingly", I should try to use the path.
-                    // User has PATHS defined.
-
-                    // Logic:
-                    // Only start tracking pathIndex from 0 when they leave home.
-
-                    // I'll stick to a simple forward move demo if pathing is complex, 
-                    // but the previous code essentially just did random moves? 
-                    // No, line 1266 used random X/Z. That's chaotic.
-                    // I will switch to using the PATHS array.
-
-                    const pName = token.userData.colorName;
-                    const route = PATHS[pName];
-                    let currentIdx = token.userData.pathIndex;
-                    if (currentIdx === undefined || currentIdx < 0) currentIdx = -1;
-
-                    // If for some reason we are on board but index is -1 (shouldn't happen if we set it on exit),
-                    // find closest tile? No, just assume 0.
-
-                    const newIdx = currentIdx + roll;
-                    if (newIdx < route.length) {
-                        targetX = route[newIdx].x;
-                        targetZ = route[newIdx].z;
-                        token.userData.pathIndex = newIdx;
-                    } else {
-                        // Overshoot or finish? 
-                        // Just clamp for now
-                        const last = route[route.length - 1];
-                        targetX = last.x;
-                        targetZ = last.z;
-                        token.userData.pathIndex = route.length - 1;
-                    }
+                for (let s = 1; s <= roll; s++) {
+                    const idx = Math.min(startIdx + s, lastIndex);
+                    if (stepIndices.length > 0 && idx === stepIndices[stepIndices.length - 1]) break; // hit the end
+                    stepIndices.push(idx);
+                    if (idx === lastIndex) break;
                 }
             }
 
-            const duration = 650;
+            const stepDuration = 220; // ms per square
+            const hopHeight = 0.55;
+            const groundY = TILE_HEIGHT / 2 + 0.08;
+            token.position.y = groundY;
 
-            // Jump animation
-            new TWEEN.Tween(token.position, tweenGroup)
-                .to({ x: targetX, z: targetZ }, duration)
-                .easing(TWEEN.Easing.Quadratic.Out)
-                .onComplete(() => {
+            dbg('moveToken (start)', {
+                roll,
+                dieIndex,
+                availableDiceIndices,
+                token: {
+                    id: token.userData.id,
+                    colorName: token.userData.colorName,
+                    atHome: token.userData.atHome,
+                    pathIndex: token.userData.pathIndex
+                },
+                stepIndices
+            });
+
+            function animateStep(stepNumber) {
+                if (stepNumber >= stepIndices.length) {
                     checkCollision(token);
 
-                    // Move finished. Proceed to next die step.
-                    currentTurnStep++;
-                    processDieStep();
-                })
-                .start();
+                    // Remove the used die from available indices
+                    const idxInArray = availableDiceIndices.indexOf(dieIndex);
+                    if (idxInArray > -1) {
+                        availableDiceIndices.splice(idxInArray, 1);
+                    }
 
-            // Arc height animation
-            new TWEEN.Tween(token.position, tweenGroup)
-                .to({ y: 2.5 }, duration / 2)
-                .easing(TWEEN.Easing.Quadratic.Out)
-                .chain(
-                    new TWEEN.Tween(token.position, tweenGroup)
-                        .to({ y: TILE_HEIGHT / 2 + 0.08 }, duration / 2)
-                        .easing(TWEEN.Easing.Quadratic.In)
-                )
-                .start();
+                    dbg('moveToken (end) -> die consumed', { consumedIndex: dieIndex, remaining: availableDiceIndices });
+                    updateTurnState();
+                    return;
+                }
+
+                const idx = stepIndices[stepNumber];
+                const target = route[idx];
+
+                // Horizontal move for this square
+                new TWEEN.Tween(token.position, tweenGroup)
+                    .to({ x: target.x, z: target.z }, stepDuration)
+                    .easing(TWEEN.Easing.Quadratic.InOut)
+                    .onComplete(() => {
+                        token.userData.pathIndex = idx;
+                        animateStep(stepNumber + 1);
+                    })
+                    .start();
+
+                // Hop for this square (timed to the horizontal move)
+                new TWEEN.Tween(token.position, tweenGroup)
+                    .to({ y: groundY + hopHeight }, stepDuration / 2)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .yoyo(true)
+                    .repeat(1)
+                    .start();
+            }
+
+            animateStep(0);
         }
 
         // Keep helpers
@@ -1425,7 +1466,7 @@
 
         function checkCollision(movedToken) {
             tokens.forEach(other => {
-                if (other === movedToken || other.userData.playerIndex === movedToken.userData.playerIndex || other.userData.atHome) return;
+                if (other === movedToken || other.userData.playerIndex === movedToken.userData.playerIndex || other.userData.pathIndex === undefined || other.userData.pathIndex < 0) return;
                 // Simple distance check
                 if (movedToken.position.distanceTo(other.position) < 0.6) {
                     showMessage(`CAPTURED ${PLAYER_ORDER[other.userData.playerIndex]}!`);
@@ -1446,26 +1487,51 @@
         }
 
         function nextTurn() {
+            dbg('nextTurn (start)', {
+                currentPlayerIndex,
+                currentPlayerColor: PLAYER_ORDER[currentPlayerIndex],
+                currentTurnValues,
+                availableDiceIndices,
+                gameState
+            });
             setDiceHighlight(0, false);
             setDiceHighlight(1, false);
             currentPlayerIndex = (currentPlayerIndex + 1) % 4;
             findFirstActivePlayer(); // Skip empty/nobody slots
             gameState = 'WAITING_FOR_ROLL';
             currentTurnValues = [];
+            availableDiceIndices = [];
             updateUI();
+            dbg('nextTurn (end)', {
+                currentPlayerIndex,
+                currentPlayerColor: PLAYER_ORDER[currentPlayerIndex],
+                currentTurnValues,
+                availableDiceIndices,
+                gameState
+            });
+
+            // Auto-roll for the next player
+            setTimeout(() => {
+                rollDice();
+            }, 1000);
         }
         function updateTurnIndicatorGlow() {
             const currentColorName = PLAYER_ORDER[currentPlayerIndex];
+            const baseWhite = new THREE.Color(0xffffff);
+            // 0.0 = pure white, 1.0 = fully player color. Keep this low for a subtle tint.
+            const ACTIVE_TINT = 0.18;
             PLAYER_ORDER.forEach(colorName => {
                 const homeRef = homeInnerMeshes[colorName];
                 if (homeRef && homeRef.whiteMat) {
+                    // Ensure emissive doesn't "wash out" the tint.
+                    homeRef.whiteMat.emissive.setHex(0x000000);
+                    homeRef.whiteMat.emissiveIntensity = 0;
+
                     if (colorName === currentColorName) {
                         const playerColor = new THREE.Color(COLORS[colorName]);
-                        homeRef.whiteMat.emissive.copy(playerColor);
-                        homeRef.whiteMat.emissiveIntensity = 2.25;
+                        homeRef.whiteMat.color.copy(baseWhite).lerp(playerColor, ACTIVE_TINT);
                     } else {
-                        homeRef.whiteMat.emissive.setHex(0x000000);
-                        homeRef.whiteMat.emissiveIntensity = 0;
+                        homeRef.whiteMat.color.copy(baseWhite);
                     }
                 }
             });
@@ -1493,6 +1559,27 @@
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
+
+            // Handle Die Selection (Switching Focus)
+            if (gameState === 'WAITING_FOR_MOVE') {
+                const diceIntersects = raycaster.intersectObjects(dice, false);
+                if (diceIntersects.length > 0) {
+                    let dieObj = diceIntersects[0].object;
+                    // Traverse up if needed (though dice meshes are usually flat in this code)
+                    while (dieObj.parent && !dieObj.userData.isDice) { dieObj = dieObj.parent; }
+
+                    if (dieObj.userData.isDice) {
+                        const clickedIndex = dieObj.userData.index;
+                        if (availableDiceIndices.includes(clickedIndex) && clickedIndex !== activeDieIndex) {
+                            console.log('Switching active die to:', clickedIndex);
+                            activeDieIndex = clickedIndex;
+                            updateTurnState();
+                            return;
+                        }
+                    }
+                }
+            }
+
             if (gameState === 'WAITING_FOR_ROLL') {
                 const diceIntersects = raycaster.intersectObjects(dice, false);
                 if (diceIntersects.length > 0) {
@@ -1506,21 +1593,30 @@
                 let obj = intersects[0].object;
                 while (obj.parent && obj.userData.playerIndex === undefined) { obj = obj.parent; }
 
-                // Get current active roll
-                const activeRoll = currentTurnValues[currentTurnStep];
-
                 if (obj.userData.playerIndex === currentPlayerIndex) {
-                    // Check if this specific token is allowed to move with this roll
-                    // (Re-verify validity to be safe, though clicking highlighted ones is implied)
-                    let valid = false;
-                    if (obj.userData.atHome) {
-                        if (activeRoll === 6) valid = true;
+                    // Check if this token is valid for the CURRENT ACTIVE DIE only
+                    const val = currentTurnValues[activeDieIndex];
+                    let isValid = false;
+
+                    if (obj.userData.pathIndex === undefined || obj.userData.pathIndex < 0) {
+                        if (val === 6) isValid = true;
                     } else {
-                        valid = true;
+                        // TODO: Overshoot check
+                        isValid = true;
                     }
 
-                    if (valid) {
-                        moveToken(obj, activeRoll);
+                    dbg('click token', {
+                        activeDieIndex,
+                        val,
+                        isValid,
+                        token: {
+                            id: obj.userData.id,
+                            pathIndex: obj.userData.pathIndex
+                        }
+                    });
+
+                    if (isValid) {
+                        moveToken(obj, val, activeDieIndex);
                     }
                 }
             }
@@ -1549,10 +1645,12 @@
                 return;
             }
 
-            // Teleport to just before start or handle first step
-            // We'll just start animating through the path array indices
+            // Drive steps off tween completion (not setTimeout) to avoid overlap/jank when frames drop.
             let stepIndex = 0;
+            const stepDuration = 500;
+            const groundY = TILE_HEIGHT / 2 + 0.08;
             token.userData.atHome = false;
+            token.position.y = groundY;
 
             console.log(`Starting path walk for ${colorName}, ${path.length} steps`);
 
@@ -1561,23 +1659,23 @@
 
                 const target = path[stepIndex];
 
-                // Horizontal move
+                // Horizontal move (chain the next step on completion)
                 new TWEEN.Tween(token.position, tweenGroup)
-                    .to({ x: target.x, z: target.z }, 500)
+                    .to({ x: target.x, z: target.z }, stepDuration)
                     .easing(TWEEN.Easing.Quadratic.InOut)
+                    .onComplete(() => {
+                        stepIndex++;
+                        nextStep();
+                    })
                     .start();
 
-                // Vertical hop
-                const groundY = TILE_HEIGHT / 2 + 0.08;
+                // Vertical hop (same duration as the horizontal move: up half, down half)
                 new TWEEN.Tween(token.position, tweenGroup)
-                    .to({ y: groundY + 0.5 }, 250)
+                    .to({ y: groundY + 0.5 }, stepDuration / 2)
                     .easing(TWEEN.Easing.Quadratic.Out)
                     .yoyo(true)
                     .repeat(1)
                     .start();
-
-                stepIndex++;
-                setTimeout(nextStep, 500);
             }
 
             nextStep();
