@@ -354,14 +354,24 @@
                     // Position Y = Top of White Rounded Rectangle
                     // White Rect Base Y is (TILE_HEIGHT / 2 + 0.01). If it was Extruded down, Face is at that Y.
                     // Assuming white rect Face is at TILE_HEIGHT/2 + 0.01
-                    ring.position.set(pos.x, TILE_HEIGHT / 2 + 0.01, pos.z);
+                    ring.position.set(pos.x, TILE_HEIGHT / 2 + 0.08, pos.z);
                     scene.add(ring);
                 });
             });
 
-            const triSize = 1.5;
+            const GAP = 0.05;
+            const tileInnerEdge = 1.525;
+            const triMaxY = tileInnerEdge - GAP; // End before the tiles start
+            const diagOffset = (GAP / 2) * Math.sqrt(2); // Inset to create gap between diagonals
+            const yStart = diagOffset;
+            const halfWidth = triMaxY - diagOffset;
+
             const triShape = new THREE.Shape();
-            triShape.moveTo(0, 0); triShape.lineTo(-triSize, triSize); triShape.lineTo(triSize, triSize); triShape.lineTo(0, 0);
+            triShape.moveTo(0, yStart);
+            triShape.lineTo(-halfWidth, triMaxY);
+            triShape.lineTo(halfWidth, triMaxY);
+            triShape.lineTo(0, yStart);
+
             const triGeom = new THREE.ExtrudeGeometry(triShape, { depth: TILE_HEIGHT, bevelEnabled: false });
             const centerTris = [
                 { rot: 0, color: COLORS.BLUE }, { rot: Math.PI / 2, color: COLORS.RED },
@@ -489,7 +499,7 @@
                     const head = new THREE.Mesh(headGeom, mat); head.position.y = 0.85;
 
                     group.add(base); group.add(body); group.add(head);
-                    group.position.set(startPositions[i].x, TILE_HEIGHT / 2, startPositions[i].z);
+                    group.position.set(startPositions[i].x, TILE_HEIGHT / 2 + 0.08, startPositions[i].z);
                     group.castShadow = true;
                     group.userData = { playerIndex: pIdx, id: i, colorName: colorName, atHome: true, pathIndex: -1 };
                     scene.add(group); tokens.push(group);
@@ -578,7 +588,7 @@
 
         function sendBack(token) {
             const homePos = getStartPositions(token.userData.colorName)[token.userData.id];
-            new TWEEN.Tween(token.position).to({ x: homePos.x, y: TILE_HEIGHT / 2, z: homePos.z }, 1200).easing(TWEEN.Easing.Elastic.Out).start();
+            new TWEEN.Tween(token.position).to({ x: homePos.x, y: TILE_HEIGHT / 2 + 0.08, z: homePos.z }, 1200).easing(TWEEN.Easing.Elastic.Out).start();
             token.userData.atHome = true;
         }
 
