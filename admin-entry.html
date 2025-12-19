@@ -168,6 +168,128 @@
         const BOARD_SIZE = 15;
         const TILE_HEIGHT = 0.22;
 
+        // Path arrays for each player: 51 main track tiles + 6 home stretch tiles = 57 total
+        // Each player enters at index 0 and finishes at index 56 (center)
+        const PATHS = {
+            RED: [
+                // Entry and first leg (going right along z=-1)
+                { x: -6, z: -1 }, { x: -5, z: -1 }, { x: -4, z: -1 }, { x: -3, z: -1 }, { x: -2, z: -1 }, { x: -1, z: -1 },
+                // Turn down (going along x=-1)
+                { x: -1, z: -2 }, { x: -1, z: -3 }, { x: -1, z: -4 }, { x: -1, z: -5 }, { x: -1, z: -6 }, { x: -1, z: -7 },
+                // Corner and cross bottom
+                { x: 0, z: -7 }, { x: 1, z: -7 },
+                // Going up (along x=1)
+                { x: 1, z: -6 }, { x: 1, z: -5 }, { x: 1, z: -4 }, { x: 1, z: -3 }, { x: 1, z: -2 }, { x: 1, z: -1 },
+                // Turn right (going along z=-1 to right edge)
+                { x: 2, z: -1 }, { x: 3, z: -1 }, { x: 4, z: -1 }, { x: 5, z: -1 }, { x: 6, z: -1 }, { x: 7, z: -1 },
+                // Corner and cross right
+                { x: 7, z: 0 }, { x: 7, z: 1 },
+                // Going left (along z=1)
+                { x: 6, z: 1 }, { x: 5, z: 1 }, { x: 4, z: 1 }, { x: 3, z: 1 }, { x: 2, z: 1 }, { x: 1, z: 1 },
+                // Turn down (going along x=1)
+                { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 1, z: 4 }, { x: 1, z: 5 }, { x: 1, z: 6 }, { x: 1, z: 7 },
+                // Corner and cross top
+                { x: 0, z: 7 }, { x: -1, z: 7 },
+                // Going up (along x=-1)
+                { x: -1, z: 6 }, { x: -1, z: 5 }, { x: -1, z: 4 }, { x: -1, z: 3 }, { x: -1, z: 2 }, { x: -1, z: 1 },
+                // Turn left (going along z=1 to left edge)
+                { x: -2, z: 1 }, { x: -3, z: 1 }, { x: -4, z: 1 }, { x: -5, z: 1 }, { x: -6, z: 1 }, { x: -7, z: 1 },
+                // Corner to home turn
+                { x: -7, z: 0 },
+                // RED Home stretch (along z=0, going right toward center)
+                { x: -6, z: 0 }, { x: -5, z: 0 }, { x: -4, z: 0 }, { x: -3, z: 0 }, { x: -2, z: 0 }, { x: -1, z: 0 }
+            ],
+            GREEN: [
+                // Entry and first leg (going down along x=1)
+                { x: 1, z: -6 }, { x: 1, z: -5 }, { x: 1, z: -4 }, { x: 1, z: -3 }, { x: 1, z: -2 }, { x: 1, z: -1 },
+                // Turn right (going along z=-1)
+                { x: 2, z: -1 }, { x: 3, z: -1 }, { x: 4, z: -1 }, { x: 5, z: -1 }, { x: 6, z: -1 }, { x: 7, z: -1 },
+                // Corner and cross right
+                { x: 7, z: 0 }, { x: 7, z: 1 },
+                // Going left (along z=1)
+                { x: 6, z: 1 }, { x: 5, z: 1 }, { x: 4, z: 1 }, { x: 3, z: 1 }, { x: 2, z: 1 }, { x: 1, z: 1 },
+                // Turn down (going along x=1)
+                { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 1, z: 4 }, { x: 1, z: 5 }, { x: 1, z: 6 }, { x: 1, z: 7 },
+                // Corner and cross top
+                { x: 0, z: 7 }, { x: -1, z: 7 },
+                // Going up (along x=-1)
+                { x: -1, z: 6 }, { x: -1, z: 5 }, { x: -1, z: 4 }, { x: -1, z: 3 }, { x: -1, z: 2 }, { x: -1, z: 1 },
+                // Turn left (going along z=1)
+                { x: -2, z: 1 }, { x: -3, z: 1 }, { x: -4, z: 1 }, { x: -5, z: 1 }, { x: -6, z: 1 }, { x: -7, z: 1 },
+                // Corner and cross left
+                { x: -7, z: 0 }, { x: -7, z: -1 },
+                // Going right (along z=-1)
+                { x: -6, z: -1 }, { x: -5, z: -1 }, { x: -4, z: -1 }, { x: -3, z: -1 }, { x: -2, z: -1 }, { x: -1, z: -1 },
+                // Turn up (going along x=-1)
+                { x: -1, z: -2 }, { x: -1, z: -3 }, { x: -1, z: -4 }, { x: -1, z: -5 }, { x: -1, z: -6 }, { x: -1, z: -7 },
+                // Corner to home turn
+                { x: 0, z: -7 },
+                // GREEN Home stretch (along x=0, going down toward center)
+                { x: 0, z: -6 }, { x: 0, z: -5 }, { x: 0, z: -4 }, { x: 0, z: -3 }, { x: 0, z: -2 }, { x: 0, z: -1 }
+            ],
+            YELLOW: [
+                // Entry and first leg (going left along z=1)
+                { x: 6, z: 1 }, { x: 5, z: 1 }, { x: 4, z: 1 }, { x: 3, z: 1 }, { x: 2, z: 1 }, { x: 1, z: 1 },
+                // Turn down (going along x=1)
+                { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 1, z: 4 }, { x: 1, z: 5 }, { x: 1, z: 6 }, { x: 1, z: 7 },
+                // Corner and cross top
+                { x: 0, z: 7 }, { x: -1, z: 7 },
+                // Going up (along x=-1)
+                { x: -1, z: 6 }, { x: -1, z: 5 }, { x: -1, z: 4 }, { x: -1, z: 3 }, { x: -1, z: 2 }, { x: -1, z: 1 },
+                // Turn left (going along z=1)
+                { x: -2, z: 1 }, { x: -3, z: 1 }, { x: -4, z: 1 }, { x: -5, z: 1 }, { x: -6, z: 1 }, { x: -7, z: 1 },
+                // Corner and cross left
+                { x: -7, z: 0 }, { x: -7, z: -1 },
+                // Going right (along z=-1)
+                { x: -6, z: -1 }, { x: -5, z: -1 }, { x: -4, z: -1 }, { x: -3, z: -1 }, { x: -2, z: -1 }, { x: -1, z: -1 },
+                // Turn up (going along x=-1)
+                { x: -1, z: -2 }, { x: -1, z: -3 }, { x: -1, z: -4 }, { x: -1, z: -5 }, { x: -1, z: -6 }, { x: -1, z: -7 },
+                // Corner and cross bottom
+                { x: 0, z: -7 }, { x: 1, z: -7 },
+                // Going down (along x=1)
+                { x: 1, z: -6 }, { x: 1, z: -5 }, { x: 1, z: -4 }, { x: 1, z: -3 }, { x: 1, z: -2 }, { x: 1, z: -1 },
+                // Turn right (going along z=-1)
+                { x: 2, z: -1 }, { x: 3, z: -1 }, { x: 4, z: -1 }, { x: 5, z: -1 }, { x: 6, z: -1 }, { x: 7, z: -1 },
+                // Corner to home turn
+                { x: 7, z: 0 },
+                // YELLOW Home stretch (along z=0, going left toward center)
+                { x: 6, z: 0 }, { x: 5, z: 0 }, { x: 4, z: 0 }, { x: 3, z: 0 }, { x: 2, z: 0 }, { x: 1, z: 0 }
+            ],
+            BLUE: [
+                // Entry and first leg (going up along x=-1)
+                { x: -1, z: 6 }, { x: -1, z: 5 }, { x: -1, z: 4 }, { x: -1, z: 3 }, { x: -1, z: 2 }, { x: -1, z: 1 },
+                // Turn left (going along z=1)
+                { x: -2, z: 1 }, { x: -3, z: 1 }, { x: -4, z: 1 }, { x: -5, z: 1 }, { x: -6, z: 1 }, { x: -7, z: 1 },
+                // Corner and cross left
+                { x: -7, z: 0 }, { x: -7, z: -1 },
+                // Going right (along z=-1)
+                { x: -6, z: -1 }, { x: -5, z: -1 }, { x: -4, z: -1 }, { x: -3, z: -1 }, { x: -2, z: -1 }, { x: -1, z: -1 },
+                // Turn up (going along x=-1)
+                { x: -1, z: -2 }, { x: -1, z: -3 }, { x: -1, z: -4 }, { x: -1, z: -5 }, { x: -1, z: -6 }, { x: -1, z: -7 },
+                // Corner and cross bottom
+                { x: 0, z: -7 }, { x: 1, z: -7 },
+                // Going down (along x=1)
+                { x: 1, z: -6 }, { x: 1, z: -5 }, { x: 1, z: -4 }, { x: 1, z: -3 }, { x: 1, z: -2 }, { x: 1, z: -1 },
+                // Turn right (going along z=-1)
+                { x: 2, z: -1 }, { x: 3, z: -1 }, { x: 4, z: -1 }, { x: 5, z: -1 }, { x: 6, z: -1 }, { x: 7, z: -1 },
+                // Corner and cross right
+                { x: 7, z: 0 }, { x: 7, z: 1 },
+                // Going left (along z=1)
+                { x: 6, z: 1 }, { x: 5, z: 1 }, { x: 4, z: 1 }, { x: 3, z: 1 }, { x: 2, z: 1 }, { x: 1, z: 1 },
+                // Turn down (going along x=1)
+                { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 1, z: 4 }, { x: 1, z: 5 }, { x: 1, z: 6 }, { x: 1, z: 7 },
+                // Corner to home turn
+                { x: 0, z: 7 },
+                // BLUE Home stretch (along x=0, going up toward center)
+                { x: 0, z: 6 }, { x: 0, z: 5 }, { x: 0, z: 4 }, { x: 0, z: 3 }, { x: 0, z: 2 }, { x: 0, z: 1 }
+            ]
+        };
+
+        // Constants for path logic
+        const MAIN_TRACK_LENGTH = 51;  // Tiles before home stretch
+        const HOME_STRETCH_LENGTH = 6; // Tiles in home stretch
+        const TOTAL_PATH_LENGTH = 57;  // Total path length per player
+
         let scene, camera, renderer, raycaster, mouse, controls;
         let currentPlayerIndex = 0;
         let diceValue = 0;
