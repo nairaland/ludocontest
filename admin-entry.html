@@ -378,44 +378,6 @@
             box-shadow: 0 0 15px currentColor;
         }
 
-        #dice-btn {
-            background: linear-gradient(135deg, #555, #111);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 14px 28px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: bold;
-            transition: all 0.2s;
-            width: 100%;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        #dice-btn:hover:not(:disabled) {
-            background: linear-gradient(135deg, #666, #1a1a1a);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.1);
-        }
-
-        #dice-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-        #dice-result {
-            margin-top: 15px;
-            text-align: center;
-            font-size: 2.2rem;
-            font-weight: 900;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 10px;
-            border-radius: 8px;
-            color: #fff;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
-        }
-
         #msg-box {
             position: absolute;
             bottom: 40px;
@@ -597,8 +559,6 @@
                     <span id="player-dot" class="color-dot"></span>
                     <span id="player-text">RED PLAYER</span>
                 </div>
-                <button id="dice-btn">Roll Dice</button>
-                <div id="dice-result">-</div>
             </div>
             <div class="panel" style="padding: 10px 15px;">
                 <div style="font-size: 0.7rem; opacity: 0.6; font-weight: 800; letter-spacing: 3px;">LUDO 3D ELITE</div>
@@ -612,180 +572,109 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-
         const COLORS = {
             RED: 0xc1121f,
             BLUE: 0x00308f,
             YELLOW: 0xffb703,
             GREEN: 0x007f5f,
-            BOARD_BASE: 0x4e342e, // Mahogany
-            WOOD_RIM: 0x1a1a1a,   // Ebony contrast
+            BOARD_BASE: 0x4e342e,
+            WOOD_RIM: 0x1a1a1a,
             TILE_LIGHT: 0xffffff,
             TILE_DARK: 0xfafafa,
-            TILE_SIDE: 0x000000    // Black sides for tiles
+            TILE_SIDE: 0x000000
         };
-
         const PLAYER_ORDER = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
         const BOARD_SIZE = 15;
         const TILE_HEIGHT = 0.22;
-
-        // Path arrays for each player: 51 main track tiles + 6 home stretch tiles = 57 total
-        // Each player enters at index 0 and finishes at index 56 (center)
         const PATHS = {
             RED: [
-                // Entry and first leg (going right along z=-1)
                 { x: -6, z: -1 }, { x: -5, z: -1 }, { x: -4, z: -1 }, { x: -3, z: -1 }, { x: -2, z: -1 }, { x: -1, z: -1 },
-                // Turn down (going along x=-1)
                 { x: -1, z: -2 }, { x: -1, z: -3 }, { x: -1, z: -4 }, { x: -1, z: -5 }, { x: -1, z: -6 }, { x: -1, z: -7 },
-                // Corner and cross bottom
                 { x: 0, z: -7 }, { x: 1, z: -7 },
-                // Going up (along x=1)
                 { x: 1, z: -6 }, { x: 1, z: -5 }, { x: 1, z: -4 }, { x: 1, z: -3 }, { x: 1, z: -2 }, { x: 1, z: -1 },
-                // Turn right (going along z=-1 to right edge)
                 { x: 2, z: -1 }, { x: 3, z: -1 }, { x: 4, z: -1 }, { x: 5, z: -1 }, { x: 6, z: -1 }, { x: 7, z: -1 },
-                // Corner and cross right
                 { x: 7, z: 0 }, { x: 7, z: 1 },
-                // Going left (along z=1)
                 { x: 6, z: 1 }, { x: 5, z: 1 }, { x: 4, z: 1 }, { x: 3, z: 1 }, { x: 2, z: 1 }, { x: 1, z: 1 },
-                // Turn down (going along x=1)
                 { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 1, z: 4 }, { x: 1, z: 5 }, { x: 1, z: 6 }, { x: 1, z: 7 },
-                // Corner and cross top
                 { x: 0, z: 7 }, { x: -1, z: 7 },
-                // Going up (along x=-1)
                 { x: -1, z: 6 }, { x: -1, z: 5 }, { x: -1, z: 4 }, { x: -1, z: 3 }, { x: -1, z: 2 }, { x: -1, z: 1 },
-                // Turn left (going along z=1 to left edge)
                 { x: -2, z: 1 }, { x: -3, z: 1 }, { x: -4, z: 1 }, { x: -5, z: 1 }, { x: -6, z: 1 }, { x: -7, z: 1 },
-                // Corner to home turn
                 { x: -7, z: 0 },
-                // RED Home stretch (along z=0, going right toward center)
                 { x: -6, z: 0 }, { x: -5, z: 0 }, { x: -4, z: 0 }, { x: -3, z: 0 }, { x: -2, z: 0 }, { x: -1, z: 0 }
             ],
             GREEN: [
-                // Entry and first leg (going down along x=1)
                 { x: 1, z: -6 }, { x: 1, z: -5 }, { x: 1, z: -4 }, { x: 1, z: -3 }, { x: 1, z: -2 }, { x: 1, z: -1 },
-                // Turn right (going along z=-1)
                 { x: 2, z: -1 }, { x: 3, z: -1 }, { x: 4, z: -1 }, { x: 5, z: -1 }, { x: 6, z: -1 }, { x: 7, z: -1 },
-                // Corner and cross right
                 { x: 7, z: 0 }, { x: 7, z: 1 },
-                // Going left (along z=1)
                 { x: 6, z: 1 }, { x: 5, z: 1 }, { x: 4, z: 1 }, { x: 3, z: 1 }, { x: 2, z: 1 }, { x: 1, z: 1 },
-                // Turn down (going along x=1)
                 { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 1, z: 4 }, { x: 1, z: 5 }, { x: 1, z: 6 }, { x: 1, z: 7 },
-                // Corner and cross top
                 { x: 0, z: 7 }, { x: -1, z: 7 },
-                // Going up (along x=-1)
                 { x: -1, z: 6 }, { x: -1, z: 5 }, { x: -1, z: 4 }, { x: -1, z: 3 }, { x: -1, z: 2 }, { x: -1, z: 1 },
-                // Turn left (going along z=1)
                 { x: -2, z: 1 }, { x: -3, z: 1 }, { x: -4, z: 1 }, { x: -5, z: 1 }, { x: -6, z: 1 }, { x: -7, z: 1 },
-                // Corner and cross left
                 { x: -7, z: 0 }, { x: -7, z: -1 },
-                // Going right (along z=-1)
                 { x: -6, z: -1 }, { x: -5, z: -1 }, { x: -4, z: -1 }, { x: -3, z: -1 }, { x: -2, z: -1 }, { x: -1, z: -1 },
-                // Turn up (going along x=-1)
                 { x: -1, z: -2 }, { x: -1, z: -3 }, { x: -1, z: -4 }, { x: -1, z: -5 }, { x: -1, z: -6 }, { x: -1, z: -7 },
-                // Corner to home turn
                 { x: 0, z: -7 },
-                // GREEN Home stretch (along x=0, going down toward center)
                 { x: 0, z: -6 }, { x: 0, z: -5 }, { x: 0, z: -4 }, { x: 0, z: -3 }, { x: 0, z: -2 }, { x: 0, z: -1 }
             ],
             YELLOW: [
-                // Entry and first leg (going left along z=1)
                 { x: 6, z: 1 }, { x: 5, z: 1 }, { x: 4, z: 1 }, { x: 3, z: 1 }, { x: 2, z: 1 }, { x: 1, z: 1 },
-                // Turn down (going along x=1)
                 { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 1, z: 4 }, { x: 1, z: 5 }, { x: 1, z: 6 }, { x: 1, z: 7 },
-                // Corner and cross top
                 { x: 0, z: 7 }, { x: -1, z: 7 },
-                // Going up (along x=-1)
                 { x: -1, z: 6 }, { x: -1, z: 5 }, { x: -1, z: 4 }, { x: -1, z: 3 }, { x: -1, z: 2 }, { x: -1, z: 1 },
-                // Turn left (going along z=1)
                 { x: -2, z: 1 }, { x: -3, z: 1 }, { x: -4, z: 1 }, { x: -5, z: 1 }, { x: -6, z: 1 }, { x: -7, z: 1 },
-                // Corner and cross left
                 { x: -7, z: 0 }, { x: -7, z: -1 },
-                // Going right (along z=-1)
                 { x: -6, z: -1 }, { x: -5, z: -1 }, { x: -4, z: -1 }, { x: -3, z: -1 }, { x: -2, z: -1 }, { x: -1, z: -1 },
-                // Turn up (going along x=-1)
                 { x: -1, z: -2 }, { x: -1, z: -3 }, { x: -1, z: -4 }, { x: -1, z: -5 }, { x: -1, z: -6 }, { x: -1, z: -7 },
-                // Corner and cross bottom
                 { x: 0, z: -7 }, { x: 1, z: -7 },
-                // Going down (along x=1)
                 { x: 1, z: -6 }, { x: 1, z: -5 }, { x: 1, z: -4 }, { x: 1, z: -3 }, { x: 1, z: -2 }, { x: 1, z: -1 },
-                // Turn right (going along z=-1)
                 { x: 2, z: -1 }, { x: 3, z: -1 }, { x: 4, z: -1 }, { x: 5, z: -1 }, { x: 6, z: -1 }, { x: 7, z: -1 },
-                // Corner to home turn
                 { x: 7, z: 0 },
-                // YELLOW Home stretch (along z=0, going left toward center)
                 { x: 6, z: 0 }, { x: 5, z: 0 }, { x: 4, z: 0 }, { x: 3, z: 0 }, { x: 2, z: 0 }, { x: 1, z: 0 }
             ],
             BLUE: [
-                // Entry and first leg (going up along x=-1)
                 { x: -1, z: 6 }, { x: -1, z: 5 }, { x: -1, z: 4 }, { x: -1, z: 3 }, { x: -1, z: 2 }, { x: -1, z: 1 },
-                // Turn left (going along z=1)
                 { x: -2, z: 1 }, { x: -3, z: 1 }, { x: -4, z: 1 }, { x: -5, z: 1 }, { x: -6, z: 1 }, { x: -7, z: 1 },
-                // Corner and cross left
                 { x: -7, z: 0 }, { x: -7, z: -1 },
-                // Going right (along z=-1)
                 { x: -6, z: -1 }, { x: -5, z: -1 }, { x: -4, z: -1 }, { x: -3, z: -1 }, { x: -2, z: -1 }, { x: -1, z: -1 },
-                // Turn up (going along x=-1)
                 { x: -1, z: -2 }, { x: -1, z: -3 }, { x: -1, z: -4 }, { x: -1, z: -5 }, { x: -1, z: -6 }, { x: -1, z: -7 },
-                // Corner and cross bottom
                 { x: 0, z: -7 }, { x: 1, z: -7 },
-                // Going down (along x=1)
                 { x: 1, z: -6 }, { x: 1, z: -5 }, { x: 1, z: -4 }, { x: 1, z: -3 }, { x: 1, z: -2 }, { x: 1, z: -1 },
-                // Turn right (going along z=-1)
                 { x: 2, z: -1 }, { x: 3, z: -1 }, { x: 4, z: -1 }, { x: 5, z: -1 }, { x: 6, z: -1 }, { x: 7, z: -1 },
-                // Corner and cross right
                 { x: 7, z: 0 }, { x: 7, z: 1 },
-                // Going left (along z=1)
                 { x: 6, z: 1 }, { x: 5, z: 1 }, { x: 4, z: 1 }, { x: 3, z: 1 }, { x: 2, z: 1 }, { x: 1, z: 1 },
-                // Turn down (going along x=1)
                 { x: 1, z: 2 }, { x: 1, z: 3 }, { x: 1, z: 4 }, { x: 1, z: 5 }, { x: 1, z: 6 }, { x: 1, z: 7 },
-                // Corner to home turn
                 { x: 0, z: 7 },
-                // BLUE Home stretch (along x=0, going up toward center)
                 { x: 0, z: 6 }, { x: 0, z: 5 }, { x: 0, z: 4 }, { x: 0, z: 3 }, { x: 0, z: 2 }, { x: 0, z: 1 }
             ]
         };
-
-        // Constants for path logic
-        const MAIN_TRACK_LENGTH = 51;  // Tiles before home stretch
-        const HOME_STRETCH_LENGTH = 6; // Tiles in home stretch
-        const TOTAL_PATH_LENGTH = 57;  // Total path length per player
-
-        // ============================================
-        // SCREEN STATE MACHINE
-        // ============================================
+        const MAIN_TRACK_LENGTH = 51;
+        const HOME_STRETCH_LENGTH = 6;
+        const TOTAL_PATH_LENGTH = 57;
         const SCREENS = {
             SETUP: 'SETUP',
             PLAYING: 'PLAYING',
             GAMEOVER: 'GAMEOVER'
         };
-
         let currentScreen = SCREENS.SETUP;
-
-        // Player configuration: 'player', 'ai', or 'nobody'
         const playerConfig = {
             RED: 'player',
             GREEN: 'player',
             YELLOW: 'ai',
             BLUE: 'ai'
         };
-
-        // Three.js and game state variables
         let scene, camera, renderer, raycaster, mouse, controls;
         let currentPlayerIndex = 0;
         let diceValue = 0;
         let gameState = 'WAITING_FOR_ROLL';
         let tokens = [];
         let gameInitialized = false;
-        let dice = []; // Two 3D dice meshes
-
-        // ============================================
-        // SETUP SCREEN FUNCTIONS
-        // ============================================
+        let dice = [];
+        let homeInnerMeshes = {};
+        const tweenGroup = new TWEEN.Group();
         function createParticles() {
             const container = document.getElementById('particles');
             const particleCount = 30;
-
             for (let i = 0; i < particleCount; i++) {
                 const particle = document.createElement('div');
                 particle.className = 'particle';
@@ -795,72 +684,45 @@
                 container.appendChild(particle);
             }
         }
-
         function readPlayerConfig() {
             playerConfig.RED = document.getElementById('select-red').value;
             playerConfig.GREEN = document.getElementById('select-green').value;
             playerConfig.YELLOW = document.getElementById('select-yellow').value;
             playerConfig.BLUE = document.getElementById('select-blue').value;
         }
-
         function getActivePlayers() {
             return PLAYER_ORDER.filter(color => playerConfig[color] !== 'nobody');
         }
-
         function transitionToGame() {
-            // Read player selections
             readPlayerConfig();
-
-            // Validate at least 2 players
             const activePlayers = getActivePlayers();
             if (activePlayers.length < 2) {
                 alert('Please select at least 2 players (Player or AI) to start the game.');
                 return;
             }
-
-            // Update screen state
             currentScreen = SCREENS.PLAYING;
-
-            // Hide setup screen with animation
             const setupScreen = document.getElementById('setup-screen');
             setupScreen.classList.add('hidden');
-
-            // Initialize game after a short delay for smooth transition
             setTimeout(() => {
                 initGame();
-
-                // Show game container
                 const gameContainer = document.getElementById('game-container');
                 gameContainer.classList.add('visible');
-
-                // Show UI with delay
                 setTimeout(() => {
                     document.getElementById('ui').classList.add('visible');
                 }, 200);
-
-                // After transition completes, remove setup screen from DOM
                 setTimeout(() => {
                     setupScreen.style.display = 'none';
                 }, 800);
-
             }, 400);
         }
-
-        // ============================================
-        // GAME INITIALIZATION
-        // ============================================
         function initGame() {
             if (gameInitialized) return;
             gameInitialized = true;
-
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x050505);
-
             camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 1000);
-            // Start camera far away for cinematic entrance
             camera.position.set(0, 50, 40);
             camera.lookAt(0, 0, 0);
-
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -868,69 +730,39 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.outputColorSpace = THREE.SRGBColorSpace;
             document.getElementById('game-container').appendChild(renderer.domElement);
-
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             controls.maxPolarAngle = Math.PI / 2.05;
             controls.minDistance = 8;
             controls.maxDistance = 40;
-
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
-
             const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
             scene.add(ambientLight);
-
             const pointLight = new THREE.PointLight(0xffffff, 5.0);
             pointLight.position.set(5, 12, 5);
             pointLight.castShadow = true;
             pointLight.shadow.mapSize.width = 2048;
             pointLight.shadow.mapSize.height = 2048;
             scene.add(pointLight);
-
             const fillLight = new THREE.DirectionalLight(0xffffff, 1.8);
             fillLight.position.set(-10, 8, -10);
             scene.add(fillLight);
-
             createAdvancedBoard();
             createTokens();
             createDice();
-
-            // Find first active player
             findFirstActivePlayer();
             updateUI();
-
-            // --- USER REQUEST: Highlight 50% of items ---
-
-            // Highlight 1 of 2 dice (50%)
-            setDiceHighlight(0, true);
-
-            // Highlight 50% of tokens (8 out of 16)
-            tokens.forEach((t, i) => {
-                if (i % 2 === 0) setTokenHighlight(t, true);
-            });
-            // --------------------------------------------
-
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('mousedown', onMouseDown);
-            document.getElementById('dice-btn').addEventListener('click', rollDice);
-
-            // Cinematic camera animation
             animateCameraEntrance();
-
             animate();
         }
-
-        // ============================================
-        // HIGHLIGHTING FUNCTIONS
-        // ============================================
         function setDiceHighlight(index, active) {
             if (!dice[index]) return;
-            const intensity = active ? 0.4 : 0; // Glow that keeps dots visible as mid grey
-            const color = 0xffffff; // White glow - dots become mid grey
-
-            // Access material array (dice have 6 face materials)
+            const intensity = active ? 0.4 : 0;
+            const color = 0xffffff;
             if (dice[index].material) {
                 if (Array.isArray(dice[index].material)) {
                     dice[index].material.forEach(mat => {
@@ -943,24 +775,18 @@
                 }
             }
         }
-
         function setTokenHighlight(token, active) {
             const colorName = token.userData.colorName;
             const baseColor = COLORS[colorName];
-
-            // Color-specific intensity multipliers
             let baseIntensity = 0.8;
             if (colorName === 'GREEN') {
-                baseIntensity = 1.6; // 2x
+                baseIntensity = 1.6;
             } else if (colorName === 'BLUE') {
-                baseIntensity = 2.24; // 2x * 1.4x = 2.8x
+                baseIntensity = 2.24;
             } else if (colorName === 'RED') {
-                baseIntensity = 1.2; // 1.5x
+                baseIntensity = 1.2;
             }
-            // YELLOW stays at 0.8
-
             const intensity = active ? baseIntensity : 0.1;
-
             token.children.forEach(mesh => {
                 if (mesh.material) {
                     mesh.material.emissive.setHex(baseColor);
@@ -968,28 +794,19 @@
                 }
             });
         }
-
         function animateCameraEntrance() {
-            new TWEEN.Tween(camera.position)
+            new TWEEN.Tween(camera.position, tweenGroup)
                 .to({ x: 0, y: 20, z: 16 }, 2000)
                 .easing(TWEEN.Easing.Cubic.Out)
                 .start();
         }
-
         function findFirstActivePlayer() {
-            // Skip players set to 'nobody'
             while (playerConfig[PLAYER_ORDER[currentPlayerIndex]] === 'nobody') {
                 currentPlayerIndex = (currentPlayerIndex + 1) % 4;
             }
         }
-
-        // ============================================
-        // DICE CREATION
-        // ============================================
         const DICE_SIZE = 0.9;
-        const DICE_RADIUS = DICE_SIZE * 0.1; // 10% corner radius
-
-        // Standard dice dot patterns (positions on a 3x3 grid, -1 to 1 range)
+        const DICE_RADIUS = DICE_SIZE * 0.1;
         const DOT_PATTERNS = {
             1: [[0, 0]],
             2: [[-0.5, -0.5], [0.5, 0.5]],
@@ -998,26 +815,20 @@
             5: [[-0.5, -0.5], [0.5, -0.5], [0, 0], [-0.5, 0.5], [0.5, 0.5]],
             6: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0], [0.5, 0], [-0.5, 0.5], [0.5, 0.5]]
         };
-
         function createDiceFaceTexture(dotCount) {
             const size = 256;
             const canvas = document.createElement('canvas');
             canvas.width = size;
             canvas.height = size;
             const ctx = canvas.getContext('2d');
-
-            // White background with subtle gradient
             const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.7);
             gradient.addColorStop(0, '#ffffff');
             gradient.addColorStop(1, '#f0f0f0');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, size, size);
-
-            // Draw dots
             const dotRadius = size * 0.1;
             const pattern = DOT_PATTERNS[dotCount];
             ctx.fillStyle = '#1a1a1a';
-
             pattern.forEach(([x, y]) => {
                 const px = size / 2 + x * size * 0.55;
                 const py = size / 2 + y * size * 0.55;
@@ -1025,26 +836,14 @@
                 ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
                 ctx.fill();
             });
-
             const texture = new THREE.CanvasTexture(canvas);
             texture.colorSpace = THREE.SRGBColorSpace;
             return texture;
         }
-
         function createDice() {
-            // Create rounded box geometry with 10% corner radius
-            // RoundedBoxGeometry(width, height, depth, segments, radius)
             const diceGeom = new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 4, DICE_RADIUS);
-
-            // Standard dice face arrangement (opposite faces sum to 7)
-            // BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z
-            // Standard: +X=3, -X=4, +Y=2, -Y=5, +Z=1, -Z=6
-            // (1 opposite 6, 2 opposite 5, 3 opposite 4)
             const faceOrder = [3, 4, 2, 5, 1, 6];
-
-            // Create two dice - each with its own materials (so they can be highlighted independently)
             for (let i = 0; i < 2; i++) {
-                // Create unique materials for each die
                 const materials = faceOrder.map(dots => {
                     return new THREE.MeshStandardMaterial({
                         map: createDiceFaceTexture(dots),
@@ -1052,85 +851,110 @@
                         metalness: 0.05
                     });
                 });
-
                 const dieMesh = new THREE.Mesh(diceGeom, materials);
-
-                // Position in center, slightly offset from each other
                 const offsetX = (i === 0) ? -0.6 : 0.6;
                 const offsetZ = (i === 0) ? 0.3 : -0.3;
-                dieMesh.position.set(offsetX, DICE_SIZE / 2 + 0.3, offsetZ);
-
-                // Random initial rotation
-                dieMesh.rotation.set(
-                    Math.random() * Math.PI,
-                    Math.random() * Math.PI,
-                    Math.random() * Math.PI
-                );
-
+                dieMesh.position.set(offsetX, TILE_HEIGHT + DICE_SIZE / 2, offsetZ);
+                dieMesh.rotation.set(0, 0, 0);
                 dieMesh.castShadow = true;
                 dieMesh.receiveShadow = true;
                 dieMesh.userData.isDice = true;
                 dieMesh.userData.index = i;
-
                 scene.add(dieMesh);
                 dice.push(dieMesh);
             }
         }
-
+        function getDiceTopFace(die) {
+            const faces = [
+                { normal: new THREE.Vector3(1, 0, 0), value: 3 },
+                { normal: new THREE.Vector3(-1, 0, 0), value: 4 },
+                { normal: new THREE.Vector3(0, 1, 0), value: 2 },
+                { normal: new THREE.Vector3(0, -1, 0), value: 5 },
+                { normal: new THREE.Vector3(0, 0, 1), value: 1 },
+                { normal: new THREE.Vector3(0, 0, -1), value: 6 }
+            ];
+            const worldUp = new THREE.Vector3(0, 1, 0);
+            const rotationMatrix = new THREE.Matrix4();
+            rotationMatrix.makeRotationFromEuler(die.rotation);
+            let topFace = null;
+            let maxDot = -Infinity;
+            faces.forEach(face => {
+                const transformedNormal = face.normal.clone().applyMatrix4(rotationMatrix);
+                const dot = transformedNormal.dot(worldUp);
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    topFace = face.value;
+                }
+            });
+            return topFace;
+        }
         function animateDiceRoll() {
-            const rollDuration = 1200;
-
+            const LIFT_DURATION = 400;
+            const STEP_DURATION = 250;
+            const NUM_STEPS = 12;
+            const ROTATION_DURATION = NUM_STEPS * STEP_DURATION;
+            const DROP_DURATION = 400;
+            const FLOAT_HEIGHT = 3.0;
             dice.forEach((die, index) => {
-                // Random target rotation (multiple full rotations + final position)
-                const targetRotation = {
-                    x: die.rotation.x + Math.PI * (4 + Math.random() * 4),
-                    y: die.rotation.y + Math.PI * (4 + Math.random() * 4),
-                    z: die.rotation.z + Math.PI * (4 + Math.random() * 4)
-                };
-
-                // Bounce animation
                 const startY = die.position.y;
-                const bounceHeight = 2.5;
-
-                // Rotation animation
-                new TWEEN.Tween(die.rotation)
-                    .to(targetRotation, rollDuration)
-                    .easing(TWEEN.Easing.Cubic.Out)
-                    .start();
-
-                // Bounce up
-                new TWEEN.Tween(die.position)
-                    .to({ y: startY + bounceHeight }, rollDuration * 0.4)
+                const homeX = (index === 0) ? -0.6 : 0.6;
+                const homeZ = (index === 0) ? 0.3 : -0.3;
+                const rotationSteps = [];
+                for (let i = 0; i < NUM_STEPS; i++) {
+                    const axes = ['x', 'y', 'z'];
+                    const axis = axes[Math.floor(Math.random() * 3)];
+                    const angles = [-Math.PI / 2, Math.PI / 2, Math.PI];
+                    const angle = angles[Math.floor(Math.random() * 3)];
+                    rotationSteps.push({ axis, angle });
+                }
+                const liftTween = new TWEEN.Tween(die.position, tweenGroup)
+                    .to({ y: startY + FLOAT_HEIGHT }, LIFT_DURATION)
+                    .easing(TWEEN.Easing.Quadratic.Out);
+                let currentRotation = { x: die.rotation.x, y: die.rotation.y, z: die.rotation.z };
+                let firstRotationTween = null;
+                let previousTween = null;
+                rotationSteps.forEach((step, stepIndex) => {
+                    const targetRotation = {
+                        x: currentRotation.x + (step.axis === 'x' ? step.angle : 0),
+                        y: currentRotation.y + (step.axis === 'y' ? step.angle : 0),
+                        z: currentRotation.z + (step.axis === 'z' ? step.angle : 0)
+                    };
+                    const stepTween = new TWEEN.Tween(die.rotation, tweenGroup)
+                        .to(targetRotation, STEP_DURATION)
+                        .easing(TWEEN.Easing.Sinusoidal.InOut);
+                    if (stepIndex === 0) {
+                        firstRotationTween = stepTween;
+                    }
+                    if (previousTween) {
+                        previousTween.chain(stepTween);
+                    }
+                    previousTween = stepTween;
+                    currentRotation = { ...targetRotation };
+                });
+                const dropTween = new TWEEN.Tween(die.position, tweenGroup)
+                    .to({ y: startY }, DROP_DURATION)
+                    .easing(TWEEN.Easing.Bounce.Out);
+                if (previousTween) {
+                    previousTween.chain(dropTween);
+                }
+                if (firstRotationTween) {
+                    liftTween.chain(firstRotationTween);
+                }
+                liftTween.start();
+                const driftX = (Math.random() - 0.5) * 0.5;
+                const driftZ = (Math.random() - 0.5) * 0.5;
+                new TWEEN.Tween(die.position, tweenGroup)
+                    .to({ x: homeX + driftX, z: homeZ + driftZ }, LIFT_DURATION + ROTATION_DURATION * 0.5)
                     .easing(TWEEN.Easing.Quadratic.Out)
-                    .chain(
-                        // Fall down
-                        new TWEEN.Tween(die.position)
-                            .to({ y: startY }, rollDuration * 0.6)
-                            .easing(TWEEN.Easing.Bounce.Out)
-                    )
                     .start();
-
-                // Slight horizontal movement
-                const moveX = (Math.random() - 0.5) * 0.4;
-                const moveZ = (Math.random() - 0.5) * 0.4;
-                new TWEEN.Tween(die.position)
-                    .to({
-                        x: die.position.x + moveX,
-                        z: die.position.z + moveZ
-                    }, rollDuration * 0.3)
-                    .easing(TWEEN.Easing.Quadratic.Out)
-                    .chain(
-                        new TWEEN.Tween(die.position)
-                            .to({
-                                x: (index === 0) ? -0.6 : 0.6,
-                                z: (index === 0) ? 0.3 : -0.3
-                            }, rollDuration * 0.7)
-                            .easing(TWEEN.Easing.Quadratic.Out)
-                    )
-                    .start();
+                setTimeout(() => {
+                    new TWEEN.Tween(die.position, tweenGroup)
+                        .to({ x: homeX, z: homeZ }, DROP_DURATION)
+                        .easing(TWEEN.Easing.Quadratic.InOut)
+                        .start();
+                }, LIFT_DURATION + ROTATION_DURATION);
             });
         }
-
         function createRoundedRectShape(width, height, radius) {
             const shape = new THREE.Shape();
             const x = -width / 2;
@@ -1146,7 +970,6 @@
             shape.quadraticCurveTo(x, y, x, y + radius);
             return shape;
         }
-
         function createArrowMesh(color, size = 0.5) {
             const shape = new THREE.Shape();
             shape.moveTo(0, size * 0.4);
@@ -1157,7 +980,6 @@
             shape.lineTo(-size * 0.15, -size * 0.1);
             shape.lineTo(-size * 0.35, -size * 0.1);
             shape.closePath();
-
             const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.01, bevelEnabled: false });
             const material = new THREE.MeshStandardMaterial({
                 color: color,
@@ -1170,7 +992,6 @@
             mesh.rotation.x = -Math.PI / 2;
             return mesh;
         }
-
         function createAdvancedBoard() {
             const baseWidth = BOARD_SIZE + 1.8;
             const baseShape = createRoundedRectShape(baseWidth, baseWidth, 0.3);
@@ -1183,13 +1004,11 @@
             base.position.y = -0.12;
             base.receiveShadow = true;
             scene.add(base);
-
             const frameGeom = new THREE.BoxGeometry(BOARD_SIZE + 0.1, 0.1, BOARD_SIZE + 0.1);
             const frameMat = new THREE.MeshStandardMaterial({ color: COLORS.WOOD_RIM, roughness: 0.95 });
             const innerFrame = new THREE.Mesh(frameGeom, frameMat);
             innerFrame.position.y = -0.05;
             scene.add(innerFrame);
-
             const homeConfigs = [
                 { x: -4.5, z: -4.5, color: COLORS.RED },
                 { x: 4.5, z: -4.5, color: COLORS.GREEN },
@@ -1197,87 +1016,70 @@
                 { x: -4.5, z: 4.5, color: COLORS.BLUE }
             ];
             const homeGeom = new THREE.BoxGeometry(5.95, TILE_HEIGHT, 5.95);
-
             const innerShape = createRoundedRectShape(4.0, 4.0, 0.5);
             const innerGeom = new THREE.ExtrudeGeometry(innerShape, { depth: 0.06, bevelEnabled: false });
-
             const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
             const homeSideMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9 });
-            // Material for base squares: 4 sides Black, Top/Bottom Colored
             const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9 });
             const innerMaterials = [whiteMat, homeSideMat];
-
             homeConfigs.forEach(config => {
-                // Create multi-material array for Home Base
-                // BoxGeometry order: +x, -x, +y (Top), -y (Bottom), +z, -z
                 const colorMat = new THREE.MeshStandardMaterial({ color: config.color, roughness: 0.5 });
                 const homeMaterials = [
-                    blackMat, // +x (Right) - Black
-                    blackMat, // -x (Left)  - Black
-                    colorMat, // +y (Top)   - Color
-                    colorMat, // -y (Bottom)- Color
-                    blackMat, // +z (Front) - Black
-                    blackMat  // -z (Back)  - Black
+                    blackMat,
+                    blackMat,
+                    colorMat,
+                    colorMat,
+                    blackMat,
+                    blackMat
                 ];
-
                 const hMesh = new THREE.Mesh(homeGeom, homeMaterials);
                 hMesh.position.set(config.x, 0, config.z);
                 scene.add(hMesh);
-
-                const iMesh = new THREE.Mesh(innerGeom, innerMaterials);
+                const playerWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
+                const playerInnerMaterials = [playerWhiteMat, homeSideMat];
+                const iMesh = new THREE.Mesh(innerGeom, playerInnerMaterials);
                 iMesh.rotation.x = Math.PI / 2;
                 iMesh.position.set(config.x, TILE_HEIGHT / 2 + 0.08, config.z);
                 scene.add(iMesh);
+                const colorName = Object.keys(COLORS).find(key => COLORS[key] === config.color);
+                if (colorName) {
+                    homeInnerMeshes[colorName] = { mesh: iMesh, whiteMat: playerWhiteMat, originalColor: config.color };
+                }
             });
-
-            // --- MODIFIED SOCKET CREATION ---
             const socketInnerRadius = 0.4 * 1.05;
             const socketOuterRadius = 0.4 * 1.25;
-
-            // Create 3D Ring using ExtrudeGeometry
             const ringShape = new THREE.Shape();
             ringShape.absarc(0, 0, socketOuterRadius, 0, Math.PI * 2, false);
             const ringHole = new THREE.Path();
             ringHole.absarc(0, 0, socketInnerRadius, 0, Math.PI * 2, true);
             ringShape.holes.push(ringHole);
-
             const socketHeight = TILE_HEIGHT / 8;
-
             const socketGeom = new THREE.ExtrudeGeometry(ringShape, {
                 depth: socketHeight,
                 bevelEnabled: false,
                 curveSegments: 24
             });
-
             const socketMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.5 });
-
             PLAYER_ORDER.forEach(colorName => {
                 const positions = getStartPositions(colorName);
                 positions.forEach(pos => {
                     const ring = new THREE.Mesh(socketGeom, socketMat);
-                    // Rotate -90 deg X to extrude UPWARDS from position
                     ring.rotation.x = -Math.PI / 2;
-                    // Position Y = Top of White Rounded Rectangle
-                    // White Rect Base Y is (TILE_HEIGHT / 2 + 0.01). If it was Extruded down, Face is at that Y.
-                    // Assuming white rect Face is at TILE_HEIGHT/2 + 0.01
                     ring.position.set(pos.x, TILE_HEIGHT / 2 + 0.08, pos.z);
                     scene.add(ring);
                 });
             });
-
             const GAP = 0.05;
             const tileInnerEdge = 1.525;
-            const triMaxY = tileInnerEdge - GAP; // End before the tiles start
-            const diagOffset = (GAP / 2) * Math.sqrt(2); // Inset to create gap between diagonals
+            const triMaxY = tileInnerEdge - GAP;
+            const diagOffset = (GAP / 2) * Math.sqrt(2);
             const yStart = diagOffset;
             const halfWidth = triMaxY - diagOffset;
-
             const triShape = new THREE.Shape();
             triShape.moveTo(0, yStart);
             triShape.lineTo(-halfWidth, triMaxY);
             triShape.lineTo(halfWidth, triMaxY);
             triShape.lineTo(0, yStart);
-
             const triGeom = new THREE.ExtrudeGeometry(triShape, { depth: TILE_HEIGHT, bevelEnabled: false });
             const centerTris = [
                 { rot: 0, color: COLORS.BLUE }, { rot: Math.PI / 2, color: COLORS.RED },
@@ -1290,44 +1092,34 @@
                 mesh.position.y = TILE_HEIGHT / 2;
                 scene.add(mesh);
             });
-
             const blackSideMat = new THREE.MeshStandardMaterial({ color: COLORS.TILE_SIDE, roughness: 0.9 });
-
             for (let x = -7; x <= 7; x++) {
                 for (let z = -7; z <= 7; z++) {
                     if (Math.abs(x) >= 2 && Math.abs(z) >= 2) continue;
                     if (Math.abs(x) < 2 && Math.abs(z) < 2) continue;
-
                     let topColor = (x + z) % 2 === 0 ? COLORS.TILE_LIGHT : COLORS.TILE_DARK;
-
                     if (x === 0 && z < 0 && z > -7) topColor = COLORS.GREEN;
                     else if (x === 0 && z > 0 && z < 7) topColor = COLORS.BLUE;
                     else if (z === 0 && x < 0 && x > -7) topColor = COLORS.RED;
                     else if (z === 0 && x > 0 && x < 7) topColor = COLORS.YELLOW;
-
                     if (x === -6 && z === -1) topColor = COLORS.RED;
                     if (x === 1 && z === -6) topColor = COLORS.GREEN;
                     if (x === 6 && z === 1) topColor = COLORS.YELLOW;
                     if (x === -1 && z === 6) topColor = COLORS.BLUE;
-
                     const tileGeom = new THREE.BoxGeometry(0.95, TILE_HEIGHT, 0.95);
                     const topMat = new THREE.MeshStandardMaterial({ color: topColor, roughness: 0.4 });
-
                     const materials = [
-                        blackSideMat, // +x
-                        blackSideMat, // -x
-                        topMat,       // +y
-                        blackSideMat, // -y
-                        blackSideMat, // +z
-                        blackSideMat  // -z
+                        blackSideMat,
+                        blackSideMat,
+                        topMat,
+                        blackSideMat,
+                        blackSideMat,
+                        blackSideMat
                     ];
-
                     const tile = new THREE.Mesh(tileGeom, materials);
                     tile.position.set(x, 0, z);
                     tile.receiveShadow = true;
                     scene.add(tile);
-
-                    // --- Colored Home-Turn Arrows ---
                     if (x === -7 && z === 0) {
                         const arrow = createArrowMesh(COLORS.RED);
                         arrow.rotation.z = -Math.PI / 2;
@@ -1352,8 +1144,6 @@
                         arrow.position.set(x, TILE_HEIGHT / 2 + 0.01, z);
                         scene.add(arrow);
                     }
-
-                    // --- White Entry Arrows ---
                     if (x === -6 && z === -1) {
                         const entryArrow = createArrowMesh(0xffffff, 0.4);
                         entryArrow.rotation.z = -Math.PI / 2;
@@ -1381,12 +1171,10 @@
                 }
             }
         }
-
         function createTokens() {
             const headGeom = new THREE.SphereGeometry(0.25, 24, 24);
             const bodyGeom = new THREE.CylinderGeometry(0.1, 0.35, 0.7, 24);
             const baseGeom = new THREE.CylinderGeometry(0.4, 0.4, 0.12, 24);
-
             PLAYER_ORDER.forEach((colorName, pIdx) => {
                 const color = COLORS[colorName];
                 const startPositions = getStartPositions(colorName);
@@ -1399,11 +1187,9 @@
                         emissive: color,
                         emissiveIntensity: 0.1
                     });
-
                     const base = new THREE.Mesh(baseGeom, mat); base.position.y = 0.06;
                     const body = new THREE.Mesh(bodyGeom, mat); body.position.y = 0.45;
                     const head = new THREE.Mesh(headGeom, mat); head.position.y = 0.85;
-
                     group.add(base); group.add(body); group.add(head);
                     group.position.set(startPositions[i].x, TILE_HEIGHT / 2 + 0.08, startPositions[i].z);
                     group.castShadow = true;
@@ -1412,7 +1198,6 @@
                 }
             });
         }
-
         function getStartPositions(colorName) {
             const positions = [{ x: -1.0, z: -1.0 }, { x: 1.0, z: -1.0 }, { x: -1.0, z: 1.0 }, { x: 1.0, z: 1.0 }];
             let center = { x: 0, z: 0 };
@@ -1422,44 +1207,56 @@
             if (colorName === 'BLUE') center = { x: -4.5, z: 4.5 };
             return positions.map(p => ({ x: p.x + center.x, z: p.z + center.z }));
         }
-
         function rollDice() {
             if (gameState !== 'WAITING_FOR_ROLL') return;
-            const btn = document.getElementById('dice-btn');
-            const res = document.getElementById('dice-result');
-            btn.disabled = true;
-            res.innerText = "?";
-
-            // Trigger 3D dice animation
+            gameState = 'ROLLING';
+            setDiceHighlight(0, false);
+            setDiceHighlight(1, false);
             animateDiceRoll();
-
-            // Wait for dice animation to complete before showing result
             setTimeout(() => {
-                diceValue = Math.floor(Math.random() * 6) + 1;
-                res.innerText = diceValue;
-                const valid = tokens.filter(t => t.userData.playerIndex === currentPlayerIndex && (!t.userData.atHome || diceValue === 6));
+                const die1Value = getDiceTopFace(dice[0]);
+                const die2Value = getDiceTopFace(dice[1]);
+                console.log('Die 1:', die1Value, '| Die 2:', die2Value);
+                showMessage(`ROLLED ${die1Value} and ${die2Value}`);
+                diceValue = { die1: die1Value, die2: die2Value, used1: false, used2: false };
+                const activeDieIndex = (die2Value > die1Value) ? 1 : 0;
+                const activeValue = activeDieIndex === 0 ? die1Value : die2Value;
+                diceValue.activeIndex = activeDieIndex;
+                setDiceHighlight(0, activeDieIndex === 0);
+                setDiceHighlight(1, activeDieIndex === 1);
+                const valid = tokens.filter(t => {
+                    if (t.userData.playerIndex !== currentPlayerIndex) return false;
+                    if (t.userData.atHome) {
+                        return activeValue === 6;
+                    }
+                    return true;
+                });
                 if (valid.length === 0) {
                     showMessage("NO MOVES POSSIBLE");
                     setTimeout(nextTurn, 1200);
                 } else {
                     gameState = 'WAITING_FOR_MOVE';
-                    showMessage("CHOOSE A PIECE");
+                    showMessage(`MOVE ${activeValue}`);
                     highlightTokens(valid);
                 }
-            }, 1300); // Match dice animation duration + small buffer
+            }, 3900);
         }
-
         function highlightTokens(validOnes) {
-            tokens.forEach(t => t.scale.set(1, 1, 1));
+            tokens.forEach(t => {
+                t.scale.set(1, 1, 1);
+                setTokenHighlight(t, false);
+            });
             validOnes.forEach(t => {
-                new TWEEN.Tween(t.scale).to({ x: 1.25, y: 1.1, z: 1.25 }, 400).easing(TWEEN.Easing.Cubic.InOut).repeat(Infinity).yoyo(true).start();
+                setTokenHighlight(t, true);
             });
         }
-
         function moveToken(token, roll) {
             gameState = 'ANIMATING';
-            TWEEN.removeAll();
-            tokens.forEach(t => t.scale.set(1, 1, 1));
+            tweenGroup.removeAll();
+            tokens.forEach(t => {
+                t.scale.set(1, 1, 1);
+                setTokenHighlight(t, false);
+            });
             let targetX, targetZ;
             if (token.userData.atHome) {
                 token.userData.atHome = false;
@@ -1472,14 +1269,13 @@
                 targetZ = Math.max(-7, Math.min(7, targetZ));
             }
             const duration = 650;
-            new TWEEN.Tween(token.position).to({ x: targetX, z: targetZ }, duration).easing(TWEEN.Easing.Quadratic.Out).onComplete(() => {
+            new TWEEN.Tween(token.position, tweenGroup).to({ x: targetX, z: targetZ }, duration).easing(TWEEN.Easing.Quadratic.Out).onComplete(() => {
                 checkCollision(token);
                 if (roll !== 6) nextTurn();
                 else { gameState = 'WAITING_FOR_ROLL'; updateUI(); showMessage("ROLL AGAIN!"); }
             }).start();
-            new TWEEN.Tween(token.position).to({ y: 2.5 }, duration / 2).easing(TWEEN.Easing.Quadratic.Out).chain(new TWEEN.Tween(token.position).to({ y: TILE_HEIGHT / 2 }, duration / 2).easing(TWEEN.Easing.Quadratic.In)).start();
+            new TWEEN.Tween(token.position, tweenGroup).to({ y: 2.5 }, duration / 2).easing(TWEEN.Easing.Quadratic.Out).chain(new TWEEN.Tween(token.position, tweenGroup).to({ y: TILE_HEIGHT / 2 }, duration / 2).easing(TWEEN.Easing.Quadratic.In)).start();
         }
-
         function getEntryPosition(colorName) {
             if (colorName === 'RED') return { x: -6, z: -1 };
             if (colorName === 'GREEN') return { x: 1, z: -6 };
@@ -1487,7 +1283,6 @@
             if (colorName === 'BLUE') return { x: -1, z: 6 };
             return { x: 0, z: 0 };
         }
-
         function checkCollision(movedToken) {
             tokens.forEach(other => {
                 if (other === movedToken || other.userData.playerIndex === movedToken.userData.playerIndex || other.userData.atHome) return;
@@ -1497,45 +1292,64 @@
                 }
             });
         }
-
         function sendBack(token) {
             const homePos = getStartPositions(token.userData.colorName)[token.userData.id];
-            new TWEEN.Tween(token.position).to({ x: homePos.x, y: TILE_HEIGHT / 2 + 0.08, z: homePos.z }, 1200).easing(TWEEN.Easing.Elastic.Out).start();
+            new TWEEN.Tween(token.position, tweenGroup).to({ x: homePos.x, y: TILE_HEIGHT / 2 + 0.08, z: homePos.z }, 1200).easing(TWEEN.Easing.Elastic.Out).start();
             token.userData.atHome = true;
         }
-
         function nextTurn() {
             currentPlayerIndex = (currentPlayerIndex + 1) % 4;
             gameState = 'WAITING_FOR_ROLL';
             diceValue = 0;
-            document.getElementById('dice-result').innerText = "-";
             updateUI();
         }
-
+        function updateTurnIndicatorGlow() {
+            const currentColorName = PLAYER_ORDER[currentPlayerIndex];
+            PLAYER_ORDER.forEach(colorName => {
+                const homeRef = homeInnerMeshes[colorName];
+                if (homeRef && homeRef.whiteMat) {
+                    if (colorName === currentColorName) {
+                        const playerColor = new THREE.Color(COLORS[colorName]);
+                        homeRef.whiteMat.emissive.copy(playerColor);
+                        homeRef.whiteMat.emissiveIntensity = 2.25;
+                    } else {
+                        homeRef.whiteMat.emissive.setHex(0x000000);
+                        homeRef.whiteMat.emissiveIntensity = 0;
+                    }
+                }
+            });
+        }
         function updateUI() {
             const colorName = PLAYER_ORDER[currentPlayerIndex];
             const dot = document.getElementById('player-dot');
             const text = document.getElementById('player-text');
-            const btn = document.getElementById('dice-btn');
             const colorHex = `#${COLORS[colorName].toString(16).padStart(6, '0')}`;
             dot.style.backgroundColor = colorHex;
             dot.style.color = colorHex;
             text.innerText = `${colorName} PLAYER`;
             text.style.color = colorHex;
-            btn.disabled = (gameState !== 'WAITING_FOR_ROLL');
+            updateTurnIndicatorGlow();
+            const shouldHighlightDice = (gameState === 'WAITING_FOR_ROLL' && playerConfig[colorName] === 'player');
+            setDiceHighlight(0, shouldHighlightDice);
+            setDiceHighlight(1, shouldHighlightDice);
         }
-
         function showMessage(msg) {
             const box = document.getElementById('msg-box');
             box.innerText = msg; box.style.opacity = 1; box.style.bottom = '60px';
             setTimeout(() => { box.style.opacity = 0; box.style.bottom = '40px'; }, 2000);
         }
-
         function onMouseDown(event) {
-            if (gameState !== 'WAITING_FOR_MOVE') return;
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
+            if (gameState === 'WAITING_FOR_ROLL') {
+                const diceIntersects = raycaster.intersectObjects(dice, false);
+                if (diceIntersects.length > 0) {
+                    rollDice();
+                    return;
+                }
+            }
+            if (gameState !== 'WAITING_FOR_MOVE') return;
             const intersects = raycaster.intersectObjects(tokens, true);
             if (intersects.length > 0) {
                 let obj = intersects[0].object;
@@ -1543,30 +1357,22 @@
                 if (obj.userData.playerIndex === currentPlayerIndex && (!obj.userData.atHome || diceValue === 6)) moveToken(obj, diceValue);
             }
         }
-
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-
         function animate(time) {
             requestAnimationFrame(animate);
-            TWEEN.update(time);
+            tweenGroup.update(time);
             if (controls) controls.update();
             tokens.forEach(t => { t.rotation.y += (t.userData.playerIndex === currentPlayerIndex && gameState === 'WAITING_FOR_MOVE') ? 0.05 : 0.01; });
             renderer.render(scene, camera);
         }
-
-        // ============================================
-        // INITIALIZATION - Start with setup screen
-        // ============================================
         function initSetupScreen() {
             createParticles();
             document.getElementById('begin-btn').addEventListener('click', transitionToGame);
         }
-
-        // Start with setup screen
         initSetupScreen();
     </script>
 </body>
