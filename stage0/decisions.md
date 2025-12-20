@@ -1,4 +1,4 @@
-Entry 01 rejected for disobeying the "single file html" rule. (painful)
+Entry 01rejected for disobeying the "single file html" rule. (painful)
 Entry 02 rejected because his board doesn't look like a Ludo board.
 Entry 03 rejected because his pieces didn't stay on the designated holes.
 Entry 04 rejected because his board doesn't look like a Ludo board.
@@ -62,3 +62,8 @@ Entry 61 passed this stage.
 Entry 62 passed this stage.
 Entry 63 rejected because its features are too restricted.
 Entry 64 passed this stage.
+Entry 65 rejected because the board doesn't look like a Ludo board.
+Entry 66 rejected because the board doesn't look like a Ludo board.
+Entry 67 rejected because the board didn't appear. File was broken.
+Entry 68 passed this stage.
+Entry 69 passed this stage.
