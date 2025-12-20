@@ -5,7 +5,7 @@ Entry 04 rejected because his board doesn't look like a Ludo board.
 Entry 05 rejected because his board doesn't look like a Ludo board.
 Entry 06 rejected because his board doesn't look like a Ludo board.
 Entry 07 passed this stage.
-Entry 08 narrowly passed this stage.
+Entry 08 narrowly rejected due to board glitches.
 Entry 09 rejected because his board doesn't look like a Ludo board.
 Entry 10 narrowly passed this stage.
 Entry 11 was narrowly rejected for visual glitches in the board display.
@@ -30,7 +30,6 @@ Entry 29 rejected because the board doesn't look like a Ludo board.
 Entry 30 rejected because the board doesn't look like a Ludo board.
 Entry 31 rejected for disobeying the single file rule.
 Entry 32 rejected because the board doesn't look like a Ludo board.
-Entry 33 narrowly rejected this stage due to board glitches.
 Entry 34 passed this stage.
 Entry 35 passed this stage.
 Entry 36 passed this stage.
