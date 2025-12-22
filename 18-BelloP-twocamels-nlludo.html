@@ -258,6 +258,7 @@ scene.fog = new THREE.Fog(bgColor, 15, 50);
 
 const cam = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
 const rend = new THREE.WebGLRenderer({canvas:c, antialias:true});
+rend.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 rend.setSize(innerWidth, innerHeight);
 rend.shadowMap.enabled = true;
 rend.shadowMap.type = THREE.PCFSoftShadowMap;

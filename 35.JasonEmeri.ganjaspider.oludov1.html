@@ -1618,6 +1618,7 @@ const Game = {
         this.camera.lookAt(0, 0, 2.5);
         
         this.renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true});
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.outputEncoding = THREE.sRGBEncoding;

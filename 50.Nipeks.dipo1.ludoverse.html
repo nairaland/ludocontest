@@ -852,6 +852,7 @@
                     this.camera.lookAt(0, 0, 0);
 
                     this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+                    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                     this.renderer.setSize(width, height);
                     this.renderer.shadowMap.enabled = true;
                     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;

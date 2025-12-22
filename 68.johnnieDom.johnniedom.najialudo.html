@@ -1128,6 +1128,7 @@
 
             // Renderer
             STATE.renderer = new THREE.WebGLRenderer({ antialias: true });
+            STATE.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             STATE.renderer.setSize(window.innerWidth, window.innerHeight);
             STATE.renderer.shadowMap.enabled = true;
             STATE.renderer.shadowMap.type = THREE.PCFSoftShadowMap;

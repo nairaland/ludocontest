@@ -1,0 +1,19 @@
+- Nice opening page.
+- Rules are provided and match the actual implementation.
+- Freedom to setup all 4 colours as AI/Human/None intuitivelly.
+- Board Layout is accurate.
+- Board looks very similar to a real Ludo board.
+- The paths the pieces move are accurate.
+- Dice are well animated.
+- Dice throws for the user are automated to eliminate tedium.
+- Double dice are set as the default or exclusively used.
+- Good sound effects/music. But not when the window is out of focus.
+- The dice moves pieces for you when there is only one legal move.
+- Implementing safe zones. A common ommision.
+- Bonus for putting useful labels on the board e.g. "naija ludo, AI"
+- Piece animation when moving is fun (jump per tile, nice sound effects)
+- Indicate whose turn it is in an intuitive way.
+- Highlight the pieces that can be moved.
+- Pieces are well arranged inside their boxes.
+- Pieces look really nice.
+- Getting the center of the Ludo game board right.
