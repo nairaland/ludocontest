@@ -982,15 +982,15 @@
             // Based on face normals from getDiceTopFace:
             // value 1: normal (0, 0, 1) needs to point up → rotate X by -90°
             // value 2: normal (0, 1, 0) needs to point up → no rotation
-            // value 3: normal (1, 0, 0) needs to point up → rotate Z by -90°
-            // value 4: normal (-1, 0, 0) needs to point up → rotate Z by 90°
+            // value 3: normal (1, 0, 0) needs to point up → rotate Z by +90°
+            // value 4: normal (-1, 0, 0) needs to point up → rotate Z by -90°
             // value 5: normal (0, -1, 0) needs to point up → rotate X by 180°
             // value 6: normal (0, 0, -1) needs to point up → rotate X by 90°
             const rotations = {
                 1: { x: -Math.PI / 2, y: 0, z: 0 },
                 2: { x: 0, y: 0, z: 0 },
-                3: { x: 0, y: 0, z: -Math.PI / 2 },
-                4: { x: 0, y: 0, z: Math.PI / 2 },
+                3: { x: 0, y: 0, z: Math.PI / 2 },   // Fixed: was -90°, should be +90°
+                4: { x: 0, y: 0, z: -Math.PI / 2 },  // Fixed: was +90°, should be -90°
                 5: { x: Math.PI, y: 0, z: 0 },
                 6: { x: Math.PI / 2, y: 0, z: 0 }
             };
@@ -1629,6 +1629,11 @@
             const hopHeight = 0.55;
             const groundY = TILE_HEIGHT / 2 + 0.08;
             token.position.y = groundY;
+
+            // Enhanced debug: log the exact movement calculation
+            const beforePathIndex = token.userData.atHome ? -1 : (token.userData.pathIndex || 0);
+            const afterPathIndex = stepIndices.length > 0 ? stepIndices[stepIndices.length - 1] : beforePathIndex;
+            console.log(`[MOVE DEBUG] Roll: ${roll}, Before pathIndex: ${beforePathIndex}, After pathIndex: ${afterPathIndex}, Steps: ${stepIndices.length}, stepIndices: [${stepIndices.join(',')}]`);
 
             dbg('moveToken (start)', {
                 roll,
