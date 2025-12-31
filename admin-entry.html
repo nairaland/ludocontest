@@ -675,6 +675,9 @@
         let homeInnerMeshes = {};
         const tweenGroup = new TWEEN.Group();
 
+        // Track completed pieces per player (pieces that have finished or captured)
+        const completedPieces = { RED: 0, GREEN: 0, YELLOW: 0, BLUE: 0 };
+
         const DEBUG_TURN_FLOW = true;
         function dbg(label, data = {}) {
             if (!DEBUG_TURN_FLOW) return;
@@ -1405,6 +1408,8 @@
                 const val = currentTurnValues[dieIdx];
                 const validForDie = tokens.filter(t => {
                     if (t.userData.playerIndex !== currentPlayerIndex) return false;
+                    // Skip completed pieces
+                    if (t.userData.completed) return false;
                     // If at home (pathIndex < 0), need exactly 6 to leave
                     if (t.userData.pathIndex === undefined || t.userData.pathIndex < 0) {
                         return val === 6;
@@ -1599,7 +1604,13 @@
 
             function animateStep(stepNumber) {
                 if (stepNumber >= stepIndices.length) {
-                    checkCollision(token);
+                    // Check if piece reached the end of path (completed)
+                    const path = PATHS[token.userData.colorName];
+                    if (token.userData.pathIndex === path.length - 1) {
+                        completePiece(token);
+                    } else {
+                        checkCollision(token);
+                    }
 
                     // Remove the used die from available indices
                     const idxInArray = availableDiceIndices.indexOf(dieIndex);
@@ -1679,13 +1690,66 @@
                     return; // Opponent is on safe zone
                 }
 
+                // Check if other piece is already completed
+                if (other.userData.completed) {
+                    return;
+                }
+
                 // Simple distance check
                 if (movedToken.position.distanceTo(other.position) < 0.6) {
                     showMessage(`CAPTURED ${PLAYER_ORDER[other.userData.playerIndex]}!`);
+                    // Send captured piece back home
                     sendBack(other);
-                    // Capturing usually gives bonus, but we'll stick to the requested flow for simplicity
+                    // Capturer piece also completes (disappears) - same reward as reaching the end
+                    completePiece(movedToken);
                 }
             });
+        }
+
+        function completePiece(token) {
+            if (token.userData.completed) return; // Already completed
+
+            token.userData.completed = true;
+            const colorName = token.userData.colorName;
+            completedPieces[colorName]++;
+
+            showMessage(`${colorName} PIECE COMPLETED! (${completedPieces[colorName]}/4)`);
+
+            // Animate the piece disappearing (shrink and fade)
+            new TWEEN.Tween(token.scale, tweenGroup)
+                .to({ x: 0, y: 0, z: 0 }, 500)
+                .easing(TWEEN.Easing.Back.In)
+                .start();
+
+            new TWEEN.Tween(token.position, tweenGroup)
+                .to({ y: token.position.y + 2 }, 500)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .onComplete(() => {
+                    // Hide the token (move it far away)
+                    token.position.set(100, 100, 100);
+                    token.visible = false;
+                })
+                .start();
+
+            // Check for win condition
+            if (completedPieces[colorName] >= 4) {
+                setTimeout(() => {
+                    checkWinCondition(colorName);
+                }, 600);
+            }
+        }
+
+        function checkWinCondition(colorName) {
+            gameState = 'GAMEOVER';
+            currentScreen = SCREENS.GAMEOVER;
+            showMessage(`🎉 ${colorName} WINS! 🎉`);
+
+            // Create a more visible win announcement
+            const msgBox = document.getElementById('msg-box');
+            msgBox.style.fontSize = '1.5rem';
+            msgBox.style.padding = '20px 50px';
+            msgBox.style.opacity = 1;
+            // Don't auto-hide the win message
         }
 
         function sendBack(token) {
