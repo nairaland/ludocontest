@@ -976,13 +976,40 @@
             });
             return topFace;
         }
-        function animateDiceRoll() {
+
+        // Get the Euler rotation needed to show a specific value on top
+        function getDiceRotationForValue(value) {
+            // Based on face normals from getDiceTopFace:
+            // value 1: normal (0, 0, 1) needs to point up → rotate X by -90°
+            // value 2: normal (0, 1, 0) needs to point up → no rotation
+            // value 3: normal (1, 0, 0) needs to point up → rotate Z by -90°
+            // value 4: normal (-1, 0, 0) needs to point up → rotate Z by 90°
+            // value 5: normal (0, -1, 0) needs to point up → rotate X by 180°
+            // value 6: normal (0, 0, -1) needs to point up → rotate X by 90°
+            const rotations = {
+                1: { x: -Math.PI / 2, y: 0, z: 0 },
+                2: { x: 0, y: 0, z: 0 },
+                3: { x: 0, y: 0, z: -Math.PI / 2 },
+                4: { x: 0, y: 0, z: Math.PI / 2 },
+                5: { x: Math.PI, y: 0, z: 0 },
+                6: { x: Math.PI / 2, y: 0, z: 0 }
+            };
+            return rotations[value] || { x: 0, y: 0, z: 0 };
+        }
+
+        // Store pre-determined dice values for truly random results
+        let predeterminedDiceValues = [1, 1];
+        function animateDiceRoll(targetValues) {
             const LIFT_DURATION = 200;
             const STEP_DURATION = 50;
             const NUM_STEPS = 40;
             const ROTATION_DURATION = NUM_STEPS * STEP_DURATION;
             const DROP_DURATION = 200;
             const FLOAT_HEIGHT = 1.0;
+
+            // Store target values for later use
+            predeterminedDiceValues = targetValues;
+
             dice.forEach((die, index) => {
                 const startY = die.position.y;
                 const homeX = (index === 0) ? -0.6 : 0.6;
@@ -1019,11 +1046,20 @@
                     previousTween = stepTween;
                     currentRotation = { ...targetRotation };
                 });
+
+                // After all rotations, snap to the target value rotation
+                const finalRotation = getDiceRotationForValue(targetValues[index]);
+                const snapTween = new TWEEN.Tween(die.rotation, tweenGroup)
+                    .to(finalRotation, 100) // Quick snap
+                    .easing(TWEEN.Easing.Quadratic.Out);
+
                 const dropTween = new TWEEN.Tween(die.position, tweenGroup)
                     .to({ y: startY }, DROP_DURATION)
                     .easing(TWEEN.Easing.Bounce.Out);
+
                 if (previousTween) {
-                    previousTween.chain(dropTween);
+                    previousTween.chain(snapTween);
+                    snapTween.chain(dropTween);
                 }
                 if (firstRotationTween) {
                     liftTween.chain(firstRotationTween);
@@ -1358,10 +1394,15 @@
             // Clear any previous token highlights
             highlightTokens([]);
 
-            animateDiceRoll();
+            // Generate truly random dice values FIRST (1-6 for each die)
+            const die1Value = Math.floor(Math.random() * 6) + 1;
+            const die2Value = Math.floor(Math.random() * 6) + 1;
+
+            // Pass pre-determined values to the animation
+            animateDiceRoll([die1Value, die2Value]);
+
             setTimeout(() => {
-                const die1Value = getDiceTopFace(dice[0]);
-                const die2Value = getDiceTopFace(dice[1]);
+                // Use the pre-determined values (not reading from dice orientation)
                 console.log('Die 1:', die1Value, '| Die 2:', die2Value);
                 showMessage(`ROLLED ${die1Value} and ${die2Value}`);
 
