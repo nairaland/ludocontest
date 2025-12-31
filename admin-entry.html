@@ -585,6 +585,128 @@
             TILE_DARK: 0xfafafa,
             TILE_SIDE: 0x000000
         };
+
+        // ============================================
+        // SOUND SYSTEM (Web Audio API - No external files)
+        // ============================================
+        let audioContext = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        }
+
+        function playTone(frequency, duration, type = 'sine', volume = 0.3) {
+            if (!soundEnabled) return;
+            const ctx = initAudio();
+            if (ctx.state === 'suspended') ctx.resume();
+
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+
+            gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + duration);
+        }
+
+        function playNoise(duration, volume = 0.2) {
+            if (!soundEnabled) return;
+            const ctx = initAudio();
+            if (ctx.state === 'suspended') ctx.resume();
+
+            const bufferSize = ctx.sampleRate * duration;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = ctx.createBufferSource();
+            const gainNode = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+
+            noise.buffer = buffer;
+            filter.type = 'lowpass';
+            filter.frequency.value = 1000;
+
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+            noise.start(ctx.currentTime);
+        }
+
+        // Sound effects
+        const SFX = {
+            diceRoll: () => {
+                // Rattling dice sound - multiple short noise bursts
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => playNoise(0.05, 0.15), i * 50);
+                }
+            },
+            diceLand: () => {
+                // Thud sound
+                playTone(80, 0.15, 'sine', 0.4);
+                playNoise(0.1, 0.2);
+            },
+            pieceHop: () => {
+                // Quick hop sound
+                playTone(440, 0.08, 'sine', 0.2);
+            },
+            pieceMove: () => {
+                // Sliding/moving sound
+                playTone(330, 0.1, 'triangle', 0.15);
+            },
+            capture: () => {
+                // Dramatic capture sound
+                playTone(200, 0.1, 'sawtooth', 0.3);
+                setTimeout(() => playTone(150, 0.2, 'sawtooth', 0.25), 100);
+                setTimeout(() => playTone(100, 0.3, 'sawtooth', 0.2), 200);
+            },
+            complete: () => {
+                // Happy completion chime
+                playTone(523, 0.15, 'sine', 0.3); // C5
+                setTimeout(() => playTone(659, 0.15, 'sine', 0.3), 100); // E5
+                setTimeout(() => playTone(784, 0.3, 'sine', 0.3), 200); // G5
+            },
+            win: () => {
+                // Victory fanfare
+                const notes = [523, 523, 523, 698, 880, 784, 698, 880];
+                const durations = [0.1, 0.1, 0.1, 0.3, 0.15, 0.15, 0.3, 0.5];
+                let time = 0;
+                notes.forEach((freq, i) => {
+                    setTimeout(() => playTone(freq, durations[i], 'sine', 0.35), time);
+                    time += durations[i] * 1000 * 0.8;
+                });
+            },
+            turnChange: () => {
+                // Subtle notification
+                playTone(660, 0.1, 'sine', 0.15);
+            },
+            invalidMove: () => {
+                // Error buzzer
+                playTone(150, 0.2, 'square', 0.2);
+            },
+            buttonClick: () => {
+                // UI click
+                playTone(800, 0.05, 'sine', 0.2);
+            }
+        };
         const PLAYER_ORDER = ['RED', 'GREEN', 'YELLOW', 'BLUE'];
         const BOARD_SIZE = 15;
         const TILE_HEIGHT = 0.22;
@@ -712,6 +834,7 @@
                 alert('Please select at least 2 players (Player or AI) to start the game.');
                 return;
             }
+            SFX.buttonClick(); // Play button sound
             currentScreen = SCREENS.PLAYING;
             const setupScreen = document.getElementById('setup-screen');
             setupScreen.classList.add('hidden');
@@ -732,7 +855,13 @@
             gameInitialized = true;
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x050505);
-            camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Detect mobile/phone and adjust camera for better board visibility
+            const isMobile = window.innerWidth < 768;
+            const isPortrait = window.innerHeight > window.innerWidth;
+            const fov = (isMobile && isPortrait) ? 55 : 38; // Wider FOV for mobile
+
+            camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(-40, 50, 0);
             camera.lookAt(0, 0, 0);
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -837,8 +966,16 @@
             token.userData.flashBaseIntensity = baseIntensity;
         }
         function animateCameraEntrance() {
+            // Adjust final camera position based on screen size
+            const isMobile = window.innerWidth < 768;
+            const isPortrait = window.innerHeight > window.innerWidth;
+
+            // Mobile portrait needs camera further back and higher
+            const targetX = (isMobile && isPortrait) ? -28 : -22;
+            const targetY = (isMobile && isPortrait) ? 32 : 25;
+
             new TWEEN.Tween(camera.position, tweenGroup)
-                .to({ x: -22, y: 25, z: 0 }, 2000)
+                .to({ x: targetX, y: targetY, z: 0 }, 2000)
                 .easing(TWEEN.Easing.Cubic.Out)
                 .start();
         }
@@ -1002,7 +1139,7 @@
         function animateDiceRoll(targetValues) {
             const LIFT_DURATION = 200;
             const STEP_DURATION = 50;
-            const NUM_STEPS = 40;
+            const NUM_STEPS = 20; // Reduced from 40 for faster roll (1000ms instead of 2000ms)
             const ROTATION_DURATION = NUM_STEPS * STEP_DURATION;
             const DROP_DURATION = 200;
             const FLOAT_HEIGHT = 1.0;
@@ -1398,8 +1535,14 @@
             const die1Value = Math.floor(Math.random() * 6) + 1;
             const die2Value = Math.floor(Math.random() * 6) + 1;
 
+            // Play dice roll sound when rotations begin (after 200ms lift)
+            setTimeout(() => SFX.diceRoll(), 200);
+
             // Pass pre-determined values to the animation
             animateDiceRoll([die1Value, die2Value]);
+
+            // Play dice land sound when animation finishes
+            setTimeout(() => SFX.diceLand(), 1400); // Adjusted for faster roll
 
             setTimeout(() => {
                 // Use the pre-determined values (not reading from dice orientation)
@@ -1421,7 +1564,7 @@
                     gameState
                 });
                 updateTurnState();
-            }, 2600);
+            }, 1600); // Adjusted for faster roll
         }
 
         function updateTurnState() {
@@ -1626,7 +1769,7 @@
             }
 
             const stepDuration = 220; // ms per square
-            const hopHeight = 0.55;
+            const hopHeight = 1.1; // Doubled from 0.55 for more pronounced hops
             const groundY = TILE_HEIGHT / 2 + 0.08;
             token.position.y = groundY;
 
@@ -1671,6 +1814,9 @@
 
                 const idx = stepIndices[stepNumber];
                 const target = route[idx];
+
+                // Play hop sound for each step
+                SFX.pieceHop();
 
                 // Horizontal move for this square
                 new TWEEN.Tween(token.position, tweenGroup)
@@ -1744,6 +1890,7 @@
                 // Simple distance check
                 if (movedToken.position.distanceTo(other.position) < 0.6) {
                     showMessage(`CAPTURED ${PLAYER_ORDER[other.userData.playerIndex]}!`);
+                    SFX.capture(); // Play capture sound
                     // Send captured piece back home
                     sendBack(other);
                     // Capturer piece also completes (disappears) - same reward as reaching the end
@@ -1760,6 +1907,7 @@
             completedPieces[colorName]++;
 
             showMessage(`${colorName} PIECE COMPLETED! (${completedPieces[colorName]}/4)`);
+            SFX.complete(); // Play completion sound
 
             // Animate the piece disappearing (shrink and fade)
             new TWEEN.Tween(token.scale, tweenGroup)
@@ -1789,6 +1937,7 @@
             gameState = 'GAMEOVER';
             currentScreen = SCREENS.GAMEOVER;
             showMessage(`🎉 ${colorName} WINS! 🎉`);
+            SFX.win(); // Play victory fanfare
 
             // Create a more visible win announcement
             const msgBox = document.getElementById('msg-box');
@@ -1824,6 +1973,7 @@
             currentTurnValues = [];
             availableDiceIndices = [];
             updateUI();
+            SFX.turnChange(); // Play turn notification sound
             dbg('nextTurn (end)', {
                 currentPlayerIndex,
                 currentPlayerColor: PLAYER_ORDER[currentPlayerIndex],
@@ -1947,9 +2097,21 @@
             }
         }
         function onWindowResize() {
+            // Update FOV for mobile portrait mode
+            const isMobile = window.innerWidth < 768;
+            const isPortrait = window.innerHeight > window.innerWidth;
+            camera.fov = (isMobile && isPortrait) ? 55 : 38;
+
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Adjust camera position for better board visibility on orientation change
+            if (isMobile && isPortrait && gameInitialized) {
+                camera.position.set(-28, 32, 0);
+            } else if (gameInitialized && camera.position.x < -25) {
+                camera.position.set(-22, 25, 0);
+            }
         }
         function animate(time) {
             requestAnimationFrame(animate);
