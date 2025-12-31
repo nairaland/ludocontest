@@ -786,9 +786,8 @@
         }
         function setDiceHighlight(index, active) {
             if (!dice[index]) return;
-            // 0.0 = no glow, 0.5 = visible glow.
+            // 0.0 = no glow, 0.6 = visible glow.
             // Using a Gold/Yellow tint (0xffaa00) works better on white dice than pure white.
-            const intensity = active ? 0.6 : 0;
             const glowColor = 0xffaa00;
 
             if (dice[index].material) {
@@ -803,9 +802,13 @@
                     }
 
                     mat.emissive.setHex(active ? glowColor : 0x000000);
-                    mat.emissiveIntensity = intensity;
+                    mat.emissiveIntensity = active ? 0.6 : 0;
                 });
             }
+
+            // Set flashing state for the die
+            dice[index].userData = dice[index].userData || {};
+            dice[index].userData.flashing = active;
         }
         function setTokenHighlight(token, active) {
             const colorName = token.userData.colorName;
@@ -825,6 +828,10 @@
                     mesh.material.emissiveIntensity = intensity;
                 }
             });
+            // Set flashing state for the token
+            token.userData.flashing = active;
+            // Store base intensity for flashing
+            token.userData.flashBaseIntensity = baseIntensity;
         }
         function animateCameraEntrance() {
             new TWEEN.Tween(camera.position, tweenGroup)
@@ -967,12 +974,12 @@
             return topFace;
         }
         function animateDiceRoll() {
-            const LIFT_DURATION = 400;
-            const STEP_DURATION = 100;
-            const NUM_STEPS = 30;
+            const LIFT_DURATION = 200;
+            const STEP_DURATION = 50;
+            const NUM_STEPS = 40;
             const ROTATION_DURATION = NUM_STEPS * STEP_DURATION;
-            const DROP_DURATION = 400;
-            const FLOAT_HEIGHT = 3.0;
+            const DROP_DURATION = 200;
+            const FLOAT_HEIGHT = 1.0;
             dice.forEach((die, index) => {
                 const startY = die.position.y;
                 const homeX = (index === 0) ? -0.6 : 0.6;
@@ -1065,6 +1072,37 @@
                 metalness: 0.5,
                 emissive: color,
                 emissiveIntensity: 0.3
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.rotation.x = -Math.PI / 2;
+            return mesh;
+        }
+        function createStarMesh(color, size = 0.4) {
+            const shape = new THREE.Shape();
+            const outerRadius = size * 0.5;
+            const innerRadius = size * 0.2;
+            const points = 5;
+
+            for (let i = 0; i < points * 2; i++) {
+                const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                const angle = (i * Math.PI) / points - Math.PI / 2; // Start from top
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                if (i === 0) {
+                    shape.moveTo(x, y);
+                } else {
+                    shape.lineTo(x, y);
+                }
+            }
+            shape.closePath();
+
+            const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.02, bevelEnabled: false });
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.3,
+                metalness: 0.5,
+                emissive: color,
+                emissiveIntensity: 0.5
             });
             const mesh = new THREE.Mesh(geometry, material);
             mesh.rotation.x = -Math.PI / 2;
@@ -1223,28 +1261,45 @@
                         scene.add(arrow);
                     }
                     if (x === -6 && z === -1) {
-                        const entryArrow = createArrowMesh(0xffffff, 0.4);
-                        entryArrow.rotation.z = -Math.PI / 2;
-                        entryArrow.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
-                        scene.add(entryArrow);
+                        const star = createStarMesh(COLORS.YELLOW, 0.5);
+                        star.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
+                        scene.add(star);
                     }
                     if (x === 1 && z === -6) {
-                        const entryArrow = createArrowMesh(0xffffff, 0.4);
-                        entryArrow.rotation.z = -Math.PI;
-                        entryArrow.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
-                        scene.add(entryArrow);
+                        const star = createStarMesh(COLORS.YELLOW, 0.5);
+                        star.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
+                        scene.add(star);
                     }
                     if (x === 6 && z === 1) {
-                        const entryArrow = createArrowMesh(0xffffff, 0.4);
-                        entryArrow.rotation.z = Math.PI / 2;
-                        entryArrow.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
-                        scene.add(entryArrow);
+                        const star = createStarMesh(COLORS.YELLOW, 0.5);
+                        star.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
+                        scene.add(star);
                     }
                     if (x === -1 && z === 6) {
-                        const entryArrow = createArrowMesh(0xffffff, 0.4);
-                        entryArrow.rotation.z = 0;
-                        entryArrow.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
-                        scene.add(entryArrow);
+                        const star = createStarMesh(COLORS.YELLOW, 0.5);
+                        star.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
+                        scene.add(star);
+                    }
+                    // Additional safe zones (8 total in Ludo)
+                    if (x === 5 && z === -1) {
+                        const star = createStarMesh(COLORS.YELLOW, 0.5);
+                        star.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
+                        scene.add(star);
+                    }
+                    if (x === -1 && z === -5) {
+                        const star = createStarMesh(COLORS.YELLOW, 0.5);
+                        star.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
+                        scene.add(star);
+                    }
+                    if (x === -5 && z === 1) {
+                        const star = createStarMesh(COLORS.YELLOW, 0.5);
+                        star.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
+                        scene.add(star);
+                    }
+                    if (x === 1 && z === 5) {
+                        const star = createStarMesh(COLORS.YELLOW, 0.5);
+                        star.position.set(x, TILE_HEIGHT / 2 + 0.015, z);
+                        scene.add(star);
                     }
                 }
             }
@@ -1322,7 +1377,7 @@
                     gameState
                 });
                 updateTurnState();
-            }, 3900);
+            }, 2600);
         }
 
         function updateTurnState() {
@@ -1592,9 +1647,38 @@
             return { x: 0, z: 0 };
         }
 
+        // Safe zone positions - pieces on these tiles cannot be captured
+        const SAFE_ZONES = [
+            { x: -6, z: -1 },  // Red entry
+            { x: 1, z: -6 },   // Green entry
+            { x: 6, z: 1 },    // Yellow entry
+            { x: -1, z: 6 },   // Blue entry
+            { x: 5, z: -1 },   // Additional safe zone
+            { x: -1, z: -5 }, // Additional safe zone
+            { x: -5, z: 1 },   // Additional safe zone
+            { x: 1, z: 5 }     // Additional safe zone
+        ];
+
+        function isOnSafeZone(token) {
+            const tokenX = Math.round(token.position.x);
+            const tokenZ = Math.round(token.position.z);
+            return SAFE_ZONES.some(sz => sz.x === tokenX && sz.z === tokenZ);
+        }
+
         function checkCollision(movedToken) {
+            // If the moved token landed on a safe zone, no capturing can happen
+            if (isOnSafeZone(movedToken)) {
+                return; // Safe zone - no captures
+            }
+
             tokens.forEach(other => {
                 if (other === movedToken || other.userData.playerIndex === movedToken.userData.playerIndex || other.userData.pathIndex === undefined || other.userData.pathIndex < 0) return;
+
+                // Check if opponent is on a safe zone - cannot be captured
+                if (isOnSafeZone(other)) {
+                    return; // Opponent is on safe zone
+                }
+
                 // Simple distance check
                 if (movedToken.position.distanceTo(other.position) < 0.6) {
                     showMessage(`CAPTURED ${PLAYER_ORDER[other.userData.playerIndex]}!`);
@@ -1762,7 +1846,38 @@
             tweenGroup.update(time);
             if (controls) controls.update();
             pulseActiveHome(time);
-            tokens.forEach(t => { t.rotation.y += (t.userData.playerIndex === currentPlayerIndex && gameState === 'WAITING_FOR_MOVE') ? 0.05 : 0.01; });
+
+            // Animate tokens: rotation and flashing for valid pieces
+            const flashOn = Math.floor(time / 500) % 2 === 0;
+
+            tokens.forEach(t => {
+                t.rotation.y += (t.userData.playerIndex === currentPlayerIndex && gameState === 'WAITING_FOR_MOVE') ? 0.05 : 0.01;
+
+                // Flashing effect for highlighted (valid) pieces
+                if (t.userData.flashing) {
+                    const baseIntensity = t.userData.flashBaseIntensity || 0.8;
+                    const intensity = flashOn ? baseIntensity : 0.1; // Flash between bright and dim
+                    t.children.forEach(mesh => {
+                        if (mesh.material) {
+                            mesh.material.emissiveIntensity = intensity;
+                        }
+                    });
+                }
+            });
+
+            // Animate dice: flashing for active die
+            dice.forEach(d => {
+                if (d.userData && d.userData.flashing) {
+                    const intensity = flashOn ? 0.6 : 0; // Flash between glow and no glow
+                    if (d.material) {
+                        const materials = Array.isArray(d.material) ? d.material : [d.material];
+                        materials.forEach(mat => {
+                            mat.emissiveIntensity = intensity;
+                        });
+                    }
+                }
+            });
+
             renderer.render(scene, camera);
         }
         function initSetupScreen() {
