@@ -1,6 +1,6 @@
 - Nice opening page.
 - Rules are provided and match the actual implementation.
-- Freedom to setup all 4 colours as AI/Human/None intuitivelly.
+- Freedom to setup all 4 colours as AI/Human/None intuitively.
 - Allow bot v bot v bot v bot games.
 - Board Layout is accurate.
 - Board looks like an actual Ludo board.
@@ -15,7 +15,7 @@
 - Good animation/glow highlighting legal moves.
 - Music that can be turned off or that stops when the window loses focus.
 - The AI moves pieces for players you when there is only one legal move.
-- Implementing safe zones correctly. A common ommision.
+- Implementing safe zones correctly. A common omission.
 - Bonus for putting useful labels on the board e.g. "naija ludo, AI, Nairaland"
 - Indicate whose turn it is in an intuitive way.
 - Highlight the pieces that can be moved.
@@ -29,7 +29,7 @@
     The game features a professional start screen modal with a "CHAMPIONSHIP EDITION" title, a list of features, and a pulsating "PLAY GAME" button, creating a strong first impression.
 - Rules are provided and match the actual implementation. 0
     While the opening screen lists features, there are no explicit "How to Play" instructions or detailed rules provided within the game interface to guide new players.
-- Freedom to setup all 4 colours as AI/Human/None intuitivelly. 0
+- Freedom to setup all 4 colours as AI/Human/None intuitively. 0
     Configuration is limited to preset game modes (e.g., "1 Player vs 3 CPU", "2 Players"), lacking granular control to individually set each color to Human, CPU, or None.
 - Allow bot v bot v bot v bot games. 0
     There is no option in the game selection menu (settings modal) to configure a fully automated game with 4 CPU players.
@@ -59,7 +59,7 @@
     No background music is implemented in the game, only sound effects.
 - The AI moves pieces for players you when there is only one legal move. 0
     The game does not auto-play forced moves for human players; it waits for user interaction even if only one piece can move.
-- Implementing safe zones correctly. A common ommision. 0
+- Implementing safe zones correctly. A common omission. 0
     The move resolution logic captures any opponent on the same tile without checking for "safe" star tiles, omitting this core rule.
 - Bonus for putting useful labels on the board e.g. "naija ludo, AI, Nairaland" 0
     The board is texture-generated with geometric shapes but does not include any specific text labels or branding on the board surface.
