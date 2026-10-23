@@ -11,8 +11,8 @@ Entry 10 narrowly passed this stage.
 Entry 11 was narrowly rejected for visual glitches in the board display.
 Entry 12 narrowly rejected due to the weird path and incomplete look.
 Entry 13 rejected because the board is not 3d as specified.
-Entry 14 rejected because the pieces were passing throuh the center.
-Entry 15 narrowly rejected for incomolete board and visual glitches.
+Entry 14 rejected because the pieces were passing through the center.
+Entry 15 narrowly rejected for incomplete board and visual glitches.
 Entry 16 "space ludo" rejected cos of a wrong path and visual glitches.
 Entry 17 narrowly rejected because the dice have no faces.
 Entry 18 passed this stage because it was too cute.
@@ -39,7 +39,7 @@ Entry 39 passed this stage.
 Entry 40 rejected because the board doesn't look like a Ludo board.
 Entry 41 rejected because the board doesn't look like a Ludo board.
 Entry 42 rejected because the board doesn't look like a Ludo board.
-Entry 43 rejected because of the grid was 13 by 13 not 15 by 15.
+Entry 43 rejected because the grid was 13 by 13 not 15 by 15.
 Entry 44 rejected because the board and path aren't correct
 Entry 45 passed this stage.
 Entry 46 passed this stage.
